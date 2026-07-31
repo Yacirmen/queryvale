@@ -1,0 +1,27 @@
+QUERYVALE — MAC'TE AÇMA
+
+1. Queryvale-Mac.zip dosyasına çift tıklayıp klasörü çıkar.
+2. Klasördeki Queryvale uygulamasına çift tıkla.
+3. macOS ilk seferde uygulamayı engellerse:
+   - Queryvale uygulamasına sağ tıkla.
+   - “Aç” seçeneğine bas.
+   - Gelen pencerede tekrar “Aç” de.
+4. Queryvale varsayılan tarayıcıda açılır.
+
+Kurulum, Node.js veya internet bağlantısı gerekmez.
+Paket hem Apple Silicon (M serisi) hem Intel işlemcili Mac'lerle uyumludur.
+macOS 11 Big Sur veya daha yeni bir macOS sürümü gerekir.
+Uygulama yalnızca bu Mac'te 127.0.0.1 adresinde çalışır; dışarıya açılmaz.
+İlerleme ve kullanıcı adı bu tarayıcıda saklanır. Diğer Mac'teki ilerleme otomatik
+gelmez. Taşımak istersen Queryvale > Ayarlar > Dışa aktar / İçe aktar yolunu kullan.
+
+Sorun olursa:
+- Zip içinden çalıştırma; önce klasörü tamamen çıkar.
+- Queryvale uygulamasına sağ tıklayıp “Aç” de.
+- Sağ tıkla açma da çalışmazsa klasörü Masaüstü'ne taşı, Terminal'i aç ve
+  aşağıdaki iki komutu sırayla çalıştır:
+
+  xattr -dr com.apple.quarantine "$HOME/Desktop/Queryvale-Mac/Queryvale.app"
+  open "$HOME/Desktop/Queryvale-Mac/Queryvale.app"
+
+- Tarayıcıda http://127.0.0.1:41739/ adresini açmayı dene.

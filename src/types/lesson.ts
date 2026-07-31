@@ -3,10 +3,20 @@ export type SqlScalar = string | number | boolean | null;
 export type Difficulty = "beginner" | "intermediate" | "advanced";
 
 export type ValidationMode =
-  | "result"
-  | "result-and-concepts"
-  | "schema"
-  | "mutation";
+  "result" | "result-and-concepts" | "schema" | "mutation";
+
+/**
+ * Ordered evaluation states returned by the lesson validator. Keeping this
+ * union in the domain contract lets task content provide contextual coaching
+ * without importing the validation implementation.
+ */
+export type EvaluationStatus =
+  | "execution-error"
+  | "columns-wrong"
+  | "rows-wrong"
+  | "order-wrong"
+  | "required-concept-missing"
+  | "correct";
 
 export type SQLConcept =
   | "SELECT"
@@ -125,7 +135,44 @@ export interface ValidationOptions {
   aliasesMustMatch: boolean;
 }
 
-export interface LessonTask {
+export interface TaskLearningBrief {
+  /** The one transferable SQL idea the learner should practise. */
+  conceptAnchor: string;
+  /** What one row in the expected result represents. */
+  outputGrain: string;
+  /** Observable checks the learner can make without seeing the answer. */
+  acceptanceChecks: string[];
+  /** Dataset caveats that affect interpretation, such as NULL or duplicates. */
+  dataNotes: string[];
+}
+
+export interface TaskCoachingEntry {
+  title: string;
+  checks: string[];
+}
+
+export type CoachingStatus = Exclude<EvaluationStatus, "correct">;
+
+export type TaskCoaching = Record<CoachingStatus, TaskCoachingEntry>;
+
+export interface TaskDebrief {
+  steps: string[];
+  whyItWorks: string;
+  edgeCases: string[];
+  workplaceImpact: string;
+  transfer: {
+    prompt: string;
+    reveal: string;
+  };
+}
+
+export interface LessonLearningContent {
+  learningBrief: TaskLearningBrief;
+  coaching: TaskCoaching;
+  debrief: TaskDebrief;
+}
+
+export interface LessonTask extends LessonLearningContent {
   id: string;
   slug: string;
   moduleId: string;
@@ -148,6 +195,8 @@ export interface LessonTask {
   forbiddenOperations: ForbiddenOperation[];
   validationOptions: ValidationOptions;
   hints: [string, string, string];
+  /** A learner-visible, executable example revealed only on explicit request. */
+  solutionSql: string;
   explanation: string;
   completionMessage: string;
   nextTaskId: string | null;
@@ -184,4 +233,5 @@ export const DEFAULT_VALIDATION_OPTIONS: Readonly<ValidationOptions> = {
  */
 export const defineTask = <T extends LessonTask>(task: T): T => task;
 
-export const defineModule = <T extends CurriculumModule>(module: T): T => module;
+export const defineModule = <T extends CurriculumModule>(module: T): T =>
+  module;

@@ -18,24 +18,42 @@ export const metadata: Metadata = {
     template: "%s · Queryvale",
   },
   description:
-    "Gerçek iş senaryolarında, tarayıcı içinde çalışan PostgreSQL laboratuvarı.",
+    "İş sorusunu SQL'e, doğrulanmış çıktıyı karar kanıtına dönüştüren tarayıcı tabanlı veri analisti laboratuvarı.",
   applicationName: "Queryvale",
-  keywords: ["SQL", "veri analizi", "PostgreSQL", "interaktif eğitim"],
+  keywords: [
+    "SQL",
+    "veri analizi",
+    "PostgreSQL",
+    "veri analisti",
+    "interaktif eğitim",
+  ],
   openGraph: {
     title: "Queryvale — Veriyi karara dönüştür",
     description:
-      "Gerçek iş senaryolarında, tarayıcı içinde çalışan PostgreSQL laboratuvarı.",
+      "Soruyu sorguya, doğrulanmış sorguyu anlatılabilir bir karar kanıtına dönüştür.",
     type: "website",
     locale: "tr_TR",
+    images: [
+      {
+        url: "/og.png",
+        width: 1200,
+        height: 631,
+        alt: "Queryvale — Soruyu sorguya, sorguyu kanıta dönüştür",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Queryvale — Veriyi karara dönüştür",
     description: "Soruları sorguya, sorguları kanıta dönüştür.",
+    images: ["/og.png"],
   },
 };
 
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: dark)", color: "#0d1110" },
     { media: "(prefers-color-scheme: light)", color: "#f4f1e9" },

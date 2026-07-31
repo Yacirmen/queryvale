@@ -15,9 +15,7 @@ function lessonEvaluationOptions(task: LessonTask): EvaluationOptions {
         ? "exact"
         : "case-insensitive"
       : "ignore",
-    textCasePolicy: validation.textCaseSensitive
-      ? "exact"
-      : "case-insensitive",
+    textCasePolicy: validation.textCaseSensitive ? "exact" : "case-insensitive",
     trimText: validation.trimText,
     numericAbsoluteTolerance: validation.numericTolerance,
   };
@@ -43,10 +41,10 @@ export function evaluateLessonQuery(
     expectedRows: task.expectedResult,
     orderSensitive: task.orderSensitive,
     requiredConcepts:
-      task.validationMode === "result-and-concepts"
+      task.validationMode === "result-and-concepts" ||
+      task.validationMode === "mutation"
         ? task.requiredConcepts.map(String)
         : [],
     options: lessonEvaluationOptions(task),
   });
 }
-

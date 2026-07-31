@@ -10,7 +10,8 @@ Vinext/React UI
   ├─ Workspace state ── plain React reducer/context
   ├─ SQL runtime ────── lazy PGlite + disposable task database
   ├─ Evaluator ──────── normalization + result/concept checks
-  └─ Local data ─────── IndexedDB repositories + migrations
+  ├─ Evidence ───────── bounded JSON-safe verified-run snapshots
+  └─ Local data ─────── ProgressState v3 + IndexedDB migrations
 ```
 
 ## Katmanlar ve bağımlılık yönü
@@ -27,6 +28,7 @@ Framework bağımsız tip ve saf fonksiyonlar:
 - satır çokluğu koruyan karşılaştırma,
 - sıralama ve tolerans politikası,
 - temel SQL kavramı sinyalleri,
+- doğrulanmış çalışma snapshot’ı normalizasyonu ve boyut sınırları,
 - ilerleme istatistikleri,
 - import/export şema doğrulaması.
 
@@ -36,7 +38,8 @@ Domain katmanı React, Monaco, IndexedDB veya PGlite bilmez.
 
 - `sql-engine`: PGlite yükleme, görev ortamı hazırlama, çalıştırma, iptal ve reset
 - `validation`: yürütme çıktısını görev politikasına göre değerlendirme
-- `progress`: IndexedDB repository, sürümleme, import/export
+- `evidence`: doğru yürütmeyi sınırlı, JSON-güvenli bir görüntüleme kaydına dönüştürme
+- `progress`: IndexedDB repository, v3 sürümleme, kanıt/not kalıcılığı ve import/export
 - `settings`: tema ve editör tercihleri
 
 Servis sonuçları ayrıştırılmış hata türleri döndürür; UI ham bağımlılık hatalarına bağlanmaz.
@@ -49,13 +52,13 @@ Sayfa kabukları ve feature bileşenleri servisleri hook’lar üzerinden kullan
 
 Varsayılan motor **PGlite**’tır.
 
-| Ölçüt | PGlite | sql.js |
-|---|---|---|
-| SQL lehçesi | PostgreSQL | SQLite |
-| Müfredat uyumu | CTE, window, PostgreSQL davranışına daha yakın | Temel SQL için iyi, ileri PostgreSQL örneklerinde ayrışır |
-| Tarayıcı | WASM, daha ağır başlangıç | WASM, genellikle daha küçük ve basit |
-| Kalıcılık | Bellek/IndexedDB VFS seçenekleri | DB dosyasını ayrıca dışa yazma gerekir |
-| Operasyonel risk | WASM asset ve bellek yönetimi gerekir | Daha düşük ilk entegrasyon riski |
+| Ölçüt            | PGlite                                         | sql.js                                                    |
+| ---------------- | ---------------------------------------------- | --------------------------------------------------------- |
+| SQL lehçesi      | PostgreSQL                                     | SQLite                                                    |
+| Müfredat uyumu   | CTE, window, PostgreSQL davranışına daha yakın | Temel SQL için iyi, ileri PostgreSQL örneklerinde ayrışır |
+| Tarayıcı         | WASM, daha ağır başlangıç                      | WASM, genellikle daha küçük ve basit                      |
+| Kalıcılık        | Bellek/IndexedDB VFS seçenekleri               | DB dosyasını ayrıca dışa yazma gerekir                    |
+| Operasyonel risk | WASM asset ve bellek yönetimi gerekir          | Daha düşük ilk entegrasyon riski                          |
 
 İş analistliği ve analitik SQL müfredatının PostgreSQL davranışına yakınlığı, ilk yük maliyetinden daha değerlidir. Bu nedenle motor ayrı bir istemci chunk’ında lazy-load edilir ve her görev atılabilir bir veritabanında tutulur. İlk sürüm ana tarayıcı bağlamında çalışır; Web Worker izolasyonu sonraki performans kapısıdır. PGlite’ın desteklenmediği bir tarayıcıda sahte sonuç üretilmez; anlaşılır destek hatası gösterilir. `sql.js` yalnızca ölçülmüş uyumluluk/kararlılık engeli oluşursa, görev fixture’ları yeniden doğrulanarak devreye alınabilecek yedek karardır.
 
@@ -69,7 +72,10 @@ Varsayılan motor **PGlite**’tır.
 6. Çıktı satır limiti ve güvenli serileştirme üzerinden ana thread’e döner.
 7. Evaluator kolon → satır → sıra → kavram sırasıyla değerlendirme yapar.
 8. UI sonuç ve açıklanabilir geri bildirimi gösterir.
-9. Deneme/başarı/sorgu snapshot’ı IndexedDB’ye kaydedilir.
+9. Deneme, başarı ve son sorgu görev ilerlemesine kaydedilir.
+10. Yalnız değerlendirme `correct` ise sınırlı bir `VerifiedRunSnapshot` oluşturulur ve tamamlanan görevin kanıt kaydına eklenir.
+11. Kullanıcı isterse bu kayda bulgu, öneri ve isteğe bağlı çekince içeren bir karar notu ekler; not evaluator tarafından puanlanmaz.
+12. `ProgressState` v3 tek transaction ile IndexedDB’ye yazılır. Sonuç paneli açık kalır; sonraki göreve geçiş ayrı kullanıcı eylemidir.
 
 Görev değişimi, reset ve timeout eski oturumun çıktısını geçersiz kılan bir generation/run kimliği kullanır; geç gelen sonuç yeni göreve yazılamaz.
 
@@ -104,13 +110,37 @@ Değerlendirici örnek SQL ile string equality yapmaz. Kavram denetimi yalnızca
 
 ## Kalıcılık
 
-IndexedDB şeması mantıksal olarak aşağıdaki store’ları içerir:
+Fiziksel şema `queryvale` veritabanındaki `workspace` object store’unda, `progress` anahtarı altında tek bir doğrulanmış çalışma alanı kaydı tutar. Veritabanı şema sürümü ile uygulama veri modeli ayrı kavramlardır; güncel uygulama modeli `ProgressState` **v3**’tür:
 
-- `taskProgress`: deneme, tarihler, süre, sorgu, ipucu ve tamamlanma
-- `settings`: tema, font, satır yüksekliği, autocomplete, reduced motion
-- `meta`: şema sürümü, son görev, import/migration bilgisi
+- `profile`: kararlı yerel profil kimliği ve düzenlenebilir sunum adı
+- `startedAt`, `lastOpenedTaskId`, `activityDates`: çalışma alanı metası
+- `tasks`: deneme, tarihler, süre, son sorgu, ipucu ve tamamlanma
+- `settings`: tema, font, satır yüksekliği, autocomplete ve reduced motion
+- `evidenceByTaskId`: doğrulanmış çalışma snapshot’ı ile isteğe bağlı karar notu
 
-Yazmalar idempotent ve transaction sınırında yapılır. Uygulama açılışında IndexedDB kullanılamazsa kullanıcı bilgilendirilir ve oturum içi state ile devam edebilir; kalıcılık garanti edilmiş gibi gösterilmez.
+### Sınırlı kanıt modeli
+
+Kanıt snapshot’ı ikinci bir veritabanı dökümü değil, doğru değerlendirilen çalışmayı yeniden göstermeye yetecek JSON-güvenli bir kayıttır. Uygulanan sınırlar şunlardır:
+
+- en fazla 500 görev kanıtı,
+- görev kimliğinde 200, sorguda 200.000 karakter,
+- en fazla 32 kolon; kolon adında 256 karakter,
+- en fazla 10 önizleme satırı; her hücrede 10.000 karakter,
+- 1.000.000 ile sınırlı toplam satır sayısı ve ayrı `truncated` işareti,
+- karar notunun bulgu, öneri ve çekince alanlarının her birinde en fazla 2.000 karakter.
+
+Hücreler saklanmadan önce string gösterimine çevrilir; snapshot doğrulaması görev kimliği, zaman damgası, kolon/satır biçimi ve tüm sınırları denetler. Kanıt yalnız tamamlanmış bir görev için kaydedilebilir. Varsayılan kayıt davranışı ilk doğrulanmış snapshot’ı korur; snapshot ancak çağrıda `replace` açıkça istendiğinde yenilenir ve mevcut karar notu korunur.
+
+### Migrasyon ve içe aktarma
+
+- Geçerli v1 kayıtları görev/ayar verisini koruyarak v3’e taşınır, yeni bir yerel profil kazanır ve boş Kanıt Defteri ile başlar.
+- Geçerli v2 kayıtları profili dahil mevcut veriyi koruyarak v3’e taşınır ve boş Kanıt Defteri ile başlar.
+- Eski tamamlanma kayıtlarından kanıt uydurulmaz; kanıt ancak yeni bir doğru değerlendirmeden doğar.
+- Geçerli v3 kaydı da iç içe dizileri kopyalanarak ve tüm kanıt/not sözleşmesi doğrulanarak yüklenir.
+- İçe aktarma dosyası en fazla 2 MB olabilir; tüm model doğrulanır ve mevcut çalışma alanı değiştirilmeden önce kullanıcıdan açık onay alınır.
+- Uyumsuz bir mevcut kayıt otomatik yazmayla ezilmez. Uygulama durumu bildirir ve kullanıcı açıkça değiştirmedikçe kaydı korur.
+
+Yazmalar tek object-store transaction’ında yapılır. IndexedDB kullanılamazsa kullanıcı bilgilendirilir ve oturum içi state ile devam edebilir; kalıcılık garanti edilmiş gibi gösterilmez. Adlandırılabilir profil tek bir tarayıcı kaydının sunum kimliğidir; hesap, yetkilendirme veya cihazlar arası eşitleme sınırı değildir.
 
 ## Performans
 

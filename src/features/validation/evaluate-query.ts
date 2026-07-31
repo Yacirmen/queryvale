@@ -1,23 +1,14 @@
-import type {
-  QueryExecutionResult,
-  SqlScalar,
-} from "../sql-engine/types";
+import type { QueryExecutionResult, SqlScalar } from "../sql-engine/types";
+import type { EvaluationStatus } from "../../types/lesson";
 import { checkRequiredConcepts } from "./sql-concepts";
 
-export type EvaluationStatus =
-  | "execution-error"
-  | "columns-wrong"
-  | "rows-wrong"
-  | "order-wrong"
-  | "required-concept-missing"
-  | "correct";
+export type { EvaluationStatus } from "../../types/lesson";
 
 export type AliasPolicy = "exact" | "case-insensitive" | "ignore";
 export type TextCasePolicy = "exact" | "case-insensitive";
 
 export type ExpectedRow =
-  | Readonly<Record<string, unknown>>
-  | readonly unknown[];
+  Readonly<Record<string, unknown>> | readonly unknown[];
 
 export interface EvaluationOptions {
   aliasPolicy?: AliasPolicy;
@@ -170,7 +161,11 @@ function parseDate(value: unknown): number | null {
   }
 
   const trimmed = value.trim();
-  if (!/^\d{4}-\d{2}-\d{2}(?:[T\s]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/.test(trimmed)) {
+  if (
+    !/^\d{4}-\d{2}-\d{2}(?:[T\s]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/.test(
+      trimmed,
+    )
+  ) {
     return null;
   }
 
@@ -178,9 +173,7 @@ function parseDate(value: unknown): number | null {
   const withTimeSeparator = trimmed.includes("T")
     ? trimmed
     : trimmed.replace(" ", "T");
-  const includesTimeZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(
-    withTimeSeparator,
-  );
+  const includesTimeZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(withTimeSeparator);
   const normalized = dateOnly
     ? `${trimmed}T00:00:00.000Z`
     : includesTimeZone
@@ -247,7 +240,9 @@ function valuesEqualResolved(
   }
 
   if (typeof expected === "string" && typeof actual === "string") {
-    return normalizedText(expected, options) === normalizedText(actual, options);
+    return (
+      normalizedText(expected, options) === normalizedText(actual, options)
+    );
   }
 
   if (expected instanceof Uint8Array && actual instanceof Uint8Array) {
@@ -296,9 +291,7 @@ function orderedRowsEqual(
 ): boolean {
   return (
     expected.length === actual.length &&
-    expected.every((row, index) =>
-      rowsEqual(row, actual[index] ?? [], options),
-    )
+    expected.every((row, index) => rowsEqual(row, actual[index] ?? [], options))
   );
 }
 
@@ -319,8 +312,7 @@ function unorderedRowsEqual(
   return expected.every((expectedRow) => {
     const matchIndex = actual.findIndex(
       (actualRow, index) =>
-        !consumed.has(index) &&
-        rowsEqual(expectedRow, actualRow, options),
+        !consumed.has(index) && rowsEqual(expectedRow, actualRow, options),
     );
     if (matchIndex < 0) {
       return false;
@@ -353,11 +345,7 @@ export function evaluateQuery(input: QueryEvaluationInput): QueryEvaluation {
 
   const options = resolveOptions(input.options);
   const { columns: actualColumns, rows: actualRows } = input.actualResult;
-  const mapping = columnMapping(
-    input.expectedColumns,
-    actualColumns,
-    options,
-  );
+  const mapping = columnMapping(input.expectedColumns, actualColumns, options);
 
   if (!mapping) {
     return {
@@ -413,10 +401,7 @@ export function evaluateQuery(input: QueryEvaluationInput): QueryEvaluation {
     };
   }
 
-  const conceptCheck = checkRequiredConcepts(
-    input.sql,
-    input.requiredConcepts,
-  );
+  const conceptCheck = checkRequiredConcepts(input.sql, input.requiredConcepts);
   if (!conceptCheck.satisfied) {
     return {
       level: 5,

@@ -2,7 +2,6 @@
 
 import {
   ArrowRight,
-  Check,
   Code2,
   Database,
   Lightbulb,
@@ -11,34 +10,111 @@ import {
   Save,
   X,
 } from "lucide-react";
-import { useEffect } from "react";
-import type { LessonTask } from "../../types/lesson";
+import { useEffect, useRef } from "react";
 
 interface BaseDialogProps {
   onClose: () => void;
 }
 
-function useEscape(onClose: () => void) {
+const FOCUSABLE_DIALOG_ELEMENT = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled]):not([type='hidden'])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "[contenteditable='true']",
+  "[tabindex]:not([tabindex='-1'])",
+].join(",");
+
+function getDialogFocusables(dialog: HTMLElement): HTMLElement[] {
+  return Array.from(
+    dialog.querySelectorAll<HTMLElement>(FOCUSABLE_DIALOG_ELEMENT),
+  ).filter(
+    (element) =>
+      !element.hidden &&
+      element.getAttribute("aria-hidden") !== "true" &&
+      !element.closest("[hidden]"),
+  );
+}
+
+function useDialogFocus(onClose: () => void) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+
   useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : undefined;
+    const initialTarget = getDialogFocusables(dialog)[0] ?? dialog;
+    initialTarget.focus();
+
     const listener = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      const openDialogs = document.querySelectorAll<HTMLElement>(
+        '[role="dialog"][aria-modal="true"]',
+      );
+      if (openDialogs[openDialogs.length - 1] !== dialog) return;
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const focusables = getDialogFocusables(dialog);
+      if (focusables.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const activeElement = document.activeElement;
+      if (
+        event.shiftKey &&
+        (activeElement === first || !dialog.contains(activeElement))
+      ) {
+        event.preventDefault();
+        last.focus();
+      } else if (
+        !event.shiftKey &&
+        (activeElement === last || !dialog.contains(activeElement))
+      ) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", listener);
-    return () => document.removeEventListener("keydown", listener);
-  }, [onClose]);
+    return () => {
+      document.removeEventListener("keydown", listener);
+      if (previouslyFocused?.isConnected) previouslyFocused.focus();
+    };
+  }, []);
+
+  return dialogRef;
 }
 
 export function OnboardingDialog({
   onClose,
   onStart,
 }: BaseDialogProps & { onStart: () => void }) {
-  useEscape(onClose);
+  const dialogRef = useDialogFocus(onClose);
   return (
     <div
+      ref={dialogRef}
       className="modal-backdrop"
       role="dialog"
       aria-modal="true"
       aria-labelledby="onboarding-title"
+      tabIndex={-1}
     >
       <div className="modal-card">
         <div className="modal-head">
@@ -76,7 +152,9 @@ export function OnboardingDialog({
               </span>
               <span>
                 <strong>Kendi sorgunu kur</strong>
-                <span>Farklı ama aynı sonucu veren doğru yollar kabul edilir.</span>
+                <span>
+                  Farklı ama aynı sonucu veren doğru yollar kabul edilir.
+                </span>
               </span>
             </div>
             <div className="onboarding-point">
@@ -103,67 +181,6 @@ export function OnboardingDialog({
   );
 }
 
-export function CompletionDialog({
-  task,
-  attempts,
-  onClose,
-  onNext,
-}: BaseDialogProps & {
-  task: LessonTask;
-  attempts: number;
-  onNext: () => void;
-}) {
-  useEscape(onClose);
-  return (
-    <div
-      className="modal-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="completion-title"
-    >
-      <div className="modal-card">
-        <div className="modal-head">
-          <div />
-          <button
-            className="icon-button"
-            type="button"
-            onClick={onClose}
-            aria-label="Kapat"
-          >
-            <X size={16} />
-          </button>
-        </div>
-        <div className="modal-body">
-          <div className="completion-mark" aria-hidden="true">
-            <Check size={31} strokeWidth={2.4} />
-          </div>
-          <span className="modal-kicker">
-            {attempts === 1 ? "İlk denemede çözüldü" : `${attempts} denemede çözüldü`}
-          </span>
-          <h2 id="completion-title">{task.completionMessage}</h2>
-          <p>{task.explanation}</p>
-          <div className="completion-summary">
-            <strong>Bu vakadan kalan</strong>
-            <p>
-              {task.concepts.map((concept) => concept.replaceAll("_", " ")).join(
-                " · ",
-              )}
-            </p>
-          </div>
-          <div className="modal-actions">
-            <button className="ghost-button" type="button" onClick={onClose}>
-              Sonucu incele
-            </button>
-            <button className="primary-button" type="button" onClick={onNext}>
-              Sonraki görev <ArrowRight size={15} />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function CommandDialog({
   onClose,
   onRun,
@@ -176,19 +193,31 @@ export function CommandDialog({
   onReset: () => void;
   onSchema: () => void;
 }) {
-  useEscape(onClose);
+  const dialogRef = useDialogFocus(onClose);
   const commands = [
-    { label: "Sorguyu çalıştır", key: "⌘ ↵", icon: Play, action: onRun },
-    { label: "İlerlemeyi kaydet", key: "⌘ S", icon: Save, action: onSave },
+    {
+      label: "Sorguyu çalıştır",
+      key: "⌘/Ctrl ↵",
+      icon: Play,
+      action: onRun,
+    },
+    {
+      label: "İlerlemeyi kaydet",
+      key: "⌘/Ctrl S",
+      icon: Save,
+      action: onSave,
+    },
     { label: "Görevi sıfırla", key: "—", icon: RotateCcw, action: onReset },
     { label: "Şema panelini aç", key: "—", icon: Database, action: onSchema },
   ];
   return (
     <div
+      ref={dialogRef}
       className="modal-backdrop"
       role="dialog"
       aria-modal="true"
       aria-labelledby="command-title"
+      tabIndex={-1}
     >
       <div className="modal-card">
         <div className="modal-head">

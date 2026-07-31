@@ -14,9 +14,9 @@
 2. Doğruluk örnek SQL metniyle birebir eşleşmeye bağlanmaz.
 3. Görevler birbirinden izole DB durumuna sahiptir.
 4. Sonuç satırı, süre ve izin verilmeyen operasyonlar sınırlandırılır.
-5. Her görev gerçekçi bağlam, açık hedef, beklenen kolon, tutarlı veri, üç ipucu ve açıklama taşır.
+5. Her görev gerçekçi bağlam, açık hedef, çıktı tanesi, kabul kontrolleri, tutarlı veri, duruma özel koçluk, üç kademeli ipucu, açık talepte gösterilen çalışan örnek çözüm ve transfer odaklı debrief taşır.
 6. İçerik uygulama component’lerine gömülmez; tip güvenli tanımlarda tutulur.
-7. Referans sonuç ve alternatif doğru sorgular test edilir.
+7. Kullanıcıya gösterilen örnek çözüm, referans sonuç ve alternatif doğru sorgular gerçek SQL motorunda test edilir.
 
 ## Mimari
 
@@ -52,4 +52,3 @@
 2. İlgisiz kullanıcı değişiklikleri düzenlenmez veya silinmez.
 3. Secret, kişisel veri, build çıktısı ve yerel DB dosyası commit edilmez.
 4. Commit/PR açıklaması “ne” kadar “neden”i de söyler.
-

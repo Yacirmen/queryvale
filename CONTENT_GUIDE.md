@@ -8,32 +8,39 @@ Queryvale görevi bir syntax sorusu değil, küçük bir veri operasyonudur. Kul
 
 Her görev aşağıdaki alanları destekler:
 
-| Alan | Beklenti |
-|---|---|
-| `id` | Kalıcı, benzersiz ID; yayın sonrası yeniden kullanılmaz |
-| `slug` | URL uyumlu, benzersiz ve anlamlı |
-| `moduleId` | Var olan modül ID’si |
-| `title` | Eylem ve iş sonucu; syntax adı tek başına değil |
-| `subtitle` | Bir cümlelik bağlam |
-| `scenario` | Rol, paydaş ve karar bağlamı |
-| `objective` | Test edilebilir kullanıcı teslimi |
-| `difficulty` | `beginner`, `intermediate` veya `advanced` |
-| `estimatedMinutes` | Gerçekçi pozitif tam sayı |
-| `prerequisites` | Var olan ve döngü oluşturmayan görev ID’leri |
-| `concepts` | Öğrenilen SQL ve analitik kavramları |
-| `setupSql` | Deterministik şema/veri kurulumu |
-| `schema` | UI’da gösterilen tablo/kolon/ilişki sözleşmesi |
-| `sampleRows` | Şemayla tutarlı, cevabı tamamen ele vermeyen örnek |
-| `expectedColumns` | Ad, sıra, alias/case politikası |
-| `validationMode` | Sonuç, sıra, tolerans ve kavram politikası |
-| `expectedResult` | Doğrulanmış referans sonuç veya güvenilir üretim tanımı |
-| `orderSensitive` | İş talebi sıralama gerektiriyorsa `true` |
-| `requiredConcepts` | Sonuç doğru olsa da öğrenme hedefi için gereken sinyaller |
-| `forbiddenOperations` | Görevde izin verilmeyen DDL/DML/operasyonlar |
-| `hints` | Kolaydan açığa üç kademeli ipucu |
-| `explanation` | Yaklaşımın neden çalıştığı; kopyalanabilir tam cevap değil |
-| `completionMessage` | Sonucu iş bağlamına bağlayan kısa kapanış |
-| `nextTaskId` | Var olan sonraki görev veya yol sonu |
+| Alan                             | Beklenti                                                                   |
+| -------------------------------- | -------------------------------------------------------------------------- |
+| `id`                             | Kalıcı, benzersiz ID; yayın sonrası yeniden kullanılmaz                    |
+| `slug`                           | URL uyumlu, benzersiz ve anlamlı                                           |
+| `moduleId`                       | Var olan modül ID’si                                                       |
+| `title`                          | Eylem ve iş sonucu; syntax adı tek başına değil                            |
+| `subtitle`                       | Bir cümlelik bağlam                                                        |
+| `scenario`                       | Rol, paydaş ve karar bağlamı                                               |
+| `objective`                      | Test edilebilir kullanıcı teslimi                                          |
+| `difficulty`                     | `beginner`, `intermediate` veya `advanced`                                 |
+| `estimatedMinutes`               | Gerçekçi pozitif tam sayı                                                  |
+| `prerequisites`                  | Var olan ve döngü oluşturmayan görev ID’leri                               |
+| `concepts`                       | Öğrenilen SQL ve analitik kavramları                                       |
+| `setupSql`                       | Deterministik şema/veri kurulumu                                           |
+| `schema`                         | UI’da gösterilen tablo/kolon/ilişki sözleşmesi                             |
+| `sampleRows`                     | Şemayla tutarlı, cevabı tamamen ele vermeyen örnek                         |
+| `expectedColumns`                | Ad, sıra, alias/case politikası                                            |
+| `validationMode`                 | Sonuç, sıra, tolerans ve kavram politikası                                 |
+| `expectedResult`                 | Doğrulanmış referans sonuç veya güvenilir üretim tanımı                    |
+| `orderSensitive`                 | İş talebi sıralama gerektiriyorsa `true`                                   |
+| `requiredConcepts`               | Sonuç doğru olsa da öğrenme hedefi için gereken sinyaller                  |
+| `forbiddenOperations`            | Görevde izin verilmeyen DDL/DML/operasyonlar                               |
+| `hints`                          | Kolaydan açığa üç kademeli ipucu                                           |
+| `solutionSql`                    | İpuçlarından ayrı, kullanıcı isterse açılan ve motorla doğrulanan tam SQL  |
+| `learningBrief.conceptAnchor`    | Yeni kavramın bu iş kararındaki rolünü açıklayan kısa dayanak              |
+| `learningBrief.outputGrain`      | Sonuçtaki tek satırın neyi temsil ettiğini açıkça söyleyen tanım           |
+| `learningBrief.acceptanceChecks` | Kullanıcının sonucu çalıştırmadan/sonra kontrol edebileceği en az üç ölçüt |
+| `learningBrief.dataNotes`        | `NULL`, duplicate, eşitlik ve tarih sınırı gibi göreve özgü veri notları   |
+| `coaching`                       | Değerlendirme durumuna özel başlık ve uygulanabilir kontrol adımları       |
+| `debrief`                        | Başarı sonrası adımlar, neden, edge case, iş etkisi ve transfer sorusu     |
+| `explanation`                    | Yaklaşımın neden çalıştığı; kopyalanabilir tam cevap değil                 |
+| `completionMessage`              | Sonucu iş bağlamına bağlayan kısa kapanış                                  |
+| `nextTaskId`                     | Var olan sonraki görev veya yol sonu                                       |
 
 Gerçek TypeScript tipi depodaki tek yürütülebilir kaynaktır; bu belge semantik sözleşmeyi açıklar.
 
@@ -46,8 +53,22 @@ Gerçek TypeScript tipi depodaki tek yürütülebilir kaynaktır; bu belge seman
 5. **Referans sorguyu çalıştırın.** Beklenen sonucu elle tahmin etmeyin.
 6. **Alternatif doğru sorgu deneyin.** Değerlendiricinin SQL metnine bağlı olmadığını kanıtlayın.
 7. **Yanlış örnekleri test edin.** Kolon, satır, sıra ve kavram geri bildirimlerini kontrol edin.
-8. **İpuçlarını yazın.** Her aşama bir sonraki düşünme adımını açsın.
-9. **İçerik doğrulamasını ve testleri çalıştırın.**
+8. **İpuçlarını yazın.** Mantık → parçalar → sorgu iskeleti sırasını koruyun.
+9. **Tam çözümü doğrulayın.** `solutionSql` tek doğru cevap gibi sunulmasa da eksiksiz çalışmalıdır.
+10. **İçerik doğrulamasını ve testleri çalıştırın.**
+
+## İçeriğin gösterilme sırası
+
+Zengin içerik uzun bir ders metni olarak aynı anda gösterilmez:
+
+1. **Görevden önce:** kavram odağı, çıktı tanesi, kabul kontrolleri ve veri notları.
+2. **Yanlış denemeden sonra:** yalnız oluşan değerlendirme durumuna ait koçluk adımları.
+3. **Kullanıcı istediğinde:** mantık → parçalar → sorgu iskeleti sırasındaki üç ipucu.
+4. **Üç ipucundan sonra, yalnız açık talepte:** geçerli çözümlerden biri olan tam ve çalıştırılabilir SQL.
+5. **Başarıdan sonra:** çözüm adımları, neden çalıştığı, edge case'ler ve iş etkisi.
+6. **Transfer kontrolü:** kullanıcı açtığında görünen yeni durum sorusu ve düşünme yönü.
+
+Tam çözüm ilk üç ipucunun, hata koçluğunun veya başarı debrief'inin içine saklanmaz; ayrı ve açıkça adlandırılmış son yardım adımıdır. Açılması için başarısız deneme şartı veya ceza yoktur, editörü otomatik değiştirmez ve görevi tamamlamaz. “Geçerli çözümlerden biri” dili, sonuç odaklı değerlendirmenin alternatif doğru sorguları kabul ettiğini korur.
 
 ## Senaryo standardı
 
@@ -75,10 +96,11 @@ Zayıf senaryo:
 ## İpucu merdiveni
 
 1. **Kavramsal:** Filtrelemeden önce satırın hangi koşulu sağlaması gerektiğini düşün.
-2. **Şema yönlendirmesi:** Şube için `branches.city`, stok için `products.stock_quantity` kolonlarına bak.
-3. **Yapısal:** Sonucu önce şehir ve aktiflik koşullarıyla daralt, ardından stok kolonuna göre artan sırala.
+2. **Parçalar:** Şube için `branches.city`, stok için `products.stock_quantity` kolonlarına bak.
+3. **Sorgu iskeleti:** `SELECT [kolonlar] FROM [tablo] WHERE [koşullar] ORDER BY [kolon];` gibi doldurulabilir bir yapı göster.
+4. **Çalışan örnek:** İlk üç adım yetmediyse ayrı `solutionSql` alanındaki tam sorguyu kullanıcının açık eylemiyle göster.
 
-İpucu tam kolon listesi ve nihai SQL’i aynı anda vermemelidir. Çok sayıda başarısız denemeden sonra açılan “çözüm yaklaşımı”, adımları anlatabilir; varsayılan tam SQL cevabı değildir.
+İlk üç ipucu tam kolon listesi ile nihai SQL’i aynı anda vermemelidir. Dördüncü adım ise yarım bırakılmış bir sözde çözüm değildir: kopyalanabilir ve gerçek görev verisi üzerinde çalışan eksiksiz bir örnektir. Bu ayrım, öğreneni önce düşünmeye davet eder ama tamamen takıldığında çıkışsız bırakmaz.
 
 ## Değerlendirme seçimi
 
@@ -88,6 +110,18 @@ Zayıf senaryo:
 - Float hesaplarında açık epsilon tanımlanır; parasal veri mümkünse exact numeric kullanır.
 - `requiredConcepts`, alternatif doğru yolları sebepsiz reddetmemelidir. Yalnız dersin hedefi başka türlü ölçülemiyorsa kullanılır.
 - Yasak işlem listesi güvenlik illüzyonu değil, görev bütünlüğü içindir.
+
+## Göreve özel koçluk
+
+Koçluk, SQL metnini tam anlamıyla ayrıştırdığı iddiasında bulunmaz; değerlendiricinin kanıtladığı katmana göre yön verir:
+
+- `execution-error`: sözdizimi, tablo/kolon adı ve parantez gibi çalışmayı engelleyen noktaları kontrol ettirir.
+- `columns-wrong`: çıktı sözleşmesindeki ad, alias, adet ve sırayı kontrol ettirir.
+- `rows-wrong`: filtre, join cardinality, aggregation tanesi ve `NULL` davranışını kontrol ettirir.
+- `order-wrong`: iş talebindeki sıralama anahtarını, yönü ve eşitlik kuralını kontrol ettirir.
+- `required-concept-missing`: sonuç doğru olsa da görevin hedef kavramıyla yeniden kurmayı ister.
+
+Her durum en az iki kısa, uygulanabilir kontrol taşır. Genel “tekrar dene” mesajı görev koçluğu sayılmaz.
 
 ## Modül zorluk eğrisi
 
@@ -109,7 +143,11 @@ Yeni görev, bir öncekinin tüm karmaşıklığını rastgele büyütmek yerine
 - [ ] Yapısal olarak farklı doğru çözüm kabul ediliyor mu?
 - [ ] Yanlış çözüm anlamlı geri bildirim alıyor mu?
 - [ ] Üç ipucu giderek daha açık mı?
+- [ ] `solutionSql` eksiksiz mi, açık talepte mi gösteriliyor ve gerçek motorda doğru kabul ediliyor mu?
+- [ ] Çıktı tanesi ve en az üç kabul kontrolü açık mı?
+- [ ] Veri notları yanlış ama makul yaklaşımı görünür kılan edge case'leri açıklıyor mu?
+- [ ] Her değerlendirme katmanı görev bağlamına özel bir sonraki kontrolü söylüyor mu?
 - [ ] Açıklama SQL’i kopyalatmadan yaklaşımı öğretiyor mu?
+- [ ] Debrief neden, edge case, iş etkisi ve yeni duruma transfer sorusu taşıyor mu?
 - [ ] Gerçek iş bağlantısı tamamlanma mesajında görünüyor mu?
 - [ ] Ön koşul ve next görev zinciri geçerli mi?
-

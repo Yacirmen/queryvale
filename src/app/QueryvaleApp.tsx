@@ -1,18 +1,20 @@
 "use client";
 
 import { CheckCircle2, CircleAlert } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { modules, tasks } from "../content/curriculum";
 import {
   createDefaultProgress,
   exportProgress,
+  getProgressPersistenceIssue,
   importProgress,
   isProgressPersistenceAvailable,
   loadProgress,
-  resetProgress,
+  MAX_PROGRESS_IMPORT_BYTES,
   saveProgress,
   type EditorSettings,
   type ProgressState,
+  updateProfileName,
 } from "../features/progress/progressStore";
 import type { AppScreen, Navigate, NavigateOptions } from "./appTypes";
 import { AppHeader } from "./components/AppHeader";
@@ -49,11 +51,16 @@ export function QueryvaleApp() {
   );
   const [activeTaskId, setActiveTaskId] = useState(tasks[0]?.id ?? "");
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isReplacingProgress, setIsReplacingProgress] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [notice, setNotice] = useState<{
     tone: "success" | "error";
     message: string;
   }>();
+  const progressRef = useRef(progress);
+  const isLoadedRef = useRef(false);
+  const isReplacingProgressRef = useRef(false);
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   const activeTask = useMemo(
     () => tasks.find((task) => task.id === activeTaskId) ?? tasks[0],
@@ -69,15 +76,20 @@ export function QueryvaleApp() {
         tasks.find((task) => task.id === hashTask) ??
         tasks.find((task) => task.id === stored.lastOpenedTaskId) ??
         tasks[0];
+      progressRef.current = stored;
+      isLoadedRef.current = true;
       setProgress(stored);
       setActiveTaskId(candidateTask?.id ?? "");
       setScreen(screenFromHash(window.location.hash));
       setIsLoaded(true);
       if (!isProgressPersistenceAvailable()) {
+        const persistenceIssue = getProgressPersistenceIssue();
         setNotice({
           tone: "error",
           message:
-            "Kalıcı depolama kullanılamıyor; ilerleme bu oturum boyunca bellekte tutulacak.",
+            persistenceIssue === "incompatible"
+              ? "Mevcut ilerleme kaydı bu sürümle uyumlu değil; korunuyor ve yeni değişiklikler kaydedilmeyecek. Geçerli bir yedeği Ayarlar’dan içe aktarabilir veya ilerlemeyi açıkça sıfırlayabilirsin."
+              : "Kalıcı depolama kullanılamıyor; ilerleme bu oturum boyunca bellekte tutulacak.",
         });
       }
     });
@@ -108,19 +120,78 @@ export function QueryvaleApp() {
 
   useEffect(() => {
     if (!notice) return;
-    const timeout = window.setTimeout(() => setNotice(undefined), 2800);
+    const timeout = window.setTimeout(
+      () => setNotice(undefined),
+      notice.tone === "error" ? 8_000 : 2_800,
+    );
     return () => window.clearTimeout(timeout);
   }, [notice]);
 
-  const persist = useCallback((next: ProgressState) => {
-    setProgress(next);
-    void saveProgress(next).catch(() =>
-      setNotice({
-        tone: "error",
-        message: "İlerleme bu cihazda kaydedilemedi.",
-      }),
-    );
-  }, []);
+  const enqueueSave = useCallback(
+    (
+      next: ProgressState,
+      options: { replaceIncompatible?: boolean } = {},
+    ): Promise<void> => {
+      const write = saveQueueRef.current
+        .catch(() => undefined)
+        .then(() => saveProgress(next, options));
+      saveQueueRef.current = write.catch(() => undefined);
+      return write;
+    },
+    [],
+  );
+
+  const persist = useCallback(
+    (next: ProgressState) => {
+      if (!isLoadedRef.current || isReplacingProgressRef.current) return;
+      progressRef.current = next;
+      setProgress(next);
+      void enqueueSave(next).catch(() =>
+        setNotice({
+          tone: "error",
+          message: "İlerleme bu cihazda kaydedilemedi.",
+        }),
+      );
+    },
+    [enqueueSave],
+  );
+
+  const persistWorkspaceProgress = useCallback(
+    (update: (current: ProgressState) => ProgressState) => {
+      const current = progressRef.current;
+      const next = update(current);
+      if (next.profile.id !== current.profile.id) return;
+      persist({
+        ...current,
+        lastOpenedTaskId: next.lastOpenedTaskId,
+        activityDates: next.activityDates,
+        tasks: next.tasks,
+        evidenceByTaskId: next.evidenceByTaskId,
+      });
+    },
+    [persist],
+  );
+
+  const replaceProgress = useCallback(
+    async (next: ProgressState): Promise<void> => {
+      const previous = progressRef.current;
+      isReplacingProgressRef.current = true;
+      setIsReplacingProgress(true);
+      progressRef.current = next;
+      setProgress(next);
+      try {
+        await enqueueSave(next, { replaceIncompatible: true });
+      } catch (error) {
+        progressRef.current = previous;
+        setProgress(previous);
+        throw error;
+      } finally {
+        isReplacingProgressRef.current = false;
+        setIsReplacingProgress(false);
+      }
+    },
+    [enqueueSave],
+  );
 
   const navigate = useCallback<Navigate>(
     (nextScreen: AppScreen, options?: NavigateOptions) => {
@@ -131,7 +202,7 @@ export function QueryvaleApp() {
         if (nextTaskId) {
           setActiveTaskId(nextTaskId);
           const nextProgress = {
-            ...progress,
+            ...progressRef.current,
             lastOpenedTaskId: nextTaskId,
           };
           persist(nextProgress);
@@ -143,24 +214,52 @@ export function QueryvaleApp() {
       if (window.location.hash !== nextRoute) window.location.hash = nextRoute;
       window.scrollTo({ top: 0, behavior: "smooth" });
     },
-    [activeTaskId, persist, progress],
+    [activeTaskId, persist],
   );
 
   const updateSettings = useCallback(
     (settings: EditorSettings) => {
-      persist({ ...progress, settings });
+      persist({ ...progressRef.current, settings });
     },
-    [persist, progress],
+    [persist],
+  );
+
+  const handleProfileNameChange = useCallback(
+    (name: string) => {
+      try {
+        const next = updateProfileName(progressRef.current, name);
+        persist(next);
+        setNotice({
+          tone: "success",
+          message: `Profil adı ${next.profile.displayName} olarak kaydedildi.`,
+        });
+      } catch (error) {
+        setNotice({
+          tone: "error",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Profil adı kaydedilemedi.",
+        });
+      }
+    },
+    [persist],
   );
 
   const handleExport = () => {
-    const blob = new Blob([exportProgress(progress)], {
+    const currentProgress = progressRef.current;
+    const blob = new Blob([exportProgress(currentProgress)], {
       type: "application/json",
     });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `queryvale-progress-${new Date()
+    const profileSlug = currentProgress.profile.displayName
+      .normalize("NFKD")
+      .replace(/[^a-zA-Z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .toLocaleLowerCase("tr-TR");
+    link.download = `queryvale-${profileSlug || "profil"}-${new Date()
       .toISOString()
       .slice(0, 10)}.json`;
     link.click();
@@ -171,15 +270,55 @@ export function QueryvaleApp() {
     });
   };
 
-  const handleImport = async (contents: string) => {
+  const handleImport = async (file: File) => {
+    if (file.size > MAX_PROGRESS_IMPORT_BYTES) {
+      setNotice({
+        tone: "error",
+        message: "İlerleme dosyası güvenli boyut sınırını aşıyor.",
+      });
+      return;
+    }
+
+    let contents: string;
+    try {
+      contents = await file.text();
+    } catch {
+      setNotice({
+        tone: "error",
+        message: "İlerleme dosyası bu tarayıcıda okunamadı.",
+      });
+      return;
+    }
+
     try {
       const imported = importProgress(contents);
-      await saveProgress(imported);
-      setProgress(imported);
+      const currentProgress = progressRef.current;
+      const sameProfile = imported.profile.id === currentProgress.profile.id;
+      const currentCompleted = tasks.filter(
+        (task) => currentProgress.tasks[task.id]?.completed,
+      ).length;
+      const importedCompleted = tasks.filter(
+        (task) => imported.tasks[task.id]?.completed,
+      ).length;
+      const sourceSummary = sameProfile
+        ? `Bu dosya mevcut “${imported.profile.displayName}” profilinin bir yedeği.`
+        : `Bu dosya “${imported.profile.displayName}” profiline ait.`;
+      const confirmed = window.confirm(
+        `${sourceSummary} Mevcut kayıtta ${currentCompleted}, yedekte ${importedCompleted} tamamlanmış görev var; yedek ${new Intl.DateTimeFormat(
+          "tr-TR",
+          { dateStyle: "medium" },
+        ).format(
+          new Date(imported.startedAt),
+        )} tarihinde başlatılmış. “${currentProgress.profile.displayName}” profilindeki mevcut ilerlemenin tamamı bu yedekle değiştirilsin mi?`,
+      );
+      if (!confirmed) {
+        return;
+      }
+      await replaceProgress(imported);
       setActiveTaskId(
         tasks.some((task) => task.id === imported.lastOpenedTaskId)
           ? imported.lastOpenedTaskId
-          : tasks[0]?.id ?? "",
+          : (tasks[0]?.id ?? ""),
       );
       setNotice({
         tone: "success",
@@ -191,29 +330,46 @@ export function QueryvaleApp() {
         message:
           error instanceof Error
             ? error.message
-            : "İlerleme dosyası okunamadı.",
+            : "İlerleme dosyası okunamadı veya içe aktarılamadı.",
       });
     }
   };
 
   const handleReset = async () => {
     const confirmed = window.confirm(
-      "Tüm görev geçmişi, sorgular ve ayarlar kalıcı olarak sıfırlansın mı?",
+      "Tüm görev geçmişi ve sorgular kalıcı olarak sıfırlansın mı? Profil adın ve çalışma tercihlerin korunacak.",
     );
     if (!confirmed) return;
-    const reset = await resetProgress();
-    setProgress(reset);
-    setActiveTaskId(tasks[0]?.id ?? "");
-    setNotice({
-      tone: "success",
-      message: "İlerleme başlangıç durumuna döndü.",
-    });
+    const currentProgress = progressRef.current;
+    const reset = {
+      ...createDefaultProgress(),
+      profile: currentProgress.profile,
+      settings: currentProgress.settings,
+    };
+    try {
+      await replaceProgress(reset);
+      setActiveTaskId(tasks[0]?.id ?? "");
+      setNotice({
+        tone: "success",
+        message: "İlerleme başlangıç durumuna döndü.",
+      });
+    } catch {
+      setNotice({
+        tone: "error",
+        message: "İlerleme sıfırlanamadı; mevcut kaydın korunuyor.",
+      });
+    }
   };
 
   return (
-    <div className="app-shell" aria-busy={!isLoaded}>
+    <div
+      className="app-shell"
+      aria-busy={!isLoaded || isReplacingProgress}
+      inert={!isLoaded || isReplacingProgress}
+    >
       <AppHeader
         screen={screen}
+        profileName={progress.profile.displayName}
         settings={progress.settings}
         onNavigate={navigate}
         onSettingsChange={updateSettings}
@@ -235,7 +391,7 @@ export function QueryvaleApp() {
           tasks={tasks}
           progress={progress}
           settings={progress.settings}
-          onProgressChange={persist}
+          onProgressChange={persistWorkspaceProgress}
           onNavigate={navigate}
         />
       )}
@@ -244,6 +400,8 @@ export function QueryvaleApp() {
           modules={modules}
           tasks={tasks}
           progress={progress}
+          profileName={progress.profile.displayName}
+          onProfileNameChange={handleProfileNameChange}
           onNavigate={navigate}
         />
       )}

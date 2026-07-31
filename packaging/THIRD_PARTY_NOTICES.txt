@@ -1,0 +1,14 @@
+QUERYVALE — THIRD-PARTY SOFTWARE NOTICES
+
+This portable package includes the following open-source software:
+
+- @electric-sql/pglite 0.5.4 — Apache License 2.0
+- @monaco-editor/react 4.7.0 — MIT License
+- lucide-react 1.27.0 — ISC License
+- monaco-editor 0.56.0 — MIT License
+- react 19.2.6 — MIT License
+- react-dom 19.2.6 — MIT License
+
+The corresponding license texts are included in the “Lisanslar” folder.
+These projects are provided by their respective copyright holders and are
+distributed without warranties beyond those stated in their licenses.

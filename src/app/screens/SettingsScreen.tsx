@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Download,
-  Moon,
-  RotateCcw,
-  Sun,
-  Upload,
-} from "lucide-react";
+import { Download, Moon, RotateCcw, Sun, Upload } from "lucide-react";
 import { useRef } from "react";
 import type { EditorSettings } from "../../features/progress/progressStore";
 
@@ -14,7 +8,7 @@ interface SettingsScreenProps {
   settings: EditorSettings;
   onChange: (settings: EditorSettings) => void;
   onExport: () => void;
-  onImport: (contents: string) => Promise<void>;
+  onImport: (file: File) => Promise<void>;
   onReset: () => Promise<void>;
 }
 
@@ -29,8 +23,11 @@ export function SettingsScreen({
 
   const handleImport = async (file?: File) => {
     if (!file) return;
-    await onImport(await file.text());
-    if (inputRef.current) inputRef.current.value = "";
+    try {
+      await onImport(file);
+    } finally {
+      if (inputRef.current) inputRef.current.value = "";
+    }
   };
 
   return (
@@ -63,7 +60,11 @@ export function SettingsScreen({
                   <strong>Tema</strong>
                   <span>Arayüz ve editör görünümünü birlikte değiştirir.</span>
                 </div>
-                <div className="segmented-control" role="group" aria-label="Tema">
+                <div
+                  className="segmented-control"
+                  role="group"
+                  aria-label="Tema"
+                >
                   <button
                     className={`segment ${
                       settings.theme === "light" ? "active" : ""
@@ -90,9 +91,7 @@ export function SettingsScreen({
                   <span>Geçiş ve tamamlanma hareketlerini en aza indirir.</span>
                 </div>
                 <button
-                  className={`toggle ${
-                    settings.reducedMotion ? "active" : ""
-                  }`}
+                  className={`toggle ${settings.reducedMotion ? "active" : ""}`}
                   type="button"
                   role="switch"
                   aria-checked={settings.reducedMotion}
@@ -184,8 +183,9 @@ export function SettingsScreen({
                 <div className="setting-label">
                   <strong>Yedekle veya taşı</strong>
                   <span>
-                    Tamamlanan görevleri, sorguları ve tercihleri JSON olarak
-                    aktar.
+                    Tamamlanan görevleri, sorguları, profil adını ve tercihleri
+                    JSON olarak aktar. Başka bir profile ait kayıt içe alınmadan
+                    önce onay istenir.
                   </span>
                 </div>
                 <div className="data-actions">
@@ -207,6 +207,7 @@ export function SettingsScreen({
                     ref={inputRef}
                     className="sr-only"
                     type="file"
+                    aria-label="İlerleme dosyası seç"
                     accept="application/json,.json"
                     onChange={(event) =>
                       void handleImport(event.target.files?.[0])
@@ -218,7 +219,8 @@ export function SettingsScreen({
                 <div className="setting-label">
                   <strong>İlerlemeyi sıfırla</strong>
                   <span>
-                    Tüm görev geçmişini ve tercihleri başlangıç durumuna getirir.
+                    Görev geçmişini temizler; profil adını ve çalışma
+                    tercihlerini korur.
                   </span>
                 </div>
                 <button

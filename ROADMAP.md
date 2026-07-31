@@ -2,14 +2,15 @@
 
 Bu yol haritası tarih vaadi değil, bağımlılık ve değer sırasıdır. Her fazın kapısı test, erişilebilirlik ve production build ile kapanır.
 
-## Şimdi — Güvenilir laboratuvar çekirdeği
+## Şimdi — Güvenilir kanıt rotası çekirdeği
 
 ### P0: Temel ürün
 
 - Queryvale kimliği ve responsive uygulama kabuğu
 - Ana sayfa ve birkaç saniyede anlaşılır değer önerisi
 - Atlanabilir onboarding ve ilk göreve doğrudan geçiş
-- Öğrenme yolu ve on modüllük müfredat iskeleti
+- On çalışan modülü mesleki sonuçlarına göre gruplayan dört kariyer bölümü
+- Her vakada `Sor → İncele → Sorgula → Doğrula → Anlat` döngüsü
 - Masaüstü öncelikli görev çalışma alanı
 - Şema, örnek satır, editor, sonuç ve ipucu panelleri
 
@@ -24,9 +25,13 @@ Bu yol haritası tarih vaadi değil, bağımlılık ve değer sırasıdır. Her 
 
 ### P0: Öğrenme ve kalıcılık
 
-- İlk üç modül için çalışan, doğrulanmış görev seti
-- Her görevde üç ipucu ve kısa çözüm yaklaşımı
-- IndexedDB ilerleme/ayarlar
+- İlk yedi modül için çalışan, doğrulanmış 28 görevlik öğrenme yolu
+- Modül 8–10 için vaatleriyle sınırlı birer çalışan odak vaka; toplam 31 görev
+- Her görevde kavram odağı, çıktı tanesi, kabul kontrolleri ve üç kademeli ipucu
+- Hazırlık ipuçları yetmediğinde açık talep üzerine, cezasız tam çalışan çözüm
+- Değerlendirme durumuna özel koçluk ve başarı sonrası transfer odaklı debrief
+- Doğru değerlendirmeden üretilen sınırlı kanıt snapshot’ı, isteğe bağlı karar notu ve Kanıt Defteri
+- IndexedDB v3 ilerleme, ayarlar ve `evidenceByTaskId` kalıcılığı
 - İçe/dışa aktarma ve onaylı reset
 - İlerleme özeti ve sıradaki görev önerisi
 
@@ -35,33 +40,43 @@ Bu yol haritası tarih vaadi değil, bağımlılık ve değer sırasıdır. Her 
 - Kritik unit/integration/E2E testleri geçer.
 - Typecheck/lint ve production build hatasızdır.
 - İlk görev, yanlış sorgu, ipucu, tamamlama ve mobil akış doğrulanır.
+- Doğru sorgunun sonucu kullanıcı görmeden kaybolmaz; sonraki vakaya geçiş açık kullanıcı eylemidir.
+- Kanıt snapshot’ı yalnız doğru değerlendirmede oluşur, sınırlarını korur ve karar notuyla birlikte yeniden açılabilir.
 - Çalışmayan eylem veya sahte sonuç yoktur.
 
-## Sonraki — İçerik derinliği ve akıcılık
+## Sonraki — Kanıt kalitesi ve analist muhakemesi
 
-1. Modül 4–7 için üretim kalitesinde görev genişlemesi
+1. **Evidence Contract ve Data Trust Lab:** her vakada veri tanesi, sahiplik, güncellik, tamlık, `NULL`, duplicate ve join çoğalması kontrollerini görünür, tekrar kullanılabilir bir doğrulama sözleşmesine dönüştürmek
+2. **Metrik ve modelleme:** pay/payda, filtre, boyut, zaman penceresi ve grain tanımlarını; yıldız şema ve güvenli join pratiğiyle birleştirmek
+3. **Insight Studio:** doğrulanmış sonucu bulgu, öneri ve çekinceye dönüştürmeyi; doğru görsel/özet seçimi ve paydaş dilinde açıklamayla çalıştırmak
+4. **Amiral capstone:** belirsiz bir iş talebini veri kontrolü, çok adımlı SQL, metrik kararı, doğrulama ve yönetici özetiyle uçtan uca çözdüren tek güçlü proje
+5. **Yerel portföy:** seçili kanıt snapshot’larını ve karar notlarını cihazda derleyip taşınabilir/indirilebilir bir çalışma dosyasına dönüştürmek; sertifika veya bulut profili iddiası taşımamak
+
+## Paralel — İçerik derinliği ve ürün akıcılığı
+
+1. Modül 8–10 için üretim kalitesinde görev genişlemesi
 2. Daha zengin tablo ilişki görünümü ve erişilebilir veri önizleme
-3. İçerik yazarı için fixture/preview yardımcıları
+3. İçerik yazarı için fixture/preview ve yanlış-sorgu yardımcıları
 4. Büyük sonuçlar için sanallaştırılmış tablo
-5. Görev bazlı açıklanabilir değerlendirme farkları
-6. Tam offline PWA cache stratejisi ve güncelleme UX’i
-7. Yerel performans/öğrenme içgörülerinin daha iyi öneri üretmesi
+5. Tam offline PWA cache stratejisi ve güncelleme UX’i
+6. Yerel performans/öğrenme içgörülerinin daha iyi öneri üretmesi
 
-## Daha sonra — Uzmanlık projeleri
+## Daha sonra — Araç köprüleri
 
-1. Modül 8–10’un tam görev setleri
-2. Çok adımlı capstone operasyonları
-3. Yerel, indirilebilir çalışma portföyü
+1. CSV/elektronik tablo incelemesini aynı kanıt sözleşmesine bağlayan içe/dışa aktarma akışları
+2. Kanıtı Python/pandas çalışmasına taşıyan, dosya tabanlı ve açık sınırları olan çalışma köprüsü
+3. Tanımlanmış metrik ve veri setini BI aracına taşıyan görselleştirme/teslim playbook’ları
 4. İçerik paketlerinin sürümlü ve bağımsız yayımlanması
 5. Türkçe dışında yerelleştirme altyapısı
 
+Python ve BI bu aşamada ürün içine gömülü ayrı çalışma motorları olarak vaat edilmez. Önce SQL kanıt rotasının veri sözleşmesi ve çıktı biçimi kararlı hale gelir; araç köprüleri daha sonra ölçülmüş kullanıcı ihtiyacıyla sınanır.
+
 ## Bilinçli olarak planda yok
 
-- Hesap ve bulut senkronizasyonu
+- Hesap, backend profili ve bulut senkronizasyonu
 - AI sohbet botu veya otomatik çözüm üreticisi
 - Leaderboard, sosyal feed, sanal mağaza
 - Ödeme ve abonelik
 - Uzak sorgu çalıştırma
 
 Bu maddeler ancak yeni kanıt ve açık ürün kararıyla kapsam içine alınabilir; teknik kolaylık tek başına gerekçe değildir.
-

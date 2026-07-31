@@ -11,6 +11,10 @@ import { evaluateLessonQuery } from "../../features/validation";
 
 let database: TaskDatabase | undefined;
 
+function normalizeSql(sql: string): string {
+  return sql.replace(/\s+/g, " ").replace(/;\s*$/, "").trim();
+}
+
 afterEach(async () => {
   await database?.dispose();
   database = undefined;
@@ -38,16 +42,14 @@ describe("PGlite task database integration", () => {
     expect(first.truncated).toBe(true);
 
     await database.run("DELETE FROM sales WHERE id = 1");
-    expect((await database.run("SELECT id FROM sales ORDER BY id")).rows).toEqual([
-      { id: 2 },
-      { id: 3 },
-    ]);
+    expect(
+      (await database.run("SELECT id FROM sales ORDER BY id")).rows,
+    ).toEqual([{ id: 2 }, { id: 3 }]);
 
     await database.reset();
-    expect((await database.run("SELECT id FROM sales ORDER BY id")).rows).toEqual([
-      { id: 1 },
-      { id: 2 },
-    ]);
+    expect(
+      (await database.run("SELECT id FROM sales ORDER BY id")).rows,
+    ).toEqual([{ id: 1 }, { id: 2 }]);
   }, 30_000);
 
   it("executes and accepts reference solutions for every task in modules 1–3", async () => {
@@ -66,8 +68,7 @@ describe("PGlite task database integration", () => {
         "SELECT order_id, ordered_at, total_amount FROM orders WHERE ordered_at BETWEEN DATE '2026-01-04' AND DATE '2026-01-07' ORDER BY ordered_at",
       "m2-t4":
         "SELECT customer_name, status FROM orders WHERE delivered_at IS NULL AND customer_name LIKE '%e%' ORDER BY customer_name",
-      "m3-t1":
-        "SELECT sale_id, quantity * unit_price AS revenue FROM sales",
+      "m3-t1": "SELECT sale_id, quantity * unit_price AS revenue FROM sales",
       "m3-t2":
         "SELECT sale_id, UPPER(agent_first_name || ' ' || agent_last_name) AS agent_name FROM sales",
       "m3-t3":
@@ -90,12 +91,16 @@ describe("PGlite task database integration", () => {
     expect(productionTasks).toHaveLength(12);
 
     for (const task of productionTasks) {
-      const sql = solutions[task.id];
-      expect(sql, `${task.id} reference solution is missing`).toBeTruthy();
+      const fixtureSql = solutions[task.id];
+      expect(
+        fixtureSql,
+        `${task.id} reference solution is missing`,
+      ).toBeTruthy();
+      expect(normalizeSql(task.solutionSql)).toBe(normalizeSql(fixtureSql));
       database = createTaskDatabaseForLesson(task);
       await database.initialize();
-      const result = await database.run(sql);
-      const evaluation = evaluateLessonQuery(task, sql, result);
+      const result = await database.run(task.solutionSql);
+      const evaluation = evaluateLessonQuery(task, task.solutionSql, result);
       expect(evaluation.status, `${task.id}: ${evaluation.message}`).toBe(
         "correct",
       );
@@ -104,17 +109,1265 @@ describe("PGlite task database integration", () => {
     }
   }, 120_000);
 
-  it("initializes every expandable module fixture in a real PGlite database", async () => {
-    const expandableTasks = tasks.filter(
-      (task) => !["module-1", "module-2", "module-3"].includes(task.moduleId),
-    );
-    expect(expandableTasks).toHaveLength(7);
+  it("executes and accepts reference solutions for every task in modules 4–7", async () => {
+    const solutions: Record<string, string> = {
+      "m4-t2": `
+        SELECT
+          channel,
+          COUNT(*) AS order_count,
+          SUM(order_amount) AS total_amount,
+          AVG(order_amount) AS avg_amount,
+          MIN(order_amount) AS min_amount,
+          MAX(order_amount) AS max_amount
+        FROM channel_orders
+        GROUP BY channel
+        ORDER BY channel
+      `,
+      "m4-t3": `
+        SELECT
+          channel,
+          COUNT(*) AS order_count,
+          COUNT(coupon_code) AS coupon_order_count
+        FROM channel_orders
+        GROUP BY channel
+        ORDER BY channel
+      `,
+      "m4-t4": `
+        SELECT
+          channel,
+          SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_orders,
+          SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending_orders,
+          SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled_orders
+        FROM channel_orders
+        GROUP BY channel
+        ORDER BY channel
+      `,
+      "m4-t1": `
+        SELECT
+          region,
+          COUNT(*) AS transaction_count,
+          SUM(amount) AS total_revenue
+        FROM transactions
+        WHERE status = 'completed'
+        GROUP BY region
+        HAVING SUM(amount) >= 900
+        ORDER BY total_revenue DESC
+      `,
+      "m5-t2": `
+        SELECT
+          o.order_id,
+          c.customer_name,
+          SUM(i.quantity * i.unit_price) AS order_total
+        FROM orders o
+        INNER JOIN customers c ON o.customer_id = c.customer_id
+        INNER JOIN order_items i ON i.order_id = o.order_id
+        GROUP BY o.order_id, c.customer_name
+        ORDER BY o.order_id
+      `,
+      "m5-t3": `
+        SELECT
+          e.employee_name,
+          m.employee_name AS manager_name
+        FROM employees e
+        INNER JOIN employees m ON e.manager_id = m.employee_id
+        ORDER BY e.employee_id
+      `,
+      "m5-t4": `
+        SELECT
+          l.line_id,
+          l.company_id,
+          l.sku,
+          l.quantity * p.unit_price AS line_total
+        FROM order_lines l
+        INNER JOIN catalog_prices p
+          ON l.company_id = p.company_id
+         AND l.sku = p.sku
+        ORDER BY l.line_id
+      `,
+      "m5-t1": `
+        SELECT
+          c.customer_name,
+          COALESCE(SUM(o.amount), 0) AS total_spend
+        FROM customers c
+        LEFT JOIN orders o
+          ON c.customer_id = o.customer_id
+         AND o.status = 'completed'
+        GROUP BY c.customer_id, c.customer_name
+        ORDER BY total_spend DESC, c.customer_name
+      `,
+      "m6-t2": `
+        SELECT product_name, unit_price
+        FROM products
+        WHERE category_id IN (
+          SELECT category_id
+          FROM categories
+          WHERE campaign_active = TRUE
+        )
+          AND unit_price > (SELECT AVG(unit_price) FROM products)
+        ORDER BY unit_price DESC
+      `,
+      "m6-t3": `
+        SELECT c.customer_id, c.customer_name
+        FROM customers c
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM orders o
+          WHERE o.customer_id = c.customer_id
+            AND o.ordered_at >= DATE '2026-04-01'
+        )
+        ORDER BY c.customer_id
+      `,
+      "m6-t4": `
+        WITH RECURSIVE category_tree AS (
+          SELECT
+            category_id,
+            category_name::TEXT AS category_path,
+            0 AS depth
+          FROM categories
+          WHERE parent_id IS NULL
 
-    for (const task of expandableTasks) {
+          UNION ALL
+
+          SELECT
+            c.category_id,
+            ct.category_path || ' > ' || c.category_name,
+            ct.depth + 1
+          FROM categories c
+          INNER JOIN category_tree ct ON c.parent_id = ct.category_id
+        )
+        SELECT category_path, depth
+        FROM category_tree
+        ORDER BY category_path
+      `,
+      "m6-t1": `
+        WITH branch_totals AS (
+          SELECT branch, SUM(amount) AS branch_total
+          FROM branch_sales
+          GROUP BY branch
+        )
+        SELECT branch, branch_total
+        FROM branch_totals
+        WHERE branch_total > (SELECT AVG(branch_total) FROM branch_totals)
+      `,
+      "m7-t2": `
+        SELECT
+          category,
+          rep_name,
+          revenue,
+          ROW_NUMBER() OVER (
+            PARTITION BY category
+            ORDER BY revenue DESC, rep_name
+          ) AS row_no,
+          RANK() OVER (
+            PARTITION BY category
+            ORDER BY revenue DESC
+          ) AS revenue_rank,
+          DENSE_RANK() OVER (
+            PARTITION BY category
+            ORDER BY revenue DESC
+          ) AS dense_revenue_rank
+        FROM representative_sales
+        ORDER BY category, revenue DESC, rep_name
+      `,
+      "m7-t3": `
+        WITH changes AS (
+          SELECT
+            week_start,
+            revenue,
+            LAG(revenue) OVER (ORDER BY week_start) AS previous_revenue
+          FROM weekly_revenue
+        )
+        SELECT
+          week_start,
+          revenue,
+          previous_revenue,
+          ROUND(
+            (revenue - previous_revenue) * 100.0 /
+            NULLIF(previous_revenue, 0),
+            2
+          ) AS revenue_change_pct
+        FROM changes
+        ORDER BY week_start
+      `,
+      "m7-t4": `
+        SELECT
+          demand_date,
+          units,
+          ROUND(
+            AVG(units) OVER (
+              ORDER BY demand_date
+              ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+            ),
+            2
+          ) AS moving_avg_7d
+        FROM daily_demand
+        ORDER BY demand_date
+      `,
+      "m7-t1": `
+        SELECT
+          transaction_id,
+          account_no,
+          amount,
+          SUM(amount) OVER (
+            PARTITION BY account_no
+            ORDER BY transaction_date, transaction_id
+            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+          ) AS running_balance
+        FROM account_transactions
+        ORDER BY account_no, transaction_date, transaction_id
+      `,
+    };
+
+    const expandedTasks = tasks.filter((task) =>
+      ["module-4", "module-5", "module-6", "module-7"].includes(task.moduleId),
+    );
+    expect(expandedTasks).toHaveLength(16);
+
+    for (const task of expandedTasks) {
+      const fixtureSql = solutions[task.id];
+      expect(
+        fixtureSql,
+        `${task.id} reference solution is missing`,
+      ).toBeTruthy();
+      expect(normalizeSql(task.solutionSql)).toBe(normalizeSql(fixtureSql));
       database = createTaskDatabaseForLesson(task);
-      await expect(database.initialize(), task.id).resolves.toBeUndefined();
+      await database.initialize();
+      const result = await database.run(task.solutionSql);
+      const evaluation = evaluateLessonQuery(task, task.solutionSql, result);
+      expect(evaluation.status, `${task.id}: ${evaluation.message}`).toBe(
+        "correct",
+      );
       await database.dispose();
       database = undefined;
     }
-  }, 120_000);
+  }, 180_000);
+
+  it("accepts structurally different correct solutions for every new module 4–7 task", async () => {
+    const alternatives: Record<string, string> = {
+      "m4-t2": `
+        WITH channel_metrics AS (
+          SELECT
+            channel,
+            COUNT(order_id) AS order_count,
+            SUM(order_amount) AS total_amount,
+            AVG(order_amount) AS avg_amount,
+            MIN(order_amount) AS min_amount,
+            MAX(order_amount) AS max_amount
+          FROM channel_orders
+          GROUP BY channel
+        )
+        SELECT
+          channel,
+          order_count,
+          total_amount,
+          avg_amount,
+          min_amount,
+          max_amount
+        FROM channel_metrics
+        ORDER BY channel
+      `,
+      "m4-t3": `
+        SELECT
+          channel,
+          COUNT(order_id) AS order_count,
+          COUNT(*) FILTER (WHERE coupon_code IS NOT NULL) AS coupon_order_count
+        FROM channel_orders
+        GROUP BY channel
+        ORDER BY channel
+      `,
+      "m4-t4": `
+        WITH order_flags AS (
+          SELECT
+            channel,
+            CASE WHEN status = 'completed' THEN 1 ELSE 0 END AS completed_flag,
+            CASE WHEN status = 'pending' THEN 1 ELSE 0 END AS pending_flag,
+            CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END AS cancelled_flag
+          FROM channel_orders
+        )
+        SELECT
+          channel,
+          SUM(completed_flag) AS completed_orders,
+          SUM(pending_flag) AS pending_orders,
+          SUM(cancelled_flag) AS cancelled_orders
+        FROM order_flags
+        GROUP BY channel
+        ORDER BY channel
+      `,
+      "m5-t2": `
+        SELECT
+          o.order_id,
+          c.customer_name,
+          SUM(i.unit_price * i.quantity) AS order_total
+        FROM order_items i
+        INNER JOIN orders o ON o.order_id = i.order_id
+        INNER JOIN customers c ON c.customer_id = o.customer_id
+        GROUP BY 1, 2
+        ORDER BY 1
+      `,
+      "m5-t3": `
+        SELECT
+          employee.employee_name,
+          manager.employee_name AS manager_name
+        FROM employees manager
+        INNER JOIN employees employee
+          ON manager.employee_id = employee.manager_id
+        ORDER BY employee.employee_id
+      `,
+      "m5-t4": `
+        WITH priced_lines AS (
+          SELECT
+            l.line_id,
+            l.company_id,
+            l.sku,
+            l.quantity,
+            p.unit_price
+          FROM catalog_prices p
+          INNER JOIN order_lines l
+            ON p.company_id = l.company_id
+           AND p.sku = l.sku
+        )
+        SELECT
+          line_id,
+          company_id,
+          sku,
+          quantity * unit_price AS line_total
+        FROM priced_lines
+        ORDER BY line_id
+      `,
+      "m6-t2": `
+        WITH above_average AS (
+          SELECT product_name, category_id, unit_price
+          FROM products
+          WHERE unit_price > (SELECT AVG(unit_price) FROM products)
+        )
+        SELECT product_name, unit_price
+        FROM above_average
+        WHERE category_id IN (
+          SELECT category_id
+          FROM categories
+          WHERE campaign_active = TRUE
+        )
+          AND unit_price > 0
+        ORDER BY unit_price DESC
+      `,
+      "m6-t3": `
+        WITH recent_orders AS (
+          SELECT customer_id
+          FROM orders
+          WHERE ordered_at >= DATE '2026-04-01'
+        )
+        SELECT c.customer_id, c.customer_name
+        FROM customers c
+        WHERE NOT EXISTS (
+          SELECT NULL
+          FROM recent_orders r
+          WHERE r.customer_id = c.customer_id
+            AND r.customer_id IS NOT NULL
+        )
+        ORDER BY c.customer_id
+      `,
+      "m6-t4": `
+        WITH RECURSIVE tree(category_id, category_path, tree_level) AS (
+          SELECT category_id, CAST(category_name AS TEXT), 1
+          FROM categories
+          WHERE parent_id IS NULL
+
+          UNION ALL
+
+          SELECT
+            child.category_id,
+            tree.category_path || ' > ' || child.category_name,
+            tree.tree_level + 1
+          FROM tree
+          INNER JOIN categories child
+            ON child.parent_id = tree.category_id
+        )
+        SELECT category_path, tree_level - 1 AS depth
+        FROM tree
+        ORDER BY category_path
+      `,
+      "m7-t2": `
+        WITH ranked_sales AS (
+          SELECT
+            category,
+            rep_name,
+            revenue,
+            ROW_NUMBER() OVER (
+              PARTITION BY category
+              ORDER BY revenue DESC, rep_id
+            ) AS row_no,
+            RANK() OVER (
+              PARTITION BY category
+              ORDER BY revenue DESC
+            ) AS revenue_rank,
+            DENSE_RANK() OVER (
+              PARTITION BY category
+              ORDER BY revenue DESC
+            ) AS dense_revenue_rank
+          FROM representative_sales
+        )
+        SELECT
+          category,
+          rep_name,
+          revenue,
+          row_no,
+          revenue_rank,
+          dense_revenue_rank
+        FROM ranked_sales
+        ORDER BY category, revenue DESC, rep_name
+      `,
+      "m7-t3": `
+        SELECT
+          week_start,
+          revenue,
+          previous_revenue,
+          ROUND(
+            100.0 * (revenue - previous_revenue) /
+            NULLIF(previous_revenue, 0),
+            2
+          ) AS revenue_change_pct
+        FROM (
+          SELECT
+            week_start,
+            revenue,
+            LAG(revenue) OVER (ORDER BY week_start) AS previous_revenue
+          FROM weekly_revenue
+        ) AS history
+        ORDER BY week_start
+      `,
+      "m7-t4": `
+        WITH demand_signal AS (
+          SELECT
+            demand_date,
+            units,
+            AVG(units) OVER (
+              ORDER BY demand_date
+              ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+            ) AS raw_moving_average
+          FROM daily_demand
+        )
+        SELECT
+          demand_date,
+          units,
+          ROUND(raw_moving_average, 2) AS moving_avg_7d
+        FROM demand_signal
+        ORDER BY demand_date
+      `,
+    };
+
+    const newTaskIds = [
+      "m4-t2",
+      "m4-t3",
+      "m4-t4",
+      "m5-t2",
+      "m5-t3",
+      "m5-t4",
+      "m6-t2",
+      "m6-t3",
+      "m6-t4",
+      "m7-t2",
+      "m7-t3",
+      "m7-t4",
+    ];
+    expect(newTaskIds).toHaveLength(12);
+
+    for (const taskId of newTaskIds) {
+      const task = tasks.find((candidate) => candidate.id === taskId);
+      const sql = alternatives[taskId];
+      expect(task, `${taskId} task is missing`).toBeTruthy();
+      expect(sql, `${taskId} alternative solution is missing`).toBeTruthy();
+      database = createTaskDatabaseForLesson(task!);
+      await database.initialize();
+      const result = await database.run(sql);
+      const evaluation = evaluateLessonQuery(task!, sql, result);
+      expect(evaluation.status, `${taskId}: ${evaluation.message}`).toBe(
+        "correct",
+      );
+      await database.dispose();
+      database = undefined;
+    }
+  }, 180_000);
+
+  it("accepts structurally different correct solutions for every remaining task", async () => {
+    const alternatives: Record<string, string> = {
+      "m1-t1": `
+        SELECT catalog.product_name, catalog.category
+        FROM (
+          SELECT product_name, category
+          FROM products
+        ) AS catalog
+      `,
+      "m1-t2": `
+        WITH catalog_categories AS (
+          SELECT category
+          FROM products
+        )
+        SELECT DISTINCT category
+        FROM catalog_categories
+      `,
+      "m1-t3": `
+        SELECT catalog.product_name, catalog.stock_quantity
+        FROM (
+          SELECT product_name, stock_quantity
+          FROM products
+        ) AS catalog
+        ORDER BY catalog.stock_quantity
+        LIMIT 3
+      `,
+      "m1-t4": `
+        WITH price_list AS (
+          SELECT product_name, unit_price
+          FROM products
+        )
+        SELECT product_name, unit_price
+        FROM price_list
+        ORDER BY unit_price DESC
+      `,
+      "m2-t1": `
+        SELECT order_id, customer_name, total_amount
+        FROM orders
+        WHERE NOT total_amount < 500
+      `,
+      "m2-t2": `
+        WITH target_cities(city) AS (
+          VALUES ('Ankara'), ('Istanbul')
+        )
+        SELECT order_id, customer_name, city
+        FROM orders
+        WHERE status = 'pending'
+          AND city IN (SELECT city FROM target_cities)
+      `,
+      "m2-t3": `
+        WITH campaign_orders AS (
+          SELECT order_id, ordered_at, total_amount
+          FROM orders
+          WHERE ordered_at BETWEEN DATE '2026-01-04' AND DATE '2026-01-07'
+        )
+        SELECT order_id, ordered_at, total_amount
+        FROM campaign_orders
+        ORDER BY ordered_at
+      `,
+      "m2-t4": `
+        SELECT customer_name, status
+        FROM orders
+        WHERE customer_name ILIKE '%E%'
+          AND delivered_at IS NULL
+        ORDER BY customer_name
+      `,
+      "m3-t1": `
+        WITH calculated_sales AS (
+          SELECT sale_id, unit_price * quantity AS line_revenue
+          FROM sales
+        )
+        SELECT sale_id, line_revenue AS revenue
+        FROM calculated_sales
+      `,
+      "m3-t2": `
+        SELECT
+          sale_id,
+          UPPER(CONCAT(agent_first_name, ' ', agent_last_name)) AS agent_name
+        FROM sales
+      `,
+      "m3-t3": `
+        SELECT
+          sale_id,
+          TO_CHAR(DATE_TRUNC('month', sale_date), 'YYYY-MM') AS sale_month
+        FROM sales
+      `,
+      "m3-t4": `
+        WITH prepared_sales AS (
+          SELECT
+            sale_id::TEXT AS sale_ref,
+            unit_price * quantity AS calculated_revenue
+          FROM sales
+        )
+        SELECT
+          sale_ref,
+          CASE
+            WHEN calculated_revenue >= 1000 THEN 'Yüksek'
+            WHEN calculated_revenue >= 500 THEN 'Orta'
+            ELSE 'Standart'
+          END AS revenue_band
+        FROM prepared_sales
+      `,
+      "m4-t1": `
+        WITH completed_transactions AS (
+          SELECT transaction_id, region, amount
+          FROM transactions
+          WHERE status = 'completed'
+        )
+        SELECT
+          region,
+          COUNT(transaction_id) AS transaction_count,
+          SUM(amount) AS total_revenue
+        FROM completed_transactions
+        GROUP BY region
+        HAVING SUM(amount) >= 900
+        ORDER BY SUM(amount) DESC
+      `,
+      "m5-t1": `
+        WITH completed_spend AS (
+          SELECT customer_id, SUM(amount) AS total_spend
+          FROM orders
+          WHERE status = 'completed'
+          GROUP BY customer_id
+        )
+        SELECT
+          c.customer_name,
+          COALESCE(s.total_spend, 0) AS total_spend
+        FROM customers c
+        LEFT JOIN completed_spend s ON s.customer_id = c.customer_id
+        ORDER BY total_spend DESC, c.customer_name
+      `,
+      "m6-t1": `
+        WITH branch_totals AS (
+          SELECT branch, SUM(amount) AS branch_total
+          FROM branch_sales
+          GROUP BY branch
+        ),
+        benchmark AS (
+          SELECT AVG(branch_total) AS average_total
+          FROM branch_totals
+        )
+        SELECT totals.branch, totals.branch_total
+        FROM branch_totals totals
+        CROSS JOIN benchmark
+        WHERE totals.branch_total > benchmark.average_total
+      `,
+      "m7-t1": `
+        WITH balances AS (
+          SELECT
+            transaction_id,
+            account_no,
+            transaction_date,
+            amount,
+            SUM(amount) OVER (
+              PARTITION BY account_no
+              ORDER BY transaction_date, transaction_id
+              ROWS UNBOUNDED PRECEDING
+            ) AS running_balance
+          FROM account_transactions
+        )
+        SELECT transaction_id, account_no, amount, running_balance
+        FROM balances
+        ORDER BY account_no, transaction_date, transaction_id
+      `,
+      "m8-t1": `
+        UPDATE inventory
+        SET stock_quantity = stock_quantity + (-3)
+        WHERE product_id = 801
+        RETURNING product_id, stock_quantity
+      `,
+      "m9-t1": `
+        WITH monthly_category_revenue AS (
+          SELECT
+            dates.month_label,
+            products.category,
+            SUM(sales.unit_price * sales.quantity) AS revenue
+          FROM fact_sales sales
+          INNER JOIN dim_date dates ON dates.date_key = sales.date_key
+          INNER JOIN dim_product products
+            ON products.product_key = sales.product_key
+          GROUP BY dates.month_label, products.category
+        )
+        SELECT month_label, category, revenue
+        FROM monthly_category_revenue
+        ORDER BY month_label, category
+      `,
+      "m10-t1": `
+        WITH may_sales AS (
+          SELECT branch_id, SUM(amount) AS actual_amount
+          FROM branch_sales
+          WHERE sale_month = '2026-05'
+          GROUP BY branch_id
+        )
+        SELECT
+          b.branch_name,
+          t.target_amount,
+          COALESCE(s.actual_amount, 0) AS actual_amount,
+          ROUND(
+            COALESCE(s.actual_amount, 0) * 100.0 / t.target_amount,
+            2
+          ) AS achievement_rate,
+          CASE
+            WHEN COALESCE(s.actual_amount, 0) >= t.target_amount THEN 'Hedefte'
+            ELSE 'Geride'
+          END AS target_status
+        FROM monthly_targets t
+        INNER JOIN branches b ON b.branch_id = t.branch_id
+        LEFT JOIN may_sales s ON s.branch_id = t.branch_id
+        WHERE t.target_month = '2026-05'
+        ORDER BY achievement_rate DESC
+      `,
+    };
+
+    const remainingTaskIds = [
+      "m1-t1",
+      "m1-t2",
+      "m1-t3",
+      "m1-t4",
+      "m2-t1",
+      "m2-t2",
+      "m2-t3",
+      "m2-t4",
+      "m3-t1",
+      "m3-t2",
+      "m3-t3",
+      "m3-t4",
+      "m4-t1",
+      "m5-t1",
+      "m6-t1",
+      "m7-t1",
+      "m8-t1",
+      "m9-t1",
+      "m10-t1",
+    ];
+    expect(remainingTaskIds).toHaveLength(19);
+
+    for (const taskId of remainingTaskIds) {
+      const task = tasks.find((candidate) => candidate.id === taskId);
+      const sql = alternatives[taskId];
+      expect(task, `${taskId} task is missing`).toBeTruthy();
+      expect(sql, `${taskId} alternative solution is missing`).toBeTruthy();
+      database = createTaskDatabaseForLesson(task!);
+      await database.initialize();
+      const result = await database.run(sql);
+      const evaluation = evaluateLessonQuery(task!, sql, result);
+      expect(evaluation.status, `${taskId}: ${evaluation.message}`).toBe(
+        "correct",
+      );
+      await database.dispose();
+      database = undefined;
+    }
+  }, 240_000);
+
+  it("classifies realistic mistakes across the expanded concept families", async () => {
+    const cases = [
+      {
+        taskId: "m1-t1",
+        expectedStatus: "columns-wrong",
+        sql: `
+          SELECT category, product_name
+          FROM products
+        `,
+      },
+      {
+        taskId: "m1-t2",
+        expectedStatus: "rows-wrong",
+        sql: `
+          SELECT category
+          FROM products
+        `,
+      },
+      {
+        taskId: "m1-t3",
+        expectedStatus: "order-wrong",
+        sql: `
+          SELECT product_name, stock_quantity
+          FROM (
+            SELECT product_name, stock_quantity
+            FROM products
+            ORDER BY stock_quantity
+            LIMIT 3
+          ) AS critical_stock
+          ORDER BY stock_quantity DESC
+        `,
+      },
+      {
+        taskId: "m1-t4",
+        expectedStatus: "order-wrong",
+        sql: `
+          SELECT product_name, unit_price
+          FROM products
+          ORDER BY unit_price ASC
+        `,
+      },
+      {
+        taskId: "m2-t1",
+        expectedStatus: "rows-wrong",
+        sql: `
+          SELECT order_id, customer_name, total_amount
+          FROM orders
+          WHERE total_amount > 800
+        `,
+      },
+      {
+        taskId: "m2-t2",
+        expectedStatus: "rows-wrong",
+        sql: `
+          SELECT order_id, customer_name, city
+          FROM orders
+          WHERE city IN ('Ankara')
+            AND status = 'pending'
+        `,
+      },
+      {
+        taskId: "m2-t3",
+        expectedStatus: "order-wrong",
+        sql: `
+          SELECT order_id, ordered_at, total_amount
+          FROM orders
+          WHERE ordered_at BETWEEN DATE '2026-01-04' AND DATE '2026-01-07'
+          ORDER BY ordered_at DESC
+        `,
+      },
+      {
+        taskId: "m2-t4",
+        expectedStatus: "rows-wrong",
+        sql: `
+          SELECT customer_name, status
+          FROM orders
+          WHERE delivered_at IS NULL
+            AND customer_name LIKE '%i%'
+          ORDER BY customer_name
+        `,
+      },
+      {
+        taskId: "m3-t1",
+        expectedStatus: "columns-wrong",
+        sql: `
+          SELECT
+            sale_id,
+            quantity * unit_price AS total_revenue
+          FROM sales
+        `,
+      },
+      {
+        taskId: "m3-t2",
+        expectedStatus: "rows-wrong",
+        sql: `
+          SELECT
+            sale_id,
+            LOWER(agent_first_name || ' ' || agent_last_name) AS agent_name
+          FROM sales
+        `,
+      },
+      {
+        taskId: "m3-t3",
+        expectedStatus: "rows-wrong",
+        sql: `
+          SELECT
+            sale_id,
+            TO_CHAR(sale_date, 'YYYY') AS sale_month
+          FROM sales
+        `,
+      },
+      {
+        taskId: "m3-t4",
+        expectedStatus: "rows-wrong",
+        sql: `
+          SELECT
+            CAST(sale_id AS TEXT) AS sale_ref,
+            CASE
+              WHEN quantity * unit_price >= 500 THEN 'Yüksek'
+              WHEN quantity * unit_price >= 250 THEN 'Orta'
+              ELSE 'Standart'
+            END AS revenue_band
+          FROM sales
+        `,
+      },
+      {
+        taskId: "m4-t2",
+        expectedStatus: "columns-wrong",
+        sql: `
+          SELECT
+            channel,
+            COUNT(*) AS total_orders,
+            SUM(order_amount) AS total_amount,
+            AVG(order_amount) AS avg_amount,
+            MIN(order_amount) AS min_amount,
+            MAX(order_amount) AS max_amount
+          FROM channel_orders
+          GROUP BY channel
+          ORDER BY channel
+        `,
+      },
+      {
+        taskId: "m4-t3",
+        expectedStatus: "rows-wrong",
+        sql: `
+          SELECT
+            channel,
+            COUNT(*) AS order_count,
+            COUNT(*) AS coupon_order_count
+          FROM channel_orders
+          GROUP BY channel
+          ORDER BY channel
+        `,
+      },
+      {
+        taskId: "m4-t4",
+        expectedStatus: "required-concept-missing",
+        sql: `
+          SELECT
+            channel,
+            COUNT(*) FILTER (WHERE status = 'completed') AS completed_orders,
+            COUNT(*) FILTER (WHERE status = 'pending') AS pending_orders,
+            COUNT(*) FILTER (WHERE status = 'cancelled') AS cancelled_orders
+          FROM channel_orders
+          GROUP BY channel
+          ORDER BY channel
+        `,
+      },
+      {
+        taskId: "m5-t2",
+        expectedStatus: "rows-wrong",
+        sql: `
+          SELECT
+            o.order_id,
+            c.customer_name,
+            i.quantity * i.unit_price AS order_total
+          FROM orders o
+          INNER JOIN customers c ON o.customer_id = c.customer_id
+          INNER JOIN order_items i ON i.order_id = o.order_id
+          ORDER BY o.order_id
+        `,
+      },
+      {
+        taskId: "m5-t3",
+        expectedStatus: "columns-wrong",
+        sql: `
+          SELECT
+            e.employee_name,
+            m.employee_name AS manager
+          FROM employees e
+          INNER JOIN employees m ON e.manager_id = m.employee_id
+          ORDER BY e.employee_id
+        `,
+      },
+      {
+        taskId: "m5-t4",
+        expectedStatus: "rows-wrong",
+        sql: `
+          SELECT
+            l.line_id,
+            l.company_id,
+            l.sku,
+            l.quantity * p.unit_price AS line_total
+          FROM order_lines l
+          INNER JOIN catalog_prices p ON l.sku = p.sku
+          ORDER BY l.line_id
+        `,
+      },
+      {
+        taskId: "m6-t2",
+        expectedStatus: "order-wrong",
+        sql: `
+          SELECT product_name, unit_price
+          FROM products
+          WHERE category_id IN (
+            SELECT category_id
+            FROM categories
+            WHERE campaign_active = TRUE
+          )
+            AND unit_price > (SELECT AVG(unit_price) FROM products)
+          ORDER BY unit_price ASC
+        `,
+      },
+      {
+        taskId: "m6-t3",
+        expectedStatus: "required-concept-missing",
+        sql: `
+          SELECT c.customer_id, c.customer_name
+          FROM customers c
+          LEFT JOIN orders o
+            ON o.customer_id = c.customer_id
+           AND o.ordered_at >= DATE '2026-04-01'
+          WHERE o.order_id IS NULL
+          ORDER BY c.customer_id
+        `,
+      },
+      {
+        taskId: "m6-t4",
+        expectedStatus: "rows-wrong",
+        sql: `
+          WITH RECURSIVE category_tree AS (
+            SELECT
+              category_id,
+              category_name::TEXT AS category_path,
+              1 AS depth
+            FROM categories
+            WHERE parent_id IS NULL
+
+            UNION ALL
+
+            SELECT
+              c.category_id,
+              ct.category_path || ' > ' || c.category_name,
+              ct.depth + 1
+            FROM categories c
+            INNER JOIN category_tree ct ON c.parent_id = ct.category_id
+          )
+          SELECT category_path, depth
+          FROM category_tree
+          ORDER BY category_path
+        `,
+      },
+      {
+        taskId: "m7-t2",
+        expectedStatus: "rows-wrong",
+        sql: `
+          SELECT
+            category,
+            rep_name,
+            revenue,
+            ROW_NUMBER() OVER (
+              PARTITION BY category
+              ORDER BY revenue DESC, rep_name
+            ) AS row_no,
+            RANK() OVER (
+              PARTITION BY category
+              ORDER BY revenue DESC
+            ) AS revenue_rank,
+            RANK() OVER (
+              PARTITION BY category
+              ORDER BY revenue DESC
+            ) AS dense_revenue_rank
+          FROM representative_sales
+          ORDER BY category, revenue DESC, rep_name
+        `,
+      },
+      {
+        taskId: "m7-t3",
+        expectedStatus: "columns-wrong",
+        sql: `
+          WITH changes AS (
+            SELECT
+              week_start,
+              revenue,
+              LAG(revenue) OVER (ORDER BY week_start) AS previous_revenue
+            FROM weekly_revenue
+          )
+          SELECT
+            week_start,
+            revenue,
+            previous_revenue,
+            ROUND(
+              (revenue - previous_revenue) * 100.0 /
+              NULLIF(previous_revenue, 0),
+              2
+            ) AS change_pct
+          FROM changes
+          ORDER BY week_start
+        `,
+      },
+      {
+        taskId: "m7-t4",
+        expectedStatus: "order-wrong",
+        sql: `
+          SELECT
+            demand_date,
+            units,
+            ROUND(
+              AVG(units) OVER (
+                ORDER BY demand_date
+                ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+              ),
+              2
+            ) AS moving_avg_7d
+          FROM daily_demand
+          ORDER BY demand_date DESC
+        `,
+      },
+      {
+        taskId: "m4-t1",
+        expectedStatus: "order-wrong",
+        sql: `
+          SELECT
+            region,
+            COUNT(*) AS transaction_count,
+            SUM(amount) AS total_revenue
+          FROM transactions
+          WHERE status = 'completed'
+          GROUP BY region
+          HAVING SUM(amount) >= 900
+          ORDER BY total_revenue ASC
+        `,
+      },
+      {
+        taskId: "m5-t1",
+        expectedStatus: "rows-wrong",
+        sql: `
+          SELECT
+            c.customer_name,
+            COALESCE(SUM(o.amount), 0) AS total_spend
+          FROM customers c
+          LEFT JOIN orders o ON o.customer_id = c.customer_id
+          WHERE o.status = 'completed'
+          GROUP BY c.customer_id, c.customer_name
+          ORDER BY total_spend DESC, c.customer_name
+        `,
+      },
+      {
+        taskId: "m6-t1",
+        expectedStatus: "required-concept-missing",
+        sql: `
+          SELECT branch, SUM(amount) AS branch_total
+          FROM branch_sales
+          GROUP BY branch
+          HAVING SUM(amount) > (
+            SELECT AVG(branch_total)
+            FROM (
+              SELECT SUM(amount) AS branch_total
+              FROM branch_sales
+              GROUP BY branch
+            ) AS totals
+          )
+        `,
+      },
+      {
+        taskId: "m7-t1",
+        expectedStatus: "rows-wrong",
+        sql: `
+          SELECT
+            transaction_id,
+            account_no,
+            amount,
+            SUM(amount) OVER (
+              ORDER BY transaction_date, transaction_id
+              ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+            ) AS running_balance
+          FROM account_transactions
+          ORDER BY account_no, transaction_date, transaction_id
+        `,
+      },
+      {
+        taskId: "m8-t1",
+        expectedStatus: "required-concept-missing",
+        sql: `
+          SELECT
+            product_id,
+            stock_quantity - 3 AS stock_quantity
+          FROM inventory
+          WHERE product_id = 801
+        `,
+      },
+      {
+        taskId: "m9-t1",
+        expectedStatus: "rows-wrong",
+        sql: `
+          SELECT
+            d.month_label,
+            p.category,
+            SUM(f.quantity) AS revenue
+          FROM fact_sales f
+          INNER JOIN dim_product p ON p.product_key = f.product_key
+          INNER JOIN dim_date d ON d.date_key = f.date_key
+          GROUP BY d.month_label, p.category
+          ORDER BY d.month_label, p.category
+        `,
+      },
+      {
+        taskId: "m10-t1",
+        expectedStatus: "rows-wrong",
+        sql: `
+          SELECT
+            b.branch_name,
+            t.target_amount,
+            COALESCE(SUM(s.amount), 0) AS actual_amount,
+            ROUND(
+              COALESCE(SUM(s.amount), 0) * 100.0 / t.target_amount,
+              2
+            ) AS achievement_rate,
+            CASE
+              WHEN COALESCE(SUM(s.amount), 0) >= t.target_amount THEN 'Hedefte'
+              ELSE 'Geride'
+            END AS target_status
+          FROM branches b
+          INNER JOIN monthly_targets t
+            ON t.branch_id = b.branch_id
+           AND t.target_month = '2026-05'
+          LEFT JOIN branch_sales s ON s.branch_id = b.branch_id
+          GROUP BY b.branch_id, b.branch_name, t.target_amount
+          ORDER BY achievement_rate DESC
+        `,
+      },
+    ] as const;
+
+    expect(cases).toHaveLength(31);
+    expect(new Set(cases.map((testCase) => testCase.taskId)).size).toBe(31);
+    expect(cases.map((testCase) => testCase.taskId).sort()).toEqual(
+      tasks.map((task) => task.id).sort(),
+    );
+
+    for (const testCase of cases) {
+      const task = tasks.find((candidate) => candidate.id === testCase.taskId);
+      expect(task, `${testCase.taskId} task is missing`).toBeTruthy();
+      database = createTaskDatabaseForLesson(task!);
+      await database.initialize();
+      const result = await database.run(testCase.sql);
+      const evaluation = evaluateLessonQuery(task!, testCase.sql, result);
+      expect(evaluation.status, testCase.taskId).toBe(testCase.expectedStatus);
+      await database.dispose();
+      database = undefined;
+    }
+  }, 240_000);
+
+  it("executes and accepts the mutation, modeling and capstone reference solutions", async () => {
+    const solutions: Record<string, string> = {
+      "m8-t1": `
+        UPDATE inventory
+        SET stock_quantity = stock_quantity - 3
+        WHERE product_id = 801
+        RETURNING product_id, stock_quantity
+      `,
+      "m9-t1": `
+        SELECT
+          d.month_label,
+          p.category,
+          SUM(f.quantity * f.unit_price) AS revenue
+        FROM fact_sales f
+        INNER JOIN dim_product p ON p.product_key = f.product_key
+        INNER JOIN dim_date d ON d.date_key = f.date_key
+        GROUP BY d.month_label, p.category
+        ORDER BY d.month_label, p.category
+      `,
+      "m10-t1": `
+        SELECT
+          b.branch_name,
+          t.target_amount,
+          COALESCE(SUM(s.amount), 0) AS actual_amount,
+          ROUND(
+            COALESCE(SUM(s.amount), 0) * 100.0 / t.target_amount,
+            2
+          ) AS achievement_rate,
+          CASE
+            WHEN COALESCE(SUM(s.amount), 0) >= t.target_amount THEN 'Hedefte'
+            ELSE 'Geride'
+          END AS target_status
+        FROM branches b
+        INNER JOIN monthly_targets t
+          ON t.branch_id = b.branch_id
+         AND t.target_month = '2026-05'
+        LEFT JOIN branch_sales s
+          ON s.branch_id = b.branch_id
+         AND s.sale_month = '2026-05'
+        GROUP BY b.branch_id, b.branch_name, t.target_amount
+        ORDER BY achievement_rate DESC
+      `,
+    };
+
+    const remainingTasks = tasks.filter((task) =>
+      ["m8-t1", "m9-t1", "m10-t1"].includes(task.id),
+    );
+    expect(remainingTasks).toHaveLength(3);
+
+    for (const task of remainingTasks) {
+      const fixtureSql = solutions[task.id];
+      expect(
+        fixtureSql,
+        `${task.id} reference solution is missing`,
+      ).toBeTruthy();
+      expect(normalizeSql(task.solutionSql)).toBe(normalizeSql(fixtureSql));
+      database = createTaskDatabaseForLesson(task);
+      await database.initialize();
+      const result = await database.run(task.solutionSql);
+      const evaluation = evaluateLessonQuery(task, task.solutionSql, result);
+      expect(evaluation.status, `${task.id}: ${evaluation.message}`).toBe(
+        "correct",
+      );
+      await database.dispose();
+      database = undefined;
+    }
+  }, 90_000);
 });

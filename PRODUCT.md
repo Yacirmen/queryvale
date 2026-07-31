@@ -6,28 +6,32 @@
 - “Sorgumu gerçek veri üzerinde deneyip sonucumun neden yanlış olduğunu öğrenmek istiyorum.”
 - “Ezber yerine giderek zorlaşan, mesleğe benzeyen görevlerle güven kazanmak istiyorum.”
 - “Hesap açmadan kaldığım yerden devam etmek ve verimi kendim taşıyabilmek istiyorum.”
+- “Kendi adımla ilerlememi, sıradaki işimi ve zorlandığım alanları tek bakışta görmek istiyorum.”
+- “Doğru sorgunun çıktısını yalnız görmek değil; bulgu, öneri ve çekincesiyle açıklamak istiyorum.”
 
 ## Bilgi mimarisi
 
-| Ekran | Birincil amaç | Birincil eylem |
-|---|---|---|
-| Ana sayfa | Ürün değerini ve çalışma biçimini açıklamak | İlk göreve başla |
-| Öğrenme yolu | Modül, ön koşul ve sıradaki işi göstermek | Devam et |
-| Görev alanı | Soru–şema–sorgu–sonuç döngüsünü yürütmek | Sorguyu çalıştır |
-| İlerleme | Öğrenme sinyallerini anlamlandırmak | Önerilen göreve git |
-| Ayarlar | Deneyimi ve yerel veriyi yönetmek | Tercihi kaydet/aktar |
+| Ekran                         | Birincil amaç                                                                   | Birincil eylem        |
+| ----------------------------- | ------------------------------------------------------------------------------- | --------------------- |
+| Ana sayfa                     | Kanıt rotasının değerini ve tarayıcı içi çalışma biçimini açıklamak             | İlk vakaya başla      |
+| Öğrenme yolu / kariyer rotası | Dört kariyer bölümünü, ön koşulları ve sıradaki işi görünür kılmak              | Devam et              |
+| Görev alanı                   | `Sor → İncele → Sorgula → Doğrula → Anlat` döngüsünü tek vaka üzerinde yürütmek | Sorguyu çalıştır      |
+| İlerleme / Kanıt Defteri      | Doğrulanmış çalışmaları, karar notlarını ve pratik sinyallerini geri çağırmak   | Vakayı veya kanıtı aç |
+| Ayarlar                       | Deneyimi ve yerel veriyi yönetmek                                               | Tercihi kaydet/aktar  |
 
 ## Birincil akış
 
 1. Ana sayfa ürün vaadini ve tarayıcı içi çalışma modelini açıklar.
 2. “İlk göreve başla” kısa, atlanabilir onboarding’i açar.
-3. Çalışma alanı görev hedefini, beklenen kolonları ve şemayı gösterir.
-4. Kullanıcı sorgusunu yazar; `Cmd/Ctrl + Enter` ile çalıştırabilir.
-5. Sonuç tablosu gerçek satırları, yürütme süresini ve satır sayısını gösterir.
-6. Değerlendirme; yürütme, kolon, satır, sıra ve kavram katmanlarını açıklar.
-7. Başarısız denemede bağlama uygun geri bildirim ve sırayla açılan ipuçları sunulur.
-8. Başarıda kısa öğrenme özeti, gerçek iş bağlantısı ve sonraki görev sunulur.
-9. Sorgu, deneme ve ilerleme IndexedDB’ye yazılır.
+3. Kariyer rotası çalışan modülleri dört mesleki bölüm altında gösterir ve sıradaki vakayı önerir.
+4. Çalışma alanı görev hedefini, kavram odağını, çıktı tanesini, kabul kontrollerini ve şemayı gösterir.
+5. Kullanıcı sorgusunu yazar; `Cmd/Ctrl + Enter` ile çalıştırabilir.
+6. Sonuç tablosu gerçek satırları, yürütme süresini ve satır sayısını gösterir.
+7. Değerlendirme; yürütme, kolon, satır, sıra ve kavram katmanlarını açıklar.
+8. Başarısız denemede değerlendirme katmanına özel kontrol adımları ve sırayla açılan ipuçları sunulur.
+9. Doğru değerlendirmede sınırlı bir yerel kanıt snapshot’ı oluşturulur; kullanıcı çıktıyı görmeden otomatik olarak sonraki vakaya geçirilmez.
+10. Kullanıcı isterse bulgu, öneri ve çekincesini karar notu olarak yazar; not otomatik puanlanmaz.
+11. Sorgu, deneme, ilerleme ve kanıt kaydı v3 yerel çalışma alanına yazılır.
 
 ## Çalışma alanı gereksinimleri
 
@@ -47,14 +51,14 @@
 
 ## Değerlendirme durumları
 
-1. `execution_error`: SQL çalışmadı.
-2. `columns_mismatch`: beklenen çıktı sözleşmesi sağlanmadı.
-3. `rows_mismatch`: kolonlar doğru, içerik yanlış.
-4. `order_mismatch`: içerik doğru, zorunlu sıralama yanlış.
-5. `concept_missing`: sonuç doğru, hedeflenen SQL kavramı yok.
-6. `passed`: sonuç ve öğrenme hedefi doğru.
+1. `execution-error`: SQL çalışmadı.
+2. `columns-wrong`: beklenen çıktı sözleşmesi sağlanmadı.
+3. `rows-wrong`: kolonlar doğru, içerik yanlış.
+4. `order-wrong`: içerik doğru, zorunlu sıralama yanlış.
+5. `required-concept-missing`: sonuç doğru, hedeflenen SQL kavramı yok.
+6. `correct`: sonuç ve öğrenme hedefi doğru.
 
-Geri bildirim kullanıcıya sonraki kontrol edilebilir eylemi söylemelidir. Tam çözüm varsayılan olarak gösterilmez.
+Geri bildirim kullanıcıya sonraki kontrol edilebilir eylemi söylemelidir. Tam çözüm varsayılan olarak editöre yerleştirilmez; üç hazırlık adımından sonra açık bir eylemle ve puan/ilerleme cezası olmadan gösterilir.
 
 ## Öğrenme yolu
 
@@ -65,23 +69,34 @@ Geri bildirim kullanıcıya sonraki kontrol edilebilir eylemi söylemelidir. Tam
 5. Tabloları birleştirme
 6. Alt sorgular ve CTE
 7. Analitik SQL
-8. Veri düzenleme
-9. Veri modelleme
-10. İş analistliği projeleri
+8. Kontrollü veri güncelleme
+9. Yıldız şemaya giriş
+10. Yönetici raporu projesi
 
-İlk üç modül üretim kalitesinde çalışan görevlerden oluşur. Diğer modüller içerik sözleşmesini doğrulayan, genişletilebilir örneklerle görünürdür; tamamlanmamış bir ekran “çalışıyor” gibi sunulmaz.
+İlk yedi modül üretim kalitesinde dörder görevlik setlerden oluşur. Modül 1–3 temel sorgu akıcılığını; modül 4–7 aggregation, join, alt sorgu/CTE ve analitik SQL derinliğini kurar. Modül 8–10 ise adları ve konu vaatleri tek teslimleriyle sınırlanmış, üretim kalitesinde birer odak vaka taşır; daha geniş DML, modelleme ve proje kütüphanesi yol haritasındadır.
+
+Bu 10 modül kariyer rotasında **Temeli kur**, **İş sorusunu çöz**, **Örüntüyü keşfet** ve **Karara dönüştür** adlı dört bölüm altında sunulur. Bölümler mevcut görevlerin mesleki sonucunu açıklayan sunum katmanıdır; ayrı ilerleme üretmez ve kilitli/atlanan modülleri gizlemez.
 
 ## İlerleme sinyalleri
 
 - tamamlanan görev ve modül yüzdesi
-- görev başına deneme sayısı
-- ilk denemede çözüm oranı
-- çözüm süresi ve kullanılan ipuçları
-- güçlü/zorlanılan kavramlar
-- son çalışma ve önerilen sonraki görev
+- doğrulanmış kanıt, karar notu ve yorumu bekleyen çalışma sayısı
+- karar notlarındaki bulgu, öneri ve isteğe bağlı çekince
+- çalışılan SQL kavramları ve önerilen sonraki görev
+- görev başına deneme, çözüm süresi ve kullanılan ipuçları gibi ikincil pratik bağlamı
 - takvim günü bazlı ölçülü çalışma serisi
+- düzenlenebilir cihaz profili adı ve son tamamlanan görevler
 
-Bu metrikler cezalandırıcı skor değildir; kullanıcının sonraki çalışmasını seçmesine yardım eder.
+Bu metrikler cezalandırıcı skor değildir; kullanıcının sonraki çalışmasını seçmesine yardım eder. İlk deneme, hız, ipucu sayısı, seri veya tamamlanma tek başına mesleki ustalık ya da işe hazır olma kanıtı değildir. Kanıt Defteri de sertifika değil, doğrulanmış çalışmayı ve kullanıcının kendi yorumunu geri çağıran yerel çalışma kaydıdır.
+Profil adı hesap veya kimlik doğrulama değildir; yalnızca o tarayıcıdaki ilerlemeyi kişiselleştirir.
+
+## Kanıt sözleşmesi
+
+- Kanıt kaydı yalnız evaluator `correct` sonucunu verdiğinde oluşturulur.
+- Snapshot sorguyu, sınırlı kolon listesini, en fazla 10 önizleme satırını ve toplam satır sayısı/kesilme bilgisini taşır; veritabanı dökümü değildir.
+- Karar notu bulgu ve öneriyi, isteğe bağlı olarak da çekinceyi saklar. Not kullanıcının düşünme alanıdır; doğruluk veya ustalık puanı üretmez.
+- Kanıtlar v3 yerel çalışma alanının parçasıdır ve doğrulanmış içe/dışa aktarma akışına dahildir.
+- Tek bir doğru çalıştırma ya da yazılmış not, kavramın kalıcı öğrenildiğini veya bir mesleki yeterliliği kanıtladığı iddiasıyla sunulmaz.
 
 ## Tasarım sistemi
 
@@ -115,4 +130,3 @@ Backend analitiği olmadan ilk sürümde kalite, yerel ve test edilebilir ürün
 - kritik E2E akışlarının geçmesi,
 - mobilde ana akışın tamamlanması,
 - içerik doğrulama hatalarının build’den önce yakalanması.
-

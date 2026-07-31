@@ -1,4 +1,4 @@
-import type { LessonTask } from "../../types/lesson";
+import type { CoachingStatus, LessonTask } from "../../types/lesson";
 
 export type ContentIssueSeverity = "error" | "warning";
 
@@ -31,6 +31,148 @@ function requireString(
   }
 }
 
+function requireStringArray(
+  value: unknown,
+  path: string,
+  issues: ContentValidationIssue[],
+  minimumItems = 1,
+): void {
+  if (
+    !Array.isArray(value) ||
+    value.length < minimumItems ||
+    value.some((item) => typeof item !== "string" || item.trim().length === 0)
+  ) {
+    issues.push({
+      severity: "error",
+      path,
+      message: `${path} en az ${minimumItems} boş olmayan metin içermelidir.`,
+    });
+  }
+}
+
+function requireNestedString(
+  source: UnknownRecord | undefined,
+  property: string,
+  path: string,
+  issues: ContentValidationIssue[],
+): void {
+  if (
+    !source ||
+    typeof source[property] !== "string" ||
+    (source[property] as string).trim().length === 0
+  ) {
+    issues.push({
+      severity: "error",
+      path,
+      message: `${path} boş olmayan bir metin olmalıdır.`,
+    });
+  }
+}
+
+const failureEvaluationStatuses: readonly CoachingStatus[] = [
+  "execution-error",
+  "columns-wrong",
+  "rows-wrong",
+  "order-wrong",
+  "required-concept-missing",
+];
+
+function nestedRecord(value: unknown): UnknownRecord | undefined {
+  return value && typeof value === "object"
+    ? (value as UnknownRecord)
+    : undefined;
+}
+
+function validateLearningContent(
+  source: UnknownRecord,
+  issues: ContentValidationIssue[],
+): void {
+  const brief = nestedRecord(source.learningBrief);
+  if (!brief) {
+    issues.push({
+      severity: "error",
+      path: "learningBrief",
+      message: "Görev bir öğrenme özeti tanımlamalıdır.",
+    });
+  } else {
+    requireNestedString(
+      brief,
+      "conceptAnchor",
+      "learningBrief.conceptAnchor",
+      issues,
+    );
+    requireNestedString(
+      brief,
+      "outputGrain",
+      "learningBrief.outputGrain",
+      issues,
+    );
+    requireStringArray(
+      brief.acceptanceChecks,
+      "learningBrief.acceptanceChecks",
+      issues,
+      3,
+    );
+    requireStringArray(brief.dataNotes, "learningBrief.dataNotes", issues);
+  }
+
+  const coaching = nestedRecord(source.coaching);
+  if (!coaching) {
+    issues.push({
+      severity: "error",
+      path: "coaching",
+      message:
+        "Görev başarısız değerlendirme durumlarına özel koçluk tanımlamalıdır.",
+    });
+  } else {
+    for (const status of failureEvaluationStatuses) {
+      if (!coaching[status]) {
+        issues.push({
+          severity: "error",
+          path: `coaching.${status}`,
+          message: `"${status}" durumu için görev koçluğu tanımlanmalıdır.`,
+        });
+      }
+    }
+    for (const [status, rawEntry] of Object.entries(coaching)) {
+      if (!failureEvaluationStatuses.includes(status as CoachingStatus)) {
+        issues.push({
+          severity: "error",
+          path: `coaching.${status}`,
+          message: `"${status}" geçerli bir değerlendirme durumu değildir.`,
+        });
+        continue;
+      }
+      const entry = nestedRecord(rawEntry);
+      requireNestedString(entry, "title", `coaching.${status}.title`, issues);
+      requireStringArray(entry?.checks, `coaching.${status}.checks`, issues, 2);
+    }
+  }
+
+  const debrief = nestedRecord(source.debrief);
+  if (!debrief) {
+    issues.push({
+      severity: "error",
+      path: "debrief",
+      message:
+        "Görev yapılandırılmış bir çözüm değerlendirmesi tanımlamalıdır.",
+    });
+    return;
+  }
+  requireStringArray(debrief.steps, "debrief.steps", issues, 3);
+  requireNestedString(debrief, "whyItWorks", "debrief.whyItWorks", issues);
+  requireStringArray(debrief.edgeCases, "debrief.edgeCases", issues, 2);
+  requireNestedString(
+    debrief,
+    "workplaceImpact",
+    "debrief.workplaceImpact",
+    issues,
+  );
+  const transfer = nestedRecord(debrief.transfer);
+  requireNestedString(transfer, "prompt", "debrief.transfer.prompt", issues);
+  requireNestedString(transfer, "reveal", "debrief.transfer.reveal", issues);
+}
+
 export function validateTaskDefinition(
   task: LessonTask,
 ): ContentValidationIssue[] {
@@ -45,11 +187,14 @@ export function validateTaskDefinition(
     "scenario",
     "objective",
     "setupSql",
+    "solutionSql",
     "explanation",
     "completionMessage",
   ]) {
     requireString(source, property, issues);
   }
+
+  validateLearningContent(source, issues);
 
   if (
     typeof source.slug === "string" &&

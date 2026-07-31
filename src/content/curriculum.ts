@@ -4,11 +4,16 @@ import {
   defineTask,
   type CurriculumModule,
   type ForbiddenOperation,
+  type LessonLearningContent,
   type LessonTask,
   type TaskSampleData,
   type TaskSchema,
   type ValidationOptions,
 } from "../types/lesson";
+import { assertValidTaskCollection } from "../features/validation/task-content";
+import { createDefaultLearningContent } from "./createDefaultLearningContent";
+import { AUTHORED_TASK_LEARNING_CONTENT } from "./learningContentCatalog";
+import { getTaskSolution } from "./taskSolutions";
 
 const READ_ONLY_FORBIDDEN: ForbiddenOperation[] = [
   "DROP_DATABASE",
@@ -23,18 +28,29 @@ const READ_ONLY_FORBIDDEN: ForbiddenOperation[] = [
   "MULTIPLE_STATEMENTS",
 ];
 
-const createTask = (
-  task: Omit<LessonTask, "validationOptions"> & {
-    validationOptions?: Partial<ValidationOptions>;
-  },
-): LessonTask =>
-  defineTask({
-    ...task,
+type AuthoredTask = Omit<
+  LessonTask,
+  "solutionSql" | "validationOptions" | keyof LessonLearningContent
+> & {
+  validationOptions?: Partial<ValidationOptions>;
+};
+
+const createTask = (task: AuthoredTask): LessonTask => {
+  const { validationOptions, ...baseTask } = task;
+  const learningContent =
+    AUTHORED_TASK_LEARNING_CONTENT[task.id] ??
+    createDefaultLearningContent(baseTask);
+
+  return defineTask({
+    ...baseTask,
+    ...learningContent,
+    solutionSql: getTaskSolution(task.id),
     validationOptions: {
       ...DEFAULT_VALIDATION_OPTIONS,
-      ...task.validationOptions,
+      ...validationOptions,
     },
   });
+};
 
 const productSetupSql = `
   CREATE TABLE products (
@@ -60,7 +76,8 @@ const productSchema: TaskSchema = {
   tables: [
     {
       name: "products",
-      description: "Satış kataloğundaki ürünlerin güncel stok ve fiyat bilgileri.",
+      description:
+        "Satış kataloğundaki ürünlerin güncel stok ve fiyat bilgileri.",
       columns: [
         {
           name: "product_id",
@@ -166,9 +183,9 @@ const firstContactTasks: LessonTask[] = [
     requiredConcepts: ["SELECT"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "Bir tablodan veri okumak için SELECT kullanılır.",
-      "İki kolon adını virgülle ayır; veri kaynağın products tablosu.",
-      "Sorgu yapın SELECT product_name, category FROM ... şeklinde başlayabilir.",
+      "SELECT görmek istediğin kolonları, FROM ise verinin geldiği tabloyu belirtir.",
+      "İstenen kolonlar product_name ve category; kaynak tablo products.",
+      "İskelet: SELECT [birinci kolon], [ikinci kolon] FROM [tablo];",
     ],
     explanation:
       "SELECT yalnızca ihtiyaç duyulan kolonları seçmeyi sağlar. Kolonları açıkça yazmak, gereksiz veriyi taşımayan ve amacı okunabilen rapor sorguları üretir.",
@@ -194,19 +211,14 @@ const firstContactTasks: LessonTask[] = [
     sampleRows: productSamples,
     expectedColumns: ["category"],
     validationMode: "result-and-concepts",
-    expectedResult: [
-      ["Home"],
-      ["Stationery"],
-      ["Furniture"],
-      ["Lifestyle"],
-    ],
+    expectedResult: [["Home"], ["Stationery"], ["Furniture"], ["Lifestyle"]],
     orderSensitive: false,
     requiredConcepts: ["DISTINCT"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
       "Aynı değerin tekrarını engelleyen anahtar kelimeyi düşün.",
       "DISTINCT, SELECT ile seçilen kolonun hemen önünde kullanılır.",
-      "SELECT DISTINCT category FROM products yapısını tamamla.",
+      "İskelet: SELECT DISTINCT [kolon] FROM [tablo]; Burada yalnız category kolonuna ihtiyacın var.",
     ],
     explanation:
       "DISTINCT, seçilen kolon kombinasyonundaki tekrarları kaldırır. Burada tek kolon seçildiği için her kategori sonuçta yalnızca bir kez görünür.",
@@ -244,7 +256,7 @@ const firstContactTasks: LessonTask[] = [
     hints: [
       "Önce satırları stok miktarına göre sıralamalısın.",
       "ORDER BY stock_quantity ASC düşük değerleri üste taşır.",
-      "Sıralamanın sonuna LIMIT 3 ekleyerek yalnızca ilk üç satırı döndür.",
+      "İskelet: SELECT [kolonlar] FROM products ORDER BY stock_quantity ASC LIMIT 3;",
     ],
     explanation:
       "ORDER BY sonucu belirli bir kolona göre sıralar; ASC küçükten büyüğe sıralamadır. LIMIT ise sıralanmış sonuç kümesinden gereken kadar satır alır.",
@@ -285,7 +297,7 @@ const firstContactTasks: LessonTask[] = [
     hints: [
       "Sonuç sırasını ORDER BY ile belirlersin.",
       "Azalan sıralama için kolon adından sonra DESC kullan.",
-      "SELECT product_name, unit_price FROM products ORDER BY unit_price DESC yapısını kur.",
+      "İskelet: SELECT [kolonlar] FROM products ORDER BY unit_price DESC;",
     ],
     explanation:
       "DESC, ORDER BY sıralamasını büyükten küçüğe çevirir. Rapor tüketicisinin beklediği sıralamayı sorguda açıkça tanımlamak sonucu öngörülebilir yapar.",
@@ -322,9 +334,15 @@ const orderSchema: TaskSchema = {
   tables: [
     {
       name: "orders",
-      description: "E-ticaret siparişlerinin tutar, konum ve teslimat durumları.",
+      description:
+        "E-ticaret siparişlerinin tutar, konum ve teslimat durumları.",
       columns: [
-        { name: "order_id", dataType: "INTEGER", nullable: false, primaryKey: true },
+        {
+          name: "order_id",
+          dataType: "INTEGER",
+          nullable: false,
+          primaryKey: true,
+        },
         { name: "customer_name", dataType: "TEXT", nullable: false },
         { name: "city", dataType: "TEXT", nullable: false },
         { name: "status", dataType: "TEXT", nullable: false },
@@ -402,7 +420,7 @@ const filteringTasks: LessonTask[] = [
     hints: [
       "Satırları koşula göre seçmek için WHERE kullanılır.",
       "Eşik değer de dahil olduğu için >= karşılaştırmasını düşün.",
-      "FROM orders bölümünden sonra WHERE total_amount >= 500 koşulunu ekle.",
+      "İskelet: SELECT [istenen kolonlar] FROM orders WHERE total_amount >= 500;",
     ],
     explanation:
       "WHERE, tablodaki satırları sonuç kümesine girmeden önce filtreler. >= operatörü eşik değeri ve onun üzerindeki değerleri kapsar.",
@@ -439,7 +457,7 @@ const filteringTasks: LessonTask[] = [
     hints: [
       "Şehir kümesini bir koşul, sipariş durumunu ikinci koşul olarak düşün.",
       "İki şehir için IN (...), koşulları birleştirmek için AND kullanabilirsin.",
-      "WHERE city IN ('Ankara', 'Istanbul') AND status = 'pending' yapısını dene.",
+      "İskelet: SELECT [kolonlar] FROM orders WHERE city IN (...) AND status = 'pending';",
     ],
     explanation:
       "IN bir kolonu birden fazla olası değerle karşılaştırır. AND ise her iki koşulu da sağlayan satırların kalmasını sağlar.",
@@ -478,7 +496,7 @@ const filteringTasks: LessonTask[] = [
     hints: [
       "BETWEEN başlangıç ve bitiş değerlerini de kapsar.",
       "Tarih sabitlerini PostgreSQL'de DATE 'YYYY-MM-DD' olarak yazabilirsin.",
-      "WHERE ordered_at BETWEEN DATE '2026-01-04' AND DATE '2026-01-07' sonrasında ORDER BY ordered_at kullan.",
+      "İskelet: SELECT [kolonlar] FROM orders WHERE ordered_at BETWEEN [başlangıç] AND [bitiş] ORDER BY ordered_at;",
     ],
     explanation:
       "BETWEEN iki uç değeri de dahil eden okunaklı bir aralık filtresidir. ORDER BY ile kampanya akışı kronolojik hale gelir.",
@@ -511,12 +529,12 @@ const filteringTasks: LessonTask[] = [
       ["Selin", "processing"],
     ],
     orderSensitive: true,
-    requiredConcepts: ["LIKE", "IS_NULL", "AND"],
+    requiredConcepts: ["LIKE", "IS_NULL", "AND", "ORDER_BY"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
       "NULL değerleri eşittir operatörüyle değil IS NULL ile kontrol edilir.",
       "Bir metnin herhangi bir yerini eşlemek için LIKE deseninin iki yanında % kullan.",
-      "WHERE delivered_at IS NULL AND customer_name LIKE '%e%' koşuluna alfabetik ORDER BY ekle.",
+      "İskelet: SELECT [kolonlar] FROM orders WHERE delivered_at IS NULL AND customer_name LIKE '%e%' ORDER BY customer_name;",
     ],
     explanation:
       "NULL bilinmeyen değeri temsil ettiği için IS NULL ile test edilir. LIKE desenindeki % sıfır veya daha fazla karakteri eşler.",
@@ -555,7 +573,12 @@ const saleSchema: TaskSchema = {
       name: "sales",
       description: "Şube satış hareketleri ve işlemi yapan temsilci bilgileri.",
       columns: [
-        { name: "sale_id", dataType: "INTEGER", nullable: false, primaryKey: true },
+        {
+          name: "sale_id",
+          dataType: "INTEGER",
+          nullable: false,
+          primaryKey: true,
+        },
         { name: "branch_name", dataType: "TEXT", nullable: false },
         { name: "agent_first_name", dataType: "TEXT", nullable: false },
         { name: "agent_last_name", dataType: "TEXT", nullable: false },
@@ -640,7 +663,7 @@ const transformationTasks: LessonTask[] = [
     hints: [
       "Hesaplanan kolonlar SELECT listesinde matematiksel ifadeyle üretilebilir.",
       "quantity ile unit_price kolonlarını * operatörüyle çarp.",
-      "quantity * unit_price AS revenue ifadesini sale_id yanına ekle.",
+      "İskelet: SELECT sale_id, [hesap] AS revenue FROM sales;",
     ],
     explanation:
       "SQL, kaynak kolonlardan sorgu anında metrik türetebilir. AS ile verilen alias, hesaplanan kolonun raporda anlaşılır bir adla görünmesini sağlar.",
@@ -681,7 +704,7 @@ const transformationTasks: LessonTask[] = [
     hints: [
       "Metinleri || operatörüyle birleştirebilir, UPPER ile büyük harfe çevirebilirsin.",
       "Ad, ' ' sabiti ve soyadı sırasıyla birleştir.",
-      "UPPER(agent_first_name || ' ' || agent_last_name) AS agent_name ifadesini kullan.",
+      "İskelet: SELECT sale_id, UPPER([ad] || ' ' || [soyad]) AS agent_name FROM sales;",
     ],
     explanation:
       "|| metin parçalarını birleştirir, UPPER sonucu büyük harfe dönüştürür. Dönüşümü sorguda yapmak rapor etiketlerini tutarlı hale getirir.",
@@ -722,7 +745,7 @@ const transformationTasks: LessonTask[] = [
     hints: [
       "PostgreSQL'de TO_CHAR bir tarih değerini belirlediğin desende metne çevirir.",
       "Yıl ve ay için biçim maskesi 'YYYY-MM' olmalı.",
-      "TO_CHAR(sale_date, 'YYYY-MM') AS sale_month ifadesini SELECT listesine ekle.",
+      "İskelet: SELECT sale_id, TO_CHAR([tarih kolonu], 'YYYY-MM') AS sale_month FROM sales;",
     ],
     explanation:
       "TO_CHAR, tarih değerinin gösterim biçimini kontrol eder. YYYY-MM etiketi günlük ayrıntıyı kaybetmeden işlemleri ortak aylık döneme bağlamayı kolaylaştırır.",
@@ -763,12 +786,234 @@ const transformationTasks: LessonTask[] = [
     hints: [
       "CASE koşulları yukarıdan aşağıya değerlendirir; en yüksek eşiği önce yaz.",
       "CAST(sale_id AS TEXT) kimliği metne çevirir. Gelir hesabı quantity * unit_price.",
-      "CASE WHEN gelir >= 1000 THEN 'Yüksek' WHEN gelir >= 500 THEN 'Orta' ELSE 'Standart' END AS revenue_band yapısını kur.",
+      "İskelet: SELECT CAST(...) AS sale_ref, CASE WHEN [gelir] >= 1000 THEN 'Yüksek' WHEN [gelir] >= 500 THEN 'Orta' ELSE 'Standart' END AS revenue_band FROM sales;",
     ],
     explanation:
       "CAST veri tipini açıkça dönüştürür. CASE ise sıralı iş kurallarını tek bir türetilmiş kolona çevirir; yüksek eşiğin önce kontrol edilmesi bantların çakışmasını önler.",
     completionMessage:
       "Gelir bantları hazır. Hesaplama, dönüşüm ve iş kuralını tek sorguda birleştirdin.",
+    nextTaskId: "m4-t2",
+  }),
+];
+
+const channelOrderSetupSql = `
+  CREATE TABLE channel_orders (
+    order_id INTEGER PRIMARY KEY,
+    channel TEXT NOT NULL,
+    status TEXT NOT NULL,
+    order_amount NUMERIC(10, 2) NOT NULL,
+    coupon_code TEXT
+  );
+
+  INSERT INTO channel_orders VALUES
+    (4101, 'Web', 'completed', 1200.00, 'VIP'),
+    (4102, 'Web', 'pending', 800.00, NULL),
+    (4103, 'Store', 'completed', 450.00, 'STORE25'),
+    (4104, 'Store', 'cancelled', 950.00, NULL),
+    (4105, 'Partner', 'completed', 600.00, 'PARTNER'),
+    (4106, 'Partner', 'pending', 400.00, NULL),
+    (4107, 'Web', 'completed', 1000.00, 'WELCOME'),
+    (4108, 'Store', 'completed', 550.00, NULL);
+`;
+
+const channelOrderSchema: TaskSchema = {
+  tables: [
+    {
+      name: "channel_orders",
+      description:
+        "Satış kanalına göre sipariş durumu, tutarı ve opsiyonel kupon bilgisini tutan hareket tablosu.",
+      columns: [
+        {
+          name: "order_id",
+          dataType: "INTEGER",
+          nullable: false,
+          primaryKey: true,
+        },
+        { name: "channel", dataType: "TEXT", nullable: false },
+        { name: "status", dataType: "TEXT", nullable: false },
+        { name: "order_amount", dataType: "NUMERIC(10,2)", nullable: false },
+        { name: "coupon_code", dataType: "TEXT", nullable: true },
+      ],
+    },
+  ],
+};
+
+const channelOrderSamples: TaskSampleData[] = [
+  {
+    tableName: "channel_orders",
+    rows: [
+      {
+        order_id: 4101,
+        channel: "Web",
+        status: "completed",
+        order_amount: 1200,
+        coupon_code: "VIP",
+      },
+      {
+        order_id: 4102,
+        channel: "Web",
+        status: "pending",
+        order_amount: 800,
+        coupon_code: null,
+      },
+      {
+        order_id: 4104,
+        channel: "Store",
+        status: "cancelled",
+        order_amount: 950,
+        coupon_code: null,
+      },
+      {
+        order_id: 4105,
+        channel: "Partner",
+        status: "completed",
+        order_amount: 600,
+        coupon_code: "PARTNER",
+      },
+    ],
+  },
+];
+
+const aggregationTasks: LessonTask[] = [
+  createTask({
+    id: "m4-t2",
+    slug: "channel-health-metrics",
+    moduleId: "module-4",
+    title: "Kanal sağlık özetini hazırla",
+    subtitle:
+      "Beş temel aggregate fonksiyonunu aynı yönetim çıktısında kullan.",
+    scenario:
+      "Satış yöneticisi her kanalın sipariş hacmini, gelirini ve sipariş tutarı aralığını tek tabloda karşılaştıracak.",
+    objective:
+      "channel_orders verisini channel bazında grupla. order_count, total_amount, avg_amount, min_amount ve max_amount metriklerini üret; sonucu channel artan sırada getir.",
+    difficulty: "intermediate",
+    estimatedMinutes: 12,
+    prerequisites: ["m3-t4"],
+    concepts: ["COUNT", "SUM", "AVG", "MIN", "MAX", "GROUP_BY", "ORDER_BY"],
+    setupSql: channelOrderSetupSql,
+    schema: channelOrderSchema,
+    sampleRows: channelOrderSamples,
+    expectedColumns: [
+      "channel",
+      "order_count",
+      "total_amount",
+      "avg_amount",
+      "min_amount",
+      "max_amount",
+    ],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["Partner", 2, 1000, 500, 400, 600],
+      ["Store", 3, 1950, 650, 450, 950],
+      ["Web", 3, 3000, 1000, 800, 1200],
+    ],
+    orderSensitive: true,
+    requiredConcepts: [
+      "COUNT",
+      "SUM",
+      "AVG",
+      "MIN",
+      "MAX",
+      "GROUP_BY",
+      "ORDER_BY",
+    ],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "Her kanalın tek satır olması için channel kolonuna göre gruplama yap.",
+      "COUNT(*) hacmi, SUM ve AVG tutar seviyesini, MIN ve MAX ise aralığın iki ucunu verir.",
+      "SELECT channel, COUNT(*) AS order_count, ... FROM channel_orders GROUP BY channel ORDER BY channel yapısını tamamla.",
+    ],
+    explanation:
+      "GROUP BY aynı kanalın işlem satırlarını tek karar satırında toplar. COUNT hacmi, SUM toplam değeri, AVG tipik seviyeyi, MIN ve MAX ise dağılımın sınırlarını gösterir.",
+    completionMessage:
+      "Kanal sağlık tablosu hazır. Beş aggregate metriğini aynı çıktı tanesinde birleştirdin.",
+    nextTaskId: "m4-t3",
+  }),
+  createTask({
+    id: "m4-t3",
+    slug: "coupon-null-coverage",
+    moduleId: "module-4",
+    title: "Kupon kullanımını doğru say",
+    subtitle: "COUNT(*) ile COUNT(column) arasındaki NULL farkını görünür kıl.",
+    scenario:
+      "Kampanya ekibi kanal başına toplam sipariş ile kupon kodu girilmiş sipariş sayısını yan yana görmek istiyor.",
+    objective:
+      "Her channel için tüm satırları order_count, NULL olmayan coupon_code değerlerini coupon_order_count olarak say; sonucu channel artan sırada getir.",
+    difficulty: "intermediate",
+    estimatedMinutes: 10,
+    prerequisites: ["m4-t2"],
+    concepts: ["COUNT", "GROUP_BY", "ORDER_BY"],
+    setupSql: channelOrderSetupSql,
+    schema: channelOrderSchema,
+    sampleRows: channelOrderSamples,
+    expectedColumns: ["channel", "order_count", "coupon_order_count"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["Partner", 2, 1],
+      ["Store", 3, 1],
+      ["Web", 3, 2],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["COUNT", "GROUP_BY", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "COUNT(*) satırları, COUNT(kolon) ise yalnızca NULL olmayan kolon değerlerini sayar.",
+      "Aynı grupta COUNT(*) ve COUNT(coupon_code) ifadelerini iki farklı alias ile kullan.",
+      "channel bazında GROUP BY yapıp COUNT(*) AS order_count ve COUNT(coupon_code) AS coupon_order_count üret.",
+    ],
+    explanation:
+      "COUNT(*) gruptaki her satırı sayar; COUNT(coupon_code) ise NULL kuponları dışarıda bırakır. Bu ayrım eksik değer içeren operasyon metriklerinde yanlış oran üretmeyi önler.",
+    completionMessage:
+      "Kupon kapsamı doğru sayıldı. NULL değerlerin aggregate sonuçlarına etkisini yönettin.",
+    nextTaskId: "m4-t4",
+  }),
+  createTask({
+    id: "m4-t4",
+    slug: "order-status-matrix",
+    moduleId: "module-4",
+    title: "Sipariş durum matrisini kur",
+    subtitle: "CASE ifadelerini aggregate içine taşıyarak koşullu metrik üret.",
+    scenario:
+      "Operasyon lideri her satış kanalındaki tamamlanan, bekleyen ve iptal edilen siparişleri tek satırda izlemek istiyor.",
+    objective:
+      "Her channel için SUM ve CASE kullanarak completed_orders, pending_orders ve cancelled_orders kolonlarını üret; sonucu channel artan sırada getir.",
+    difficulty: "intermediate",
+    estimatedMinutes: 13,
+    prerequisites: ["m4-t3"],
+    concepts: [
+      "SUM",
+      "CASE",
+      "GROUP_BY",
+      "CONDITIONAL_AGGREGATION",
+      "ORDER_BY",
+    ],
+    setupSql: channelOrderSetupSql,
+    schema: channelOrderSchema,
+    sampleRows: channelOrderSamples,
+    expectedColumns: [
+      "channel",
+      "completed_orders",
+      "pending_orders",
+      "cancelled_orders",
+    ],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["Partner", 1, 1, 0],
+      ["Store", 2, 0, 1],
+      ["Web", 2, 1, 0],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["SUM", "CASE", "GROUP_BY", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "Her durum için eşleşen satıra 1, diğerlerine 0 veren ayrı bir CASE ifadesi düşün.",
+      "SUM(CASE WHEN status = ... THEN 1 ELSE 0 END) grup içindeki eşleşmeleri sayar.",
+      "Üç koşullu SUM ifadesini alias'larıyla yaz, channel bazında grupla ve channel'a göre sırala.",
+    ],
+    explanation:
+      "Koşullu aggregation, satır düzeyindeki durumları tek grup satırında ayrı karar metriklerine çevirir. ELSE 0 kullanmak eşleşmeyen satırların toplamı belirsizleştirmesini engeller.",
+    completionMessage:
+      "Durum matrisi hazır. Tek taramada üç operasyon metriği ürettin.",
     nextTaskId: "m4-t1",
   }),
 ];
@@ -785,7 +1030,7 @@ const summaryTask = createTask({
     "completed durumundaki işlemleri region bazında grupla. transaction_count ve total_revenue kolonlarını üret, toplam geliri en az 900 olan grupları total_revenue azalan sırada getir.",
   difficulty: "intermediate",
   estimatedMinutes: 14,
-  prerequisites: ["m3-t4"],
+  prerequisites: ["m4-t4"],
   concepts: ["COUNT", "SUM", "GROUP_BY", "HAVING", "WHERE", "ORDER_BY"],
   setupSql: `
     CREATE TABLE transactions (
@@ -854,7 +1099,7 @@ const summaryTask = createTask({
     ["North", 1, 950],
   ],
   orderSensitive: true,
-  requiredConcepts: ["COUNT", "SUM", "GROUP_BY", "HAVING"],
+  requiredConcepts: ["COUNT", "SUM", "GROUP_BY", "HAVING", "ORDER_BY"],
   forbiddenOperations: [...READ_ONLY_FORBIDDEN],
   hints: [
     "Önce completed satırlarını WHERE ile ayır, sonra region bazında grupla.",
@@ -865,23 +1110,472 @@ const summaryTask = createTask({
     "WHERE satırları gruplamadan önce, HAVING ise oluşan grupları toplulaştırmadan sonra filtreler. COUNT ve SUM aynı grup üzerinde farklı yönetim metrikleri üretir.",
   completionMessage:
     "Bölgesel yönetici özeti hazır. Satırları anlamlı gruplara ve metriklere dönüştürdün.",
-  nextTaskId: "m5-t1",
+  nextTaskId: "m5-t2",
 });
+
+const joinFoundationTasks: LessonTask[] = [
+  createTask({
+    id: "m5-t2",
+    slug: "order-value-file",
+    moduleId: "module-5",
+    title: "Sipariş değer dosyasını üret",
+    subtitle: "Üç tabloyu doğru çıktı tanesinde bir araya getir.",
+    scenario:
+      "Finans ekibi müşteri adını ve sipariş kalemlerini birleştirerek her sipariş için tek bir toplam değer satırı istiyor.",
+    objective:
+      "orders, customers ve order_items tablolarını INNER JOIN ile birleştir. Her order_id için customer_name ve quantity * unit_price toplamını order_total adıyla getir; order_id artan sırada sırala.",
+    difficulty: "intermediate",
+    estimatedMinutes: 15,
+    prerequisites: ["m4-t1"],
+    concepts: [
+      "PRIMARY_KEY",
+      "FOREIGN_KEY",
+      "INNER_JOIN",
+      "MULTI_JOIN",
+      "ARITHMETIC",
+      "SUM",
+      "GROUP_BY",
+      "ORDER_BY",
+    ],
+    setupSql: `
+      CREATE TABLE customers (
+        customer_id INTEGER PRIMARY KEY,
+        customer_name TEXT NOT NULL
+      );
+      CREATE TABLE orders (
+        order_id INTEGER PRIMARY KEY,
+        customer_id INTEGER NOT NULL REFERENCES customers(customer_id)
+      );
+      CREATE TABLE order_items (
+        item_id INTEGER PRIMARY KEY,
+        order_id INTEGER NOT NULL REFERENCES orders(order_id),
+        quantity INTEGER NOT NULL,
+        unit_price NUMERIC(10, 2) NOT NULL
+      );
+      INSERT INTO customers VALUES
+        (1, 'Atlas Retail'),
+        (2, 'Mavi Market');
+      INSERT INTO orders VALUES
+        (5101, 1),
+        (5102, 2),
+        (5103, 1);
+      INSERT INTO order_items VALUES
+        (1, 5101, 2, 100.00),
+        (2, 5101, 1, 500.00),
+        (3, 5102, 3, 150.00),
+        (4, 5103, 4, 100.00);
+    `,
+    schema: {
+      tables: [
+        {
+          name: "customers",
+          description: "Sipariş veren kurumsal müşteriler.",
+          columns: [
+            {
+              name: "customer_id",
+              dataType: "INTEGER",
+              nullable: false,
+              primaryKey: true,
+            },
+            { name: "customer_name", dataType: "TEXT", nullable: false },
+          ],
+        },
+        {
+          name: "orders",
+          description: "Müşteriye bağlı sipariş başlıkları.",
+          columns: [
+            {
+              name: "order_id",
+              dataType: "INTEGER",
+              nullable: false,
+              primaryKey: true,
+            },
+            {
+              name: "customer_id",
+              dataType: "INTEGER",
+              nullable: false,
+              references: { table: "customers", column: "customer_id" },
+            },
+          ],
+        },
+        {
+          name: "order_items",
+          description: "Siparişlerin miktar ve fiyat içeren kalemleri.",
+          columns: [
+            {
+              name: "item_id",
+              dataType: "INTEGER",
+              nullable: false,
+              primaryKey: true,
+            },
+            {
+              name: "order_id",
+              dataType: "INTEGER",
+              nullable: false,
+              references: { table: "orders", column: "order_id" },
+            },
+            { name: "quantity", dataType: "INTEGER", nullable: false },
+            { name: "unit_price", dataType: "NUMERIC(10,2)", nullable: false },
+          ],
+        },
+      ],
+      relationships: [
+        {
+          fromTable: "orders",
+          fromColumn: "customer_id",
+          toTable: "customers",
+          toColumn: "customer_id",
+          label: "Sipariş başlığı müşteriye aittir",
+        },
+        {
+          fromTable: "order_items",
+          fromColumn: "order_id",
+          toTable: "orders",
+          toColumn: "order_id",
+          label: "Kalem sipariş başlığına aittir",
+        },
+      ],
+    },
+    sampleRows: [
+      {
+        tableName: "customers",
+        rows: [
+          { customer_id: 1, customer_name: "Atlas Retail" },
+          { customer_id: 2, customer_name: "Mavi Market" },
+        ],
+      },
+      {
+        tableName: "orders",
+        rows: [
+          { order_id: 5101, customer_id: 1 },
+          { order_id: 5102, customer_id: 2 },
+        ],
+      },
+      {
+        tableName: "order_items",
+        rows: [
+          { item_id: 1, order_id: 5101, quantity: 2, unit_price: 100 },
+          { item_id: 2, order_id: 5101, quantity: 1, unit_price: 500 },
+        ],
+      },
+    ],
+    expectedColumns: ["order_id", "customer_name", "order_total"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      [5101, "Atlas Retail", 700],
+      [5102, "Mavi Market", 450],
+      [5103, "Atlas Retail", 400],
+    ],
+    orderSensitive: true,
+    requiredConcepts: [
+      "INNER_JOIN",
+      "MULTI_JOIN",
+      "SUM",
+      "GROUP_BY",
+      "ORDER_BY",
+    ],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "Çıktının tanesi sipariştir; kalem satırlarını order_id seviyesinde toplamalısın.",
+      "orders önce customers ile customer_id, sonra order_items ile order_id üzerinden birleşir.",
+      "İki INNER JOIN sonrasında order_id ve customer_name'e göre grupla; SUM(quantity * unit_price) AS order_total üret.",
+    ],
+    explanation:
+      "Çoklu JOIN dağınık boyut ve hareket verisini bağlar. GROUP BY sipariş tanesini korurken kalem tutarlarını tek bir finansal toplamda birleştirir.",
+    completionMessage:
+      "Sipariş değer dosyası hazır. Üç tabloyu satır çoğalmasını yöneterek birleştirdin.",
+    nextTaskId: "m5-t3",
+  }),
+  createTask({
+    id: "m5-t3",
+    slug: "employee-manager-map",
+    moduleId: "module-5",
+    title: "Çalışan–yönetici görünümünü kur",
+    subtitle: "Aynı tabloyu iki ayrı rolle birleştir.",
+    scenario:
+      "İnsan kaynakları ekibi, doğrudan yöneticisi bulunan her çalışanı yöneticisinin adıyla birlikte organizasyon listesine ekleyecek.",
+    objective:
+      "employees tablosunu kendisiyle INNER JOIN kullanarak birleştir. employee_name ve manager_name kolonlarını employee_id artan sırada getir; üst yöneticiyi sonuç dışında bırak.",
+    difficulty: "intermediate",
+    estimatedMinutes: 12,
+    prerequisites: ["m5-t2"],
+    concepts: [
+      "PRIMARY_KEY",
+      "FOREIGN_KEY",
+      "INNER_JOIN",
+      "SELF_JOIN",
+      "ORDER_BY",
+      "ALIAS",
+    ],
+    setupSql: `
+      CREATE TABLE employees (
+        employee_id INTEGER PRIMARY KEY,
+        employee_name TEXT NOT NULL,
+        role_title TEXT NOT NULL,
+        manager_id INTEGER REFERENCES employees(employee_id)
+      );
+      INSERT INTO employees VALUES
+        (1, 'Derya Akın', 'CEO', NULL),
+        (2, 'Baran Tunç', 'Sales Director', 1),
+        (3, 'Ceren Aras', 'Operations Director', 1),
+        (4, 'Efe Kaya', 'Account Executive', 2),
+        (5, 'Funda Yalın', 'Analyst', 3);
+    `,
+    schema: {
+      tables: [
+        {
+          name: "employees",
+          description:
+            "Yönetici ilişkisini aynı tablo üzerinde tutan çalışan ana verisi.",
+          columns: [
+            {
+              name: "employee_id",
+              dataType: "INTEGER",
+              nullable: false,
+              primaryKey: true,
+            },
+            { name: "employee_name", dataType: "TEXT", nullable: false },
+            { name: "role_title", dataType: "TEXT", nullable: false },
+            {
+              name: "manager_id",
+              dataType: "INTEGER",
+              nullable: true,
+              references: { table: "employees", column: "employee_id" },
+            },
+          ],
+        },
+      ],
+      relationships: [
+        {
+          fromTable: "employees",
+          fromColumn: "manager_id",
+          toTable: "employees",
+          toColumn: "employee_id",
+          label: "Çalışanın yöneticisi yine employees tablosundadır",
+        },
+      ],
+    },
+    sampleRows: [
+      {
+        tableName: "employees",
+        rows: [
+          {
+            employee_id: 1,
+            employee_name: "Derya Akın",
+            role_title: "CEO",
+            manager_id: null,
+          },
+          {
+            employee_id: 2,
+            employee_name: "Baran Tunç",
+            role_title: "Sales Director",
+            manager_id: 1,
+          },
+          {
+            employee_id: 4,
+            employee_name: "Efe Kaya",
+            role_title: "Account Executive",
+            manager_id: 2,
+          },
+        ],
+      },
+    ],
+    expectedColumns: ["employee_name", "manager_name"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["Baran Tunç", "Derya Akın"],
+      ["Ceren Aras", "Derya Akın"],
+      ["Efe Kaya", "Baran Tunç"],
+      ["Funda Yalın", "Ceren Aras"],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["INNER_JOIN", "SELF_JOIN", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "Aynı employees tablosuna çalışan ve yönetici rollerini ayıran iki farklı alias ver.",
+      "Çalışan alias'ındaki manager_id, yönetici alias'ındaki employee_id ile eşleşir.",
+      "FROM employees e INNER JOIN employees m ON e.manager_id = m.employee_id yapısını kurup e.employee_id ile sırala.",
+    ],
+    explanation:
+      "Self JOIN aynı varlığın hiyerarşik rollerini yan yana getirir. Açık alias'lar hangi kolonun çalışana, hangisinin yöneticiye ait olduğunu anlaşılır kılar.",
+    completionMessage:
+      "Organizasyon görünümü hazır. Aynı tabloyu iki iş rolüyle güvenle kullandın.",
+    nextTaskId: "m5-t4",
+  }),
+  createTask({
+    id: "m5-t4",
+    slug: "tenant-price-match",
+    moduleId: "module-5",
+    title: "Fiyatı bileşik anahtarla eşleştir",
+    subtitle: "Yanlış satır çoğalmasını iki kolonlu JOIN koşuluyla önle.",
+    scenario:
+      "Çok şirketli sipariş sisteminde aynı SKU farklı şirketlerde farklı fiyata sahip; finans her satırı kendi şirket fiyatıyla değerlemek istiyor.",
+    objective:
+      "order_lines ile catalog_prices tablolarını company_id ve sku kolonlarının ikisi üzerinden INNER JOIN ile birleştir. line_id, company_id, sku ve quantity * unit_price sonucu line_total kolonlarını line_id artan sırada getir.",
+    difficulty: "intermediate",
+    estimatedMinutes: 14,
+    prerequisites: ["m5-t3"],
+    concepts: [
+      "PRIMARY_KEY",
+      "FOREIGN_KEY",
+      "INNER_JOIN",
+      "AND",
+      "ARITHMETIC",
+      "ORDER_BY",
+      "ALIAS",
+    ],
+    setupSql: `
+      CREATE TABLE catalog_prices (
+        company_id INTEGER NOT NULL,
+        sku TEXT NOT NULL,
+        unit_price NUMERIC(10, 2) NOT NULL,
+        PRIMARY KEY (company_id, sku)
+      );
+      CREATE TABLE order_lines (
+        line_id INTEGER PRIMARY KEY,
+        company_id INTEGER NOT NULL,
+        sku TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        FOREIGN KEY (company_id, sku) REFERENCES catalog_prices(company_id, sku)
+      );
+      INSERT INTO catalog_prices VALUES
+        (1, 'SKU-A', 100.00),
+        (2, 'SKU-A', 130.00),
+        (1, 'SKU-B', 50.00),
+        (2, 'SKU-B', 65.00);
+      INSERT INTO order_lines VALUES
+        (5201, 1, 'SKU-A', 2),
+        (5202, 2, 'SKU-A', 3),
+        (5203, 1, 'SKU-B', 4),
+        (5204, 2, 'SKU-B', 1);
+    `,
+    schema: {
+      tables: [
+        {
+          name: "catalog_prices",
+          description:
+            "Şirket ve SKU birleşimine göre değişen katalog fiyatları.",
+          columns: [
+            {
+              name: "company_id",
+              dataType: "INTEGER",
+              nullable: false,
+              primaryKey: true,
+            },
+            {
+              name: "sku",
+              dataType: "TEXT",
+              nullable: false,
+              primaryKey: true,
+            },
+            { name: "unit_price", dataType: "NUMERIC(10,2)", nullable: false },
+          ],
+        },
+        {
+          name: "order_lines",
+          description: "Şirket ve SKU bağlamını taşıyan sipariş satırları.",
+          columns: [
+            {
+              name: "line_id",
+              dataType: "INTEGER",
+              nullable: false,
+              primaryKey: true,
+            },
+            {
+              name: "company_id",
+              dataType: "INTEGER",
+              nullable: false,
+              references: { table: "catalog_prices", column: "company_id" },
+            },
+            {
+              name: "sku",
+              dataType: "TEXT",
+              nullable: false,
+              references: { table: "catalog_prices", column: "sku" },
+            },
+            { name: "quantity", dataType: "INTEGER", nullable: false },
+          ],
+        },
+      ],
+      relationships: [
+        {
+          fromTable: "order_lines",
+          fromColumn: "company_id",
+          toTable: "catalog_prices",
+          toColumn: "company_id",
+          label: "Bileşik eşleşmenin şirket parçası",
+        },
+        {
+          fromTable: "order_lines",
+          fromColumn: "sku",
+          toTable: "catalog_prices",
+          toColumn: "sku",
+          label: "Bileşik eşleşmenin ürün parçası",
+        },
+      ],
+    },
+    sampleRows: [
+      {
+        tableName: "catalog_prices",
+        rows: [
+          { company_id: 1, sku: "SKU-A", unit_price: 100 },
+          { company_id: 2, sku: "SKU-A", unit_price: 130 },
+        ],
+      },
+      {
+        tableName: "order_lines",
+        rows: [
+          { line_id: 5201, company_id: 1, sku: "SKU-A", quantity: 2 },
+          { line_id: 5202, company_id: 2, sku: "SKU-A", quantity: 3 },
+        ],
+      },
+    ],
+    expectedColumns: ["line_id", "company_id", "sku", "line_total"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      [5201, 1, "SKU-A", 200],
+      [5202, 2, "SKU-A", 390],
+      [5203, 1, "SKU-B", 200],
+      [5204, 2, "SKU-B", 65],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["INNER_JOIN", "AND", "ARITHMETIC", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "sku tek başına benzersiz değildir; eşleşmenin şirket bağlamını da taşıması gerekir.",
+      "ON bölümünde company_id eşitliği ile sku eşitliğini AND kullanarak birleştir.",
+      "INNER JOIN catalog_prices p ON l.company_id = p.company_id AND l.sku = p.sku sonrasında quantity * unit_price hesapla.",
+    ],
+    explanation:
+      "Bileşik anahtarın yalnızca bir parçasıyla JOIN yapmak çapraz şirket fiyatlarını eşleştirerek satırları çoğaltır. Her iki anahtar kolonunu kullanmak doğru cardinality'yi korur.",
+    completionMessage:
+      "Sipariş satırları doğru şirket fiyatıyla eşleşti. JOIN cardinality hatasını önledin.",
+    nextTaskId: "m5-t1",
+  }),
+];
 
 const joinTask = createTask({
   id: "m5-t1",
   slug: "customer-order-coverage",
   moduleId: "module-5",
   title: "Sipariş vermeyen müşterileri de koru",
-  subtitle: "Müşteri tabanını sipariş hareketleriyle güvenli biçimde birleştir.",
+  subtitle:
+    "Müşteri tabanını sipariş hareketleriyle güvenli biçimde birleştir.",
   scenario:
     "CRM ekibi, tamamlanmış siparişi olmasa bile her müşterinin raporda görünmesini ve toplam harcamasının sıfır olarak gösterilmesini istiyor.",
   objective:
-    "customers ile orders tablolarını LEFT JOIN kullanarak birleştir. Her customer_name için completed sipariş toplamını total_spend adıyla getir; siparişi olmayanlarda 0 göster ve total_spend azalan sırada sırala.",
+    "customers ile orders tablolarını LEFT JOIN kullanarak birleştir. Her customer_name için completed sipariş toplamını total_spend adıyla getir; siparişi olmayanlarda 0 göster. total_spend azalan, eşitlikte customer_name artan sırada getir.",
   difficulty: "intermediate",
   estimatedMinutes: 16,
-  prerequisites: ["m4-t1"],
-  concepts: ["PRIMARY_KEY", "FOREIGN_KEY", "LEFT_JOIN", "GROUP_BY", "SUM", "ORDER_BY"],
+  prerequisites: ["m5-t4"],
+  concepts: [
+    "PRIMARY_KEY",
+    "FOREIGN_KEY",
+    "LEFT_JOIN",
+    "GROUP_BY",
+    "SUM",
+    "ORDER_BY",
+  ],
   setupSql: `
     CREATE TABLE customers (
       customer_id INTEGER PRIMARY KEY,
@@ -925,7 +1619,12 @@ const joinTask = createTask({
         name: "orders",
         description: "Müşterilere bağlı sipariş hareketleri.",
         columns: [
-          { name: "order_id", dataType: "INTEGER", nullable: false, primaryKey: true },
+          {
+            name: "order_id",
+            dataType: "INTEGER",
+            nullable: false,
+            primaryKey: true,
+          },
           {
             name: "customer_id",
             dataType: "INTEGER",
@@ -972,19 +1671,396 @@ const joinTask = createTask({
     ["Kuzey Kafe", 0],
   ],
   orderSensitive: true,
-  requiredConcepts: ["LEFT_JOIN", "GROUP_BY", "SUM"],
+  requiredConcepts: ["LEFT_JOIN", "GROUP_BY", "SUM", "ORDER_BY"],
   forbiddenOperations: [...READ_ONLY_FORBIDDEN],
   hints: [
     "Ana listen customers olmalı; LEFT JOIN soldaki tüm müşterileri korur.",
     "completed koşulunu JOIN koşuluna eklemek, eşleşmeyen müşterilerin kaybolmasını önler.",
-    "COALESCE(SUM(o.amount), 0) AS total_spend üretip müşteri adına göre grupla.",
+    "Toplamı NULL olduğunda sıfıra çevir; toplamı azalan, eşit toplamları müşteri adına göre artan sırala.",
   ],
   explanation:
     "LEFT JOIN soldaki müşteri kümesini korur. Sağ tablo filtresini ON içinde uygulamak, eşleşmeyen müşterileri WHERE ile istemeden elemeni engeller; COALESCE ise NULL toplamı sıfıra çevirir.",
   completionMessage:
     "CRM kapsamı korundu. Siparişsiz müşteriler de doğru sıfır değeriyle raporda.",
-  nextTaskId: "m6-t1",
+  nextTaskId: "m6-t2",
 });
+
+const subqueryFoundationTasks: LessonTask[] = [
+  createTask({
+    id: "m6-t2",
+    slug: "campaign-product-shortlist",
+    moduleId: "module-6",
+    title: "Kampanya ürünlerini kısa listele",
+    subtitle: "IN ve scalar alt sorguyu iki ayrı iş kuralı için kullan.",
+    scenario:
+      "Kategori ekibi yalnızca aktif kampanya kategorilerindeki ve genel ürün ortalamasından pahalı ürünleri premium vitrine alacak.",
+    objective:
+      "category_id değeri aktif kampanya kategorilerini döndüren bir IN alt sorgusunda bulunan ve unit_price değeri tüm ürünlerin ortalamasından yüksek olan ürünlerin product_name ve unit_price kolonlarını fiyata göre azalan sırada getir.",
+    difficulty: "intermediate",
+    estimatedMinutes: 14,
+    prerequisites: ["m5-t1"],
+    concepts: [
+      "SUBQUERY",
+      "IN",
+      "AVG",
+      "WHERE",
+      "AND",
+      "COMPARISON",
+      "ORDER_BY",
+    ],
+    setupSql: `
+      CREATE TABLE categories (
+        category_id INTEGER PRIMARY KEY,
+        category_name TEXT NOT NULL,
+        campaign_active BOOLEAN NOT NULL
+      );
+      CREATE TABLE products (
+        product_id INTEGER PRIMARY KEY,
+        product_name TEXT NOT NULL,
+        category_id INTEGER NOT NULL REFERENCES categories(category_id),
+        unit_price NUMERIC(10, 2) NOT NULL
+      );
+      INSERT INTO categories VALUES
+        (1, 'Electronics', TRUE),
+        (2, 'Furniture', FALSE),
+        (3, 'Audio', TRUE);
+      INSERT INTO products VALUES
+        (1, 'Kulaklık', 1, 100.00),
+        (2, 'Monitör', 1, 300.00),
+        (3, 'Ofis Koltuğu', 2, 500.00),
+        (4, 'Akıllı Hoparlör', 3, 400.00),
+        (5, 'Ses Kablosu', 3, 50.00),
+        (6, 'Çalışma Masası', 2, 150.00);
+    `,
+    schema: {
+      tables: [
+        {
+          name: "categories",
+          description: "Kampanya kapsamı işaretlenmiş ürün kategorileri.",
+          columns: [
+            {
+              name: "category_id",
+              dataType: "INTEGER",
+              nullable: false,
+              primaryKey: true,
+            },
+            { name: "category_name", dataType: "TEXT", nullable: false },
+            { name: "campaign_active", dataType: "BOOLEAN", nullable: false },
+          ],
+        },
+        {
+          name: "products",
+          description: "Kategoriye bağlı ürün ve fiyat listesi.",
+          columns: [
+            {
+              name: "product_id",
+              dataType: "INTEGER",
+              nullable: false,
+              primaryKey: true,
+            },
+            { name: "product_name", dataType: "TEXT", nullable: false },
+            {
+              name: "category_id",
+              dataType: "INTEGER",
+              nullable: false,
+              references: { table: "categories", column: "category_id" },
+            },
+            { name: "unit_price", dataType: "NUMERIC(10,2)", nullable: false },
+          ],
+        },
+      ],
+      relationships: [
+        {
+          fromTable: "products",
+          fromColumn: "category_id",
+          toTable: "categories",
+          toColumn: "category_id",
+          label: "Ürün bir kategoriye aittir",
+        },
+      ],
+    },
+    sampleRows: [
+      {
+        tableName: "categories",
+        rows: [
+          {
+            category_id: 1,
+            category_name: "Electronics",
+            campaign_active: true,
+          },
+          {
+            category_id: 2,
+            category_name: "Furniture",
+            campaign_active: false,
+          },
+        ],
+      },
+      {
+        tableName: "products",
+        rows: [
+          {
+            product_id: 2,
+            product_name: "Monitör",
+            category_id: 1,
+            unit_price: 300,
+          },
+          {
+            product_id: 3,
+            product_name: "Ofis Koltuğu",
+            category_id: 2,
+            unit_price: 500,
+          },
+        ],
+      },
+    ],
+    expectedColumns: ["product_name", "unit_price"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["Akıllı Hoparlör", 400],
+      ["Monitör", 300],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["SUBQUERY", "IN", "AVG", "AND", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "İki bağımsız filtre var: uygun kategori kümesi ve tek değer döndüren fiyat ortalaması.",
+      "category_id için IN (SELECT ... FROM categories ...), fiyat eşiği için (SELECT AVG(...) FROM products) kullan.",
+      "WHERE category_id IN (...) AND unit_price > (SELECT AVG(unit_price) FROM products) sonrasında fiyata göre DESC sırala.",
+    ],
+    explanation:
+      "IN alt sorgusu çok satırlı bir kategori kümesini, scalar alt sorgu ise karşılaştırmada kullanılacak tek ortalama değerini üretir. Her alt sorgunun çıktı şekli kullanıldığı operatörle uyumludur.",
+    completionMessage:
+      "Premium kampanya listesi hazır. Küme ve tek değer alt sorgularını birlikte kullandın.",
+    nextTaskId: "m6-t3",
+  }),
+  createTask({
+    id: "m6-t3",
+    slug: "silent-customer-watchlist",
+    moduleId: "module-6",
+    title: "Sessiz müşterileri bul",
+    subtitle:
+      "İlişkili NOT EXISTS ile hareketi olmayan ana kayıtları tespit et.",
+    scenario:
+      "Müşteri başarı ekibi 1 Nisan 2026'dan beri hiç sipariş vermeyen müşteriler için geri kazanım çalışması başlatacak.",
+    objective:
+      "customers tablosundan, orders içinde aynı customer_id ile 2026-04-01 veya sonrasında kaydı bulunmayan customer_id ve customer_name değerlerini customer_id artan sırada getir. İlişkili NOT EXISTS kullan.",
+    difficulty: "intermediate",
+    estimatedMinutes: 14,
+    prerequisites: ["m6-t2"],
+    concepts: [
+      "SUBQUERY",
+      "EXISTS",
+      "NOT",
+      "WHERE",
+      "AND",
+      "COMPARISON",
+      "ORDER_BY",
+    ],
+    setupSql: `
+      CREATE TABLE customers (
+        customer_id INTEGER PRIMARY KEY,
+        customer_name TEXT NOT NULL
+      );
+      CREATE TABLE orders (
+        order_id INTEGER PRIMARY KEY,
+        customer_id INTEGER NOT NULL REFERENCES customers(customer_id),
+        ordered_at DATE NOT NULL
+      );
+      INSERT INTO customers VALUES
+        (1, 'Atlas Retail'),
+        (2, 'Mavi Market'),
+        (3, 'Kuzey Kafe'),
+        (4, 'Ada Tekstil');
+      INSERT INTO orders VALUES
+        (6101, 1, DATE '2026-04-08'),
+        (6102, 2, DATE '2026-03-15'),
+        (6103, 4, DATE '2026-04-02'),
+        (6104, 1, DATE '2026-02-20');
+    `,
+    schema: {
+      tables: [
+        {
+          name: "customers",
+          description: "Geri kazanım analizi yapılacak müşteri ana verisi.",
+          columns: [
+            {
+              name: "customer_id",
+              dataType: "INTEGER",
+              nullable: false,
+              primaryKey: true,
+            },
+            { name: "customer_name", dataType: "TEXT", nullable: false },
+          ],
+        },
+        {
+          name: "orders",
+          description: "Müşterilerin tarihli sipariş hareketleri.",
+          columns: [
+            {
+              name: "order_id",
+              dataType: "INTEGER",
+              nullable: false,
+              primaryKey: true,
+            },
+            {
+              name: "customer_id",
+              dataType: "INTEGER",
+              nullable: false,
+              references: { table: "customers", column: "customer_id" },
+            },
+            { name: "ordered_at", dataType: "DATE", nullable: false },
+          ],
+        },
+      ],
+      relationships: [
+        {
+          fromTable: "orders",
+          fromColumn: "customer_id",
+          toTable: "customers",
+          toColumn: "customer_id",
+          label: "Sipariş müşteriye aittir",
+        },
+      ],
+    },
+    sampleRows: [
+      {
+        tableName: "customers",
+        rows: [
+          { customer_id: 1, customer_name: "Atlas Retail" },
+          { customer_id: 3, customer_name: "Kuzey Kafe" },
+        ],
+      },
+      {
+        tableName: "orders",
+        rows: [
+          { order_id: 6101, customer_id: 1, ordered_at: "2026-04-08" },
+          { order_id: 6102, customer_id: 2, ordered_at: "2026-03-15" },
+        ],
+      },
+    ],
+    expectedColumns: ["customer_id", "customer_name"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      [2, "Mavi Market"],
+      [3, "Kuzey Kafe"],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["SUBQUERY", "EXISTS", "NOT", "AND", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "Her müşteri için eşleşen yakın tarihli bir sipariş olup olmadığını kontrol etmelisin.",
+      "Alt sorguyu o.customer_id = c.customer_id koşuluyla dış satıra bağla; tarih koşulunu aynı alt sorguda uygula.",
+      "İç kontrolü müşteri anahtarı ve 1 Nisan tarih sınırıyla ilişkilendir; dışarıda bu eşleşmenin bulunmamasını iste.",
+    ],
+    explanation:
+      "İlişkili NOT EXISTS dış sorgudaki her müşteri için belirlenen koşulu sağlayan en az bir hareket arar ve yalnızca bulunmayanları bırakır. NULL üretebilen listelerde NOT IN'e göre daha güvenli bir anti-join desenidir.",
+    completionMessage:
+      "Geri kazanım listesi hazır. Hareketi olmayan ana kayıtları güvenle tespit ettin.",
+    nextTaskId: "m6-t4",
+  }),
+  createTask({
+    id: "m6-t4",
+    slug: "category-tree-paths",
+    moduleId: "module-6",
+    title: "Kategori ağacını aç",
+    subtitle: "Recursive CTE ile bilinmeyen derinlikteki hiyerarşiyi dolaş.",
+    scenario:
+      "Katalog ekibi üst ve alt kategorileri tam yol etiketiyle dışa aktararak menü ve arama indeksini aynı kaynaktan besleyecek.",
+    objective:
+      "WITH RECURSIVE kullanarak kök kategoriden alt kategorilere ilerle. Her kayıt için 'Ürünler > ...' biçiminde category_path ve kökte 0'dan başlayan depth üret; category_path artan sırada getir.",
+    difficulty: "advanced",
+    estimatedMinutes: 18,
+    prerequisites: ["m6-t3"],
+    concepts: [
+      "CTE",
+      "RECURSIVE_CTE",
+      "INNER_JOIN",
+      "STRING_FUNCTION",
+      "ARITHMETIC",
+      "ORDER_BY",
+    ],
+    setupSql: `
+      CREATE TABLE categories (
+        category_id INTEGER PRIMARY KEY,
+        category_name TEXT NOT NULL,
+        parent_id INTEGER REFERENCES categories(category_id)
+      );
+      INSERT INTO categories VALUES
+        (1, 'Ürünler', NULL),
+        (2, 'Elektronik', 1),
+        (3, 'Ev', 1),
+        (4, 'Bilgisayar', 2),
+        (5, 'Ses', 2),
+        (6, 'Mutfak', 3);
+    `,
+    schema: {
+      tables: [
+        {
+          name: "categories",
+          description:
+            "parent_id ile kendi üzerine bağlanan katalog kategorileri.",
+          columns: [
+            {
+              name: "category_id",
+              dataType: "INTEGER",
+              nullable: false,
+              primaryKey: true,
+            },
+            { name: "category_name", dataType: "TEXT", nullable: false },
+            {
+              name: "parent_id",
+              dataType: "INTEGER",
+              nullable: true,
+              references: { table: "categories", column: "category_id" },
+            },
+          ],
+        },
+      ],
+      relationships: [
+        {
+          fromTable: "categories",
+          fromColumn: "parent_id",
+          toTable: "categories",
+          toColumn: "category_id",
+          label: "Alt kategori üst kategoriye bağlanır",
+        },
+      ],
+    },
+    sampleRows: [
+      {
+        tableName: "categories",
+        rows: [
+          { category_id: 1, category_name: "Ürünler", parent_id: null },
+          { category_id: 2, category_name: "Elektronik", parent_id: 1 },
+          { category_id: 4, category_name: "Bilgisayar", parent_id: 2 },
+        ],
+      },
+    ],
+    expectedColumns: ["category_path", "depth"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["Ürünler", 0],
+      ["Ürünler > Elektronik", 1],
+      ["Ürünler > Elektronik > Bilgisayar", 2],
+      ["Ürünler > Elektronik > Ses", 2],
+      ["Ürünler > Ev", 1],
+      ["Ürünler > Ev > Mutfak", 2],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["CTE", "RECURSIVE_CTE", "INNER_JOIN", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "Recursive CTE iki parçadan oluşur: kökleri seçen anchor ve çocukları ekleyen recursive adım.",
+      "Anchor parent_id IS NULL satırlarını depth 0 ile başlatır; UNION ALL sonrası çocukları parent_id üzerinden CTE'ye bağla.",
+      "Recursive adımda çocuğu parent_id üzerinden bir önceki seviyeye bağla; yol metnini uzatırken depth değerini bir artır.",
+    ],
+    explanation:
+      "Recursive CTE anchor sonuçtan başlar ve yeni çocuk kalmayana kadar aynı ilişkiyi tekrarlar. Yol ve depth değerlerini her adımda taşımak hiyerarşiyi raporlanabilir hale getirir.",
+    completionMessage:
+      "Kategori ağacı tam yollarıyla açıldı. Değişken derinlikteki hiyerarşiyi recursive olarak dolaştın.",
+    nextTaskId: "m6-t1",
+  }),
+];
 
 const cteTask = createTask({
   id: "m6-t1",
@@ -998,7 +2074,7 @@ const cteTask = createTask({
     "Bir CTE ile branch_sales verisini branch bazında toplayıp branch_total üret. Sonuçtan yalnızca şube toplamlarının ortalamasını aşan branch ve branch_total değerlerini getir.",
   difficulty: "intermediate",
   estimatedMinutes: 18,
-  prerequisites: ["m5-t1"],
+  prerequisites: ["m6-t4"],
   concepts: ["CTE", "SUBQUERY", "GROUP_BY", "SUM"],
   setupSql: `
     CREATE TABLE branch_sales (
@@ -1020,7 +2096,12 @@ const cteTask = createTask({
         name: "branch_sales",
         description: "Şubelerin satış işlem tutarları.",
         columns: [
-          { name: "sale_id", dataType: "INTEGER", nullable: false, primaryKey: true },
+          {
+            name: "sale_id",
+            dataType: "INTEGER",
+            nullable: false,
+            primaryKey: true,
+          },
           { name: "branch", dataType: "TEXT", nullable: false },
           { name: "amount", dataType: "NUMERIC(10,2)", nullable: false },
         ],
@@ -1052,22 +2133,302 @@ const cteTask = createTask({
     "CTE ara sonucu adlandırarak çok adımlı analizi okunabilir kılar. Aynı ara sonuç hem ana sorguya hem ortalama hesaplayan scalar subquery'ye veri sağlar.",
   completionMessage:
     "Yatırım adayı belirlendi. Karmaşık analizi tekrar kullanılabilir adımlara böldün.",
-  nextTaskId: "m7-t1",
+  nextTaskId: "m7-t2",
 });
+
+const analyticsFoundationTasks: LessonTask[] = [
+  createTask({
+    id: "m7-t2",
+    slug: "category-sales-ranks",
+    moduleId: "module-7",
+    title: "Kategori liderlerini sırala",
+    subtitle:
+      "ROW_NUMBER, RANK ve DENSE_RANK farkını aynı sonuçta karşılaştır.",
+    scenario:
+      "Satış direktörü kategori içindeki temsilci sırasını görmek ve eşit gelirlerin sıra numaralarını nasıl etkilediğini karşılaştırmak istiyor.",
+    objective:
+      "Her category içinde ROW_NUMBER ile row_no üretirken revenue azalan, eşit gelirde rep_name artan sırasını kullan. RANK ile revenue_rank ve DENSE_RANK ile dense_revenue_rank yalnız revenue azalan sırasını izlesin. Sonucu category, revenue azalan ve rep_name artan sırada getir.",
+    difficulty: "advanced",
+    estimatedMinutes: 16,
+    prerequisites: ["m6-t1"],
+    concepts: [
+      "ROW_NUMBER",
+      "RANK",
+      "DENSE_RANK",
+      "PARTITION_BY",
+      "ORDER_BY",
+      "ALIAS",
+    ],
+    setupSql: `
+      CREATE TABLE representative_sales (
+        rep_id INTEGER PRIMARY KEY,
+        category TEXT NOT NULL,
+        rep_name TEXT NOT NULL,
+        revenue NUMERIC(10, 2) NOT NULL
+      );
+      INSERT INTO representative_sales VALUES
+        (1, 'Enterprise', 'Ayla', 1200.00),
+        (2, 'Enterprise', 'Bora', 1200.00),
+        (3, 'Enterprise', 'Cem', 900.00),
+        (4, 'SMB', 'Derya', 800.00),
+        (5, 'SMB', 'Eren', 600.00),
+        (6, 'SMB', 'Figen', 600.00);
+    `,
+    schema: {
+      tables: [
+        {
+          name: "representative_sales",
+          description: "Kategori bazında temsilci gelir sonuçları.",
+          columns: [
+            {
+              name: "rep_id",
+              dataType: "INTEGER",
+              nullable: false,
+              primaryKey: true,
+            },
+            { name: "category", dataType: "TEXT", nullable: false },
+            { name: "rep_name", dataType: "TEXT", nullable: false },
+            { name: "revenue", dataType: "NUMERIC(10,2)", nullable: false },
+          ],
+        },
+      ],
+    },
+    sampleRows: [
+      {
+        tableName: "representative_sales",
+        rows: [
+          {
+            rep_id: 1,
+            category: "Enterprise",
+            rep_name: "Ayla",
+            revenue: 1200,
+          },
+          {
+            rep_id: 2,
+            category: "Enterprise",
+            rep_name: "Bora",
+            revenue: 1200,
+          },
+          { rep_id: 5, category: "SMB", rep_name: "Eren", revenue: 600 },
+        ],
+      },
+    ],
+    expectedColumns: [
+      "category",
+      "rep_name",
+      "revenue",
+      "row_no",
+      "revenue_rank",
+      "dense_revenue_rank",
+    ],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["Enterprise", "Ayla", 1200, 1, 1, 1],
+      ["Enterprise", "Bora", 1200, 2, 1, 1],
+      ["Enterprise", "Cem", 900, 3, 3, 2],
+      ["SMB", "Derya", 800, 1, 1, 1],
+      ["SMB", "Eren", 600, 2, 2, 2],
+      ["SMB", "Figen", 600, 3, 2, 2],
+    ],
+    orderSensitive: true,
+    requiredConcepts: [
+      "ROW_NUMBER",
+      "RANK",
+      "DENSE_RANK",
+      "PARTITION_BY",
+      "ORDER_BY",
+    ],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "Üç fonksiyon da aynı category bölümünde çalışmalı; eşitliği revenue değeri belirlemeli.",
+      "ROW_NUMBER eşit gelirlerde rep_name artan ikinci anahtarını kullanmalı; RANK ve DENSE_RANK yalnızca revenue üzerinden sıralanmalı.",
+      "Her fonksiyonda OVER (PARTITION BY category ORDER BY revenue DESC ...) kullan; dış sorguyu da beklenen category, revenue DESC, rep_name sırasına getir.",
+    ],
+    explanation:
+      "ROW_NUMBER her satıra benzersiz sıra verir. RANK eşitlikten sonra boşluk bırakır; DENSE_RANK ise bir sonraki sırayı kesintisiz sürdürür. PARTITION BY bu hesabı her kategoride yeniden başlatır.",
+    completionMessage:
+      "Kategori liderlik tablosu hazır. Üç sıralama davranışını aynı veri üzerinde ayırdın.",
+    nextTaskId: "m7-t3",
+  }),
+  createTask({
+    id: "m7-t3",
+    slug: "weekly-revenue-change",
+    moduleId: "module-7",
+    title: "Haftalık gelir değişimini ölç",
+    subtitle: "LAG ile önceki dönemi aynı satıra taşı.",
+    scenario:
+      "Büyüme ekibi her haftanın gelirini önceki haftayla karşılaştırarak artış ve düşüş yüzdesini izlemek istiyor.",
+    objective:
+      "weekly_revenue verisini week_start sırasına koy. LAG ile previous_revenue üret; (revenue - previous) * 100 / previous hesabını iki ondalığa yuvarlayıp revenue_change_pct adıyla getir. İlk haftada iki türetilmiş kolon NULL kalmalı.",
+    difficulty: "advanced",
+    estimatedMinutes: 15,
+    prerequisites: ["m7-t2"],
+    concepts: ["LAG", "ORDER_BY", "ARITHMETIC", "ALIAS"],
+    setupSql: `
+      CREATE TABLE weekly_revenue (
+        week_start DATE PRIMARY KEY,
+        revenue NUMERIC(10, 2) NOT NULL
+      );
+      INSERT INTO weekly_revenue VALUES
+        (DATE '2026-01-05', 1000.00),
+        (DATE '2026-01-12', 1250.00),
+        (DATE '2026-01-19', 1000.00),
+        (DATE '2026-01-26', 1500.00);
+    `,
+    schema: {
+      tables: [
+        {
+          name: "weekly_revenue",
+          description: "Hafta başlangıcı bazında toplam gelir serisi.",
+          columns: [
+            {
+              name: "week_start",
+              dataType: "DATE",
+              nullable: false,
+              primaryKey: true,
+            },
+            { name: "revenue", dataType: "NUMERIC(10,2)", nullable: false },
+          ],
+        },
+      ],
+    },
+    sampleRows: [
+      {
+        tableName: "weekly_revenue",
+        rows: [
+          { week_start: "2026-01-05", revenue: 1000 },
+          { week_start: "2026-01-12", revenue: 1250 },
+          { week_start: "2026-01-19", revenue: 1000 },
+        ],
+      },
+    ],
+    expectedColumns: [
+      "week_start",
+      "revenue",
+      "previous_revenue",
+      "revenue_change_pct",
+    ],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["2026-01-05", 1000, null, null],
+      ["2026-01-12", 1250, 1000, 25],
+      ["2026-01-19", 1000, 1250, -20],
+      ["2026-01-26", 1500, 1000, 50],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["LAG", "ARITHMETIC", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    validationOptions: { numericTolerance: 0.01 },
+    hints: [
+      "LAG(revenue) aynı sıralamadaki bir önceki satırın gelirini getirir.",
+      "Önceki geliri hem gösterim hem yüzde hesabında kullan; sıfıra bölünmeyi NULLIF ile koruyabilirsin.",
+      "Önce previous_revenue değerini üret; yüzde değişimini ayrı adımda hesaplayıp sıfıra bölmeyi NULLIF ile güvenli kıl.",
+    ],
+    explanation:
+      "LAG satırları birleştirmeden önceki dönem değerini mevcut satıra taşır. Böylece zaman serisindeki mutlak farkı ve oransal değişimi aynı çıktı tanesinde hesaplayabilirsin.",
+    completionMessage:
+      "Haftalık değişim serisi hazır. Önceki dönem karşılaştırmasını pencere fonksiyonuyla kurdun.",
+    nextTaskId: "m7-t4",
+  }),
+  createTask({
+    id: "m7-t4",
+    slug: "seven-day-demand-signal",
+    moduleId: "module-7",
+    title: "Yedi günlük talep sinyali üret",
+    subtitle: "Açık window frame ile hareketli ortalama hesapla.",
+    scenario:
+      "Tedarik planlama ekibi günlük dalgalanmayı yumuşatmak için her günün kendisi ve önceki altı günü kapsayan talep ortalamasını izleyecek.",
+    objective:
+      "daily_demand verisini demand_date sırasına koy. AVG(units) için ROWS BETWEEN 6 PRECEDING AND CURRENT ROW çerçevesini kullan; sonucu iki ondalığa yuvarlayıp moving_avg_7d adıyla getir.",
+    difficulty: "advanced",
+    estimatedMinutes: 15,
+    prerequisites: ["m7-t3"],
+    concepts: ["AVG", "MOVING_AVERAGE", "ORDER_BY", "ALIAS"],
+    setupSql: `
+      CREATE TABLE daily_demand (
+        demand_date DATE PRIMARY KEY,
+        units INTEGER NOT NULL
+      );
+      INSERT INTO daily_demand VALUES
+        (DATE '2026-05-01', 10),
+        (DATE '2026-05-02', 14),
+        (DATE '2026-05-03', 12),
+        (DATE '2026-05-04', 18),
+        (DATE '2026-05-05', 16),
+        (DATE '2026-05-06', 20),
+        (DATE '2026-05-07', 15),
+        (DATE '2026-05-08', 22);
+    `,
+    schema: {
+      tables: [
+        {
+          name: "daily_demand",
+          description: "Günlük sevkiyat talep adetleri.",
+          columns: [
+            {
+              name: "demand_date",
+              dataType: "DATE",
+              nullable: false,
+              primaryKey: true,
+            },
+            { name: "units", dataType: "INTEGER", nullable: false },
+          ],
+        },
+      ],
+    },
+    sampleRows: [
+      {
+        tableName: "daily_demand",
+        rows: [
+          { demand_date: "2026-05-01", units: 10 },
+          { demand_date: "2026-05-02", units: 14 },
+          { demand_date: "2026-05-03", units: 12 },
+        ],
+      },
+    ],
+    expectedColumns: ["demand_date", "units", "moving_avg_7d"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["2026-05-01", 10, 10],
+      ["2026-05-02", 14, 12],
+      ["2026-05-03", 12, 12],
+      ["2026-05-04", 18, 13.5],
+      ["2026-05-05", 16, 14],
+      ["2026-05-06", 20, 15],
+      ["2026-05-07", 15, 15],
+      ["2026-05-08", 22, 16.71],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["AVG", "MOVING_AVERAGE", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    validationOptions: { numericTolerance: 0.01 },
+    hints: [
+      "Window AVG satırları azaltmaz; her gün için ayrı bir pencere hesabı üretir.",
+      "Pencereyi demand_date ile sırala ve satır bazlı sınırı ROWS anahtar kelimesiyle açıkça yaz.",
+      "AVG penceresini tarih sırasına bağla; çerçeveyi mevcut satır ve ondan önceki altı satırla açıkça sınırla.",
+    ],
+    explanation:
+      "Hareketli ortalama güncel satırı ve belirli sayıdaki önceki satırı değerlendirerek kısa vadeli oynaklığı yumuşatır. Açık ROWS frame pencerenin sınırlarını belirsiz varsayımlardan kurtarır.",
+    completionMessage:
+      "Talep sinyali hazır. Window frame ile kayan yedi günlük metriği ürettin.",
+    nextTaskId: "m7-t1",
+  }),
+];
 
 const analyticsTask = createTask({
   id: "m7-t1",
   slug: "account-running-balance",
   moduleId: "module-7",
   title: "Hareketli hesap bakiyesini üret",
-  subtitle: "Her işlem sonrasındaki kümülatif bakiyeyi pencere fonksiyonuyla izle.",
+  subtitle:
+    "Her işlem sonrasındaki kümülatif bakiyeyi pencere fonksiyonuyla izle.",
   scenario:
     "Finans ekibi, her hesap için işlemlerin ardından oluşan bakiyeyi işlem sırasını bozmadan görmek istiyor.",
   objective:
     "Her account_no içinde transaction_date ve transaction_id sırasıyla amount toplamını biriktirip running_balance adıyla getir. Çıktı transaction_id, account_no, amount, running_balance kolonlarını account_no, transaction_date, transaction_id sırasıyla içersin.",
   difficulty: "advanced",
   estimatedMinutes: 20,
-  prerequisites: ["m6-t1"],
+  prerequisites: ["m7-t4"],
   concepts: ["SUM", "PARTITION_BY", "RUNNING_TOTAL", "ORDER_BY"],
   setupSql: `
     CREATE TABLE account_transactions (
@@ -1127,7 +2488,12 @@ const analyticsTask = createTask({
       ],
     },
   ],
-  expectedColumns: ["transaction_id", "account_no", "amount", "running_balance"],
+  expectedColumns: [
+    "transaction_id",
+    "account_no",
+    "amount",
+    "running_balance",
+  ],
   validationMode: "result-and-concepts",
   expectedResult: [
     [701, "A-100", 100, 100],
@@ -1137,7 +2503,7 @@ const analyticsTask = createTask({
     [705, "B-200", -80, 120],
   ],
   orderSensitive: true,
-  requiredConcepts: ["SUM", "PARTITION_BY", "RUNNING_TOTAL"],
+  requiredConcepts: ["SUM", "PARTITION_BY", "RUNNING_TOTAL", "ORDER_BY"],
   forbiddenOperations: [...READ_ONLY_FORBIDDEN],
   hints: [
     "Normal GROUP BY satırları azaltır; burada satırları koruyan bir window function gerekir.",
@@ -1164,7 +2530,7 @@ const mutationTask = createTask({
   difficulty: "intermediate",
   estimatedMinutes: 12,
   prerequisites: ["m7-t1"],
-  concepts: ["UPDATE", "TRANSACTION"],
+  concepts: ["UPDATE", "ARITHMETIC"],
   setupSql: `
     CREATE TABLE inventory (
       product_id INTEGER PRIMARY KEY,
@@ -1210,7 +2576,7 @@ const mutationTask = createTask({
   validationMode: "mutation",
   expectedResult: [[801, 9]],
   orderSensitive: false,
-  requiredConcepts: ["UPDATE"],
+  requiredConcepts: ["UPDATE", "ARITHMETIC"],
   forbiddenOperations: [
     "DROP_DATABASE",
     "DROP_TABLE",
@@ -1225,7 +2591,7 @@ const mutationTask = createTask({
   hints: [
     "Bir satırdaki değeri değiştirmek için UPDATE ve hedefi sınırlamak için WHERE kullan.",
     "Yeni değer mevcut stock_quantity değerinden 3 çıkarılarak hesaplanabilir.",
-    "UPDATE inventory SET stock_quantity = stock_quantity - 3 WHERE product_id = 801 RETURNING product_id, stock_quantity yapısını kur.",
+    "Değeri mevcut stoktan türet, hedefi ürün kimliğiyle sınırla ve değişen iki alanı RETURNING ile doğrula.",
   ],
   explanation:
     "UPDATE seçilen satırın değerini yerinde değiştirir. WHERE olmadan tüm tablo etkilenebileceği için hedef koşulu kritik önemdedir; RETURNING değişikliği aynı işlemde doğrular.",
@@ -1247,7 +2613,14 @@ const modelingTask = createTask({
   difficulty: "advanced",
   estimatedMinutes: 20,
   prerequisites: ["m8-t1"],
-  concepts: ["STAR_SCHEMA", "INNER_JOIN", "MULTI_JOIN", "GROUP_BY", "SUM"],
+  concepts: [
+    "STAR_SCHEMA",
+    "INNER_JOIN",
+    "MULTI_JOIN",
+    "GROUP_BY",
+    "SUM",
+    "ORDER_BY",
+  ],
   setupSql: `
     CREATE TABLE dim_product (
       product_key INTEGER PRIMARY KEY,
@@ -1297,7 +2670,12 @@ const modelingTask = createTask({
         name: "dim_date",
         description: "Raporlama dönemlerini tutan tarih boyutu.",
         columns: [
-          { name: "date_key", dataType: "INTEGER", nullable: false, primaryKey: true },
+          {
+            name: "date_key",
+            dataType: "INTEGER",
+            nullable: false,
+            primaryKey: true,
+          },
           { name: "month_label", dataType: "TEXT", nullable: false },
         ],
       },
@@ -1305,7 +2683,12 @@ const modelingTask = createTask({
         name: "fact_sales",
         description: "Boyut anahtarları ve ölçüleri içeren satış fact tablosu.",
         columns: [
-          { name: "sale_key", dataType: "INTEGER", nullable: false, primaryKey: true },
+          {
+            name: "sale_key",
+            dataType: "INTEGER",
+            nullable: false,
+            primaryKey: true,
+          },
           {
             name: "product_key",
             dataType: "INTEGER",
@@ -1342,15 +2725,31 @@ const modelingTask = createTask({
     {
       tableName: "dim_product",
       rows: [
-        { product_key: 10, product_name: "Office Chair", category: "Furniture" },
+        {
+          product_key: 10,
+          product_name: "Office Chair",
+          category: "Furniture",
+        },
         { product_key: 11, product_name: "Monitor", category: "Technology" },
       ],
     },
     {
       tableName: "fact_sales",
       rows: [
-        { sale_key: 901, product_key: 10, date_key: 1, quantity: 2, unit_price: 100 },
-        { sale_key: 902, product_key: 11, date_key: 1, quantity: 1, unit_price: 300 },
+        {
+          sale_key: 901,
+          product_key: 10,
+          date_key: 1,
+          quantity: 2,
+          unit_price: 100,
+        },
+        {
+          sale_key: 902,
+          product_key: 11,
+          date_key: 1,
+          quantity: 1,
+          unit_price: 300,
+        },
       ],
     },
   ],
@@ -1363,7 +2762,13 @@ const modelingTask = createTask({
     ["2026-02", "Technology", 600],
   ],
   orderSensitive: true,
-  requiredConcepts: ["STAR_SCHEMA", "MULTI_JOIN", "GROUP_BY", "SUM"],
+  requiredConcepts: [
+    "STAR_SCHEMA",
+    "MULTI_JOIN",
+    "GROUP_BY",
+    "SUM",
+    "ORDER_BY",
+  ],
   forbiddenOperations: [...READ_ONLY_FORBIDDEN],
   hints: [
     "Fact tablo ölçüleri, dimension tabloları ise rapor etiketlerini sağlar.",
@@ -1398,6 +2803,7 @@ const capstoneTask = createTask({
     "GROUP_BY",
     "CASE",
     "ARITHMETIC",
+    "ORDER_BY",
   ],
   setupSql: `
     CREATE TABLE branches (
@@ -1436,7 +2842,12 @@ const capstoneTask = createTask({
         name: "branches",
         description: "Şube ana verisi.",
         columns: [
-          { name: "branch_id", dataType: "INTEGER", nullable: false, primaryKey: true },
+          {
+            name: "branch_id",
+            dataType: "INTEGER",
+            nullable: false,
+            primaryKey: true,
+          },
           { name: "branch_name", dataType: "TEXT", nullable: false },
         ],
       },
@@ -1458,7 +2869,12 @@ const capstoneTask = createTask({
         name: "branch_sales",
         description: "Şubelerin ay içindeki satış hareketleri.",
         columns: [
-          { name: "sale_id", dataType: "INTEGER", nullable: false, primaryKey: true },
+          {
+            name: "sale_id",
+            dataType: "INTEGER",
+            nullable: false,
+            primaryKey: true,
+          },
           {
             name: "branch_id",
             dataType: "INTEGER",
@@ -1515,7 +2931,14 @@ const capstoneTask = createTask({
     ["Izmir Hub", 6000, 0, 0, "Geride"],
   ],
   orderSensitive: true,
-  requiredConcepts: ["REPORTING", "LEFT_JOIN", "SUM", "GROUP_BY", "CASE"],
+  requiredConcepts: [
+    "REPORTING",
+    "LEFT_JOIN",
+    "SUM",
+    "GROUP_BY",
+    "CASE",
+    "ORDER_BY",
+  ],
   forbiddenOperations: [...READ_ONLY_FORBIDDEN],
   validationOptions: { numericTolerance: 0.01 },
   hints: [
@@ -1604,7 +3027,7 @@ export const curriculum: CurriculumModule[] = [
     description:
       "COUNT, SUM, AVG, MIN ve MAX fonksiyonlarını GROUP BY, HAVING ve koşullu aggregation ile kullan.",
     difficulty: "intermediate",
-    estimatedMinutes: 55,
+    estimatedMinutes: 49,
     topics: [
       "COUNT, SUM ve AVG",
       "MIN ve MAX",
@@ -1613,7 +3036,7 @@ export const curriculum: CurriculumModule[] = [
       "Koşullu aggregation",
     ],
     prerequisites: ["module-3"],
-    tasks: [summaryTask],
+    tasks: [...aggregationTasks, summaryTask],
   }),
   defineModule({
     id: "module-5",
@@ -1624,7 +3047,7 @@ export const curriculum: CurriculumModule[] = [
     description:
       "Primary ve foreign key ilişkilerinden başlayarak INNER JOIN, LEFT JOIN, çoklu ve self JOIN yapılarını öğren.",
     difficulty: "intermediate",
-    estimatedMinutes: 70,
+    estimatedMinutes: 57,
     topics: [
       "Primary key ve foreign key",
       "INNER JOIN",
@@ -1634,7 +3057,7 @@ export const curriculum: CurriculumModule[] = [
       "Birden fazla anahtar üzerinden JOIN",
     ],
     prerequisites: ["module-4"],
-    tasks: [joinTask],
+    tasks: [...joinFoundationTasks, joinTask],
   }),
   defineModule({
     id: "module-6",
@@ -1645,7 +3068,7 @@ export const curriculum: CurriculumModule[] = [
     description:
       "Scalar ve ilişkili alt sorguları, IN ve EXISTS kontrollerini, CTE ve recursive CTE yapılarını keşfet.",
     difficulty: "intermediate",
-    estimatedMinutes: 75,
+    estimatedMinutes: 64,
     topics: [
       "Scalar subquery",
       "IN subquery",
@@ -1655,7 +3078,7 @@ export const curriculum: CurriculumModule[] = [
       "Recursive CTE",
     ],
     prerequisites: ["module-5"],
-    tasks: [cteTask],
+    tasks: [...subqueryFoundationTasks, cteTask],
   }),
   defineModule({
     id: "module-7",
@@ -1664,38 +3087,37 @@ export const curriculum: CurriculumModule[] = [
     title: "Analitik SQL",
     subtitle: "Satır ayrıntısını korurken sıralı ve hareketli metrikler üret.",
     description:
-      "Window function ailesiyle sıralama, önceki/sonraki değer, running total, moving average ve cohort benzeri analizler yap.",
+      "Window function ailesiyle kategori sıralaması, önceki dönem karşılaştırması, running total ve hareketli ortalama üret.",
     difficulty: "advanced",
-    estimatedMinutes: 95,
+    estimatedMinutes: 66,
     topics: [
       "ROW_NUMBER, RANK ve DENSE_RANK",
-      "LAG ve LEAD",
+      "LAG ile önceki dönem",
       "PARTITION BY",
       "Running total",
       "Moving average",
-      "İlk ve son işlem",
-      "Cohort benzeri analizler",
+      "Açık window frame",
+      "Eşitlik ve deterministik sıra",
     ],
     prerequisites: ["module-6"],
-    tasks: [analyticsTask],
+    tasks: [...analyticsFoundationTasks, analyticsTask],
   }),
   defineModule({
     id: "module-8",
     slug: "data-manipulation",
     order: 8,
-    title: "Veri düzenleme",
-    subtitle: "Veriyi kontrollü biçimde oluştur, ekle, güncelle ve sil.",
+    title: "Kontrollü veri güncelleme",
+    subtitle: "Tek satırlık değişikliği hedefle, uygula ve kanıtla.",
     description:
-      "CREATE TABLE, INSERT, UPDATE ve DELETE işlemlerini constraint ve transaction güvenliğiyle uygula.",
+      "UPDATE, WHERE, göreli değer hesabı ve RETURNING ile güvenli bir stok değişikliğini uçtan uca doğrula.",
     difficulty: "intermediate",
-    estimatedMinutes: 65,
+    estimatedMinutes: 12,
     topics: [
-      "CREATE TABLE",
-      "INSERT",
       "UPDATE",
-      "DELETE",
-      "Constraints",
-      "Transaction mantığı",
+      "WHERE ile güvenli hedefleme",
+      "Göreli değer güncelleme",
+      "RETURNING",
+      "Constraint geri bildirimi",
     ],
     prerequisites: ["module-7"],
     tasks: [mutationTask],
@@ -1704,18 +3126,18 @@ export const curriculum: CurriculumModule[] = [
     id: "module-9",
     slug: "data-modeling",
     order: 9,
-    title: "Veri modelleme",
-    subtitle: "Analitik sorgular için sürdürülebilir veri yapıları tasarla.",
+    title: "Yıldız şemaya giriş",
+    subtitle: "Fact ve dimension rollerini çalışan bir raporda ayır.",
     description:
-      "Normalizasyon, fact/dimension ayrımı, star schema ve veri martı yaklaşımını çalışan sorgularla bağla.",
+      "Satış olaylarını ürün ve tarih boyutlarına bağlayarak ay-kategori tanesinde ilk analitik veri martı çıktısını üret.",
     difficulty: "advanced",
-    estimatedMinutes: 80,
+    estimatedMinutes: 20,
     topics: [
-      "Normalizasyon",
-      "Fact ve dimension tabloları",
+      "Fact ve dimension rolleri",
       "Star schema",
-      "Veri martı",
-      "Analitik veri modeli",
+      "Boyut anahtarları",
+      "Rapor tanesi",
+      "Analitik JOIN",
     ],
     prerequisites: ["module-8"],
     tasks: [modelingTask],
@@ -1724,20 +3146,17 @@ export const curriculum: CurriculumModule[] = [
     id: "module-10",
     slug: "business-analyst-projects",
     order: 10,
-    title: "İş analistliği projeleri",
-    subtitle: "SQL yapı taşlarını karar almaya hazır veri ürünlerine dönüştür.",
+    title: "Yönetici raporu projesi",
+    subtitle: "SQL yapı taşlarını hedef–gerçekleşme karar setine dönüştür.",
     description:
-      "Şube performansı, hedef gerçekleşme, müşteri segmentasyonu, sigorta, e-ticaret, veri kalitesi ve BI hazırlığı senaryolarını uçtan uca çöz.",
+      "Şube hedeflerini ve satışlarını kapsamı koruyarak birleştir; oran, durum etiketi ve sıfır aktiviteli şubeleri tek yönetici çıktısında sun.",
     difficulty: "advanced",
-    estimatedMinutes: 140,
+    estimatedMinutes: 25,
     topics: [
-      "Şube performans analizi",
       "Satış hedef gerçekleşme analizi",
-      "Müşteri segmentasyonu",
-      "Sigorta poliçe üretimi",
-      "E-ticaret sipariş analizi",
-      "Veri kalite kontrolü",
-      "Power BI veri hazırlama",
+      "Kapsam koruyan JOIN",
+      "Sıfır aktiviteli varlıklar",
+      "Oran ve koşullu karar etiketi",
       "Yönetici raporu veri seti",
     ],
     prerequisites: ["module-9"],
@@ -1807,9 +3226,7 @@ export const assertCurriculumIsValid = (
       curriculumModule.estimatedMinutes <= 0 ||
       curriculumModule.topics.length === 0
     ) {
-      throw new Error(
-        `${curriculumModule.id} süre ve konu bilgisi içermeli.`,
-      );
+      throw new Error(`${curriculumModule.id} süre ve konu bilgisi içermeli.`);
     }
     moduleIds.add(curriculumModule.id);
     moduleSlugs.add(curriculumModule.slug);
@@ -1820,10 +3237,18 @@ export const assertCurriculumIsValid = (
       throw new Error(`Tekrarlanan görev kimliği veya slug: ${task.id}.`);
     }
     if (!moduleIds.has(task.moduleId)) {
-      throw new Error(`${task.id}, var olmayan ${task.moduleId} modülüne bağlı.`);
+      throw new Error(
+        `${task.id}, var olmayan ${task.moduleId} modülüne bağlı.`,
+      );
     }
-    if (!task.setupSql.trim() || !task.objective.trim()) {
-      throw new Error(`${task.id} çalıştırılabilir SQL kurulumu ve hedef içermeli.`);
+    if (
+      !task.setupSql.trim() ||
+      !task.objective.trim() ||
+      !task.solutionSql.trim()
+    ) {
+      throw new Error(
+        `${task.id} çalıştırılabilir SQL kurulumu, hedef ve örnek çözüm içermeli.`,
+      );
     }
     if (task.estimatedMinutes <= 0 || task.hints.length !== 3) {
       throw new Error(`${task.id} süre ve üç aşamalı ipucu içermeli.`);
@@ -1834,17 +3259,21 @@ export const assertCurriculumIsValid = (
         (row) => row.length !== task.expectedColumns.length,
       )
     ) {
-      throw new Error(`${task.id} beklenen kolon ve satır genişlikleri uyuşmuyor.`);
+      throw new Error(
+        `${task.id} beklenen kolon ve satır genişlikleri uyuşmuyor.`,
+      );
     }
     if (
-      task.requiredConcepts.some(
-        (concept) => !task.concepts.includes(concept),
-      )
+      task.requiredConcepts.some((concept) => !task.concepts.includes(concept))
     ) {
-      throw new Error(`${task.id} zorunlu kavramları concepts içinde tanımlamalı.`);
+      throw new Error(
+        `${task.id} zorunlu kavramları concepts içinde tanımlamalı.`,
+      );
     }
 
-    const schemaTableNames = new Set(task.schema.tables.map((table) => table.name));
+    const schemaTableNames = new Set(
+      task.schema.tables.map((table) => table.name),
+    );
     if (schemaTableNames.size !== task.schema.tables.length) {
       throw new Error(`${task.id} şemasında tekrarlanan tablo adı var.`);
     }
@@ -1862,7 +3291,9 @@ export const assertCurriculumIsValid = (
 
   for (const task of authoredTasks) {
     if (task.nextTaskId !== null && !taskIds.has(task.nextTaskId)) {
-      throw new Error(`${task.id} için nextTaskId bulunamadı: ${task.nextTaskId}.`);
+      throw new Error(
+        `${task.id} için nextTaskId bulunamadı: ${task.nextTaskId}.`,
+      );
     }
     for (const prerequisite of task.prerequisites) {
       if (!taskIds.has(prerequisite)) {
@@ -1885,5 +3316,6 @@ export const assertCurriculumIsValid = (
 };
 
 assertCurriculumIsValid(curriculum);
+assertValidTaskCollection(tasks);
 
 export default curriculum;

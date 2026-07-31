@@ -41,6 +41,12 @@ yarn-error.log*
 next-env.d.ts
 *.tsbuildinfo
 /dist/
+/dist-portable/
+/dist-hostinger/
 /.wrangler/
 /outputs/
 /work/
+
+# Local transfer and Finder duplicate artifacts
+/a.scpt
+/src/app/screens/LearningPathScreen 2.tsx
