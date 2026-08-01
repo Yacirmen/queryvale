@@ -31,7 +31,7 @@ export function SettingsScreen({
   };
 
   return (
-    <main className="page">
+    <main id="main-content" className="page" tabIndex={-1}>
       <div className="page-container">
         <div className="page-hero">
           <div>

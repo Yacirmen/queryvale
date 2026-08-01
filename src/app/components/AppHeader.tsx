@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  ChartNoAxesCombined,
   DatabaseZap,
   Moon,
   Route,
@@ -10,8 +9,8 @@ import {
   Sun,
   type LucideIcon,
 } from "lucide-react";
-import type { AppScreen, Navigate } from "../appTypes";
 import type { EditorSettings } from "../../features/progress/progressStore";
+import type { AppScreen, Navigate } from "../appTypes";
 
 interface AppHeaderProps {
   screen: AppScreen;
@@ -21,18 +20,35 @@ interface AppHeaderProps {
   onSettingsChange: (settings: EditorSettings) => void;
 }
 
-const navigation: Array<{
-  id: AppScreen;
+interface HeaderDestination {
+  id: "learn" | "workspace" | "progress";
   label: string;
-  icon: LucideIcon;
+  shortLabel: string;
+  description: string;
+  icon?: LucideIcon;
   dataNav?: string;
-}> = [
-  { id: "learn", label: "Öğrenme yolu", icon: Route },
-  { id: "workspace", label: "Laboratuvar", icon: SquareTerminal },
+}
+
+const destinations: HeaderDestination[] = [
+  {
+    id: "learn",
+    label: "Vaka Rotası",
+    shortLabel: "Rota",
+    description: "Modüller ve sıradaki vaka",
+    icon: Route,
+  },
+  {
+    id: "workspace",
+    label: "SQL Laboratuvarı",
+    shortLabel: "Laboratuvar",
+    description: "Sorgunu yaz ve çalıştır",
+    icon: SquareTerminal,
+  },
   {
     id: "progress",
-    label: "İlerleme",
-    icon: ChartNoAxesCombined,
+    label: "Profilim",
+    shortLabel: "Profilim",
+    description: "İlerleme ve Kanıt Defteri",
     dataNav: "progress",
   },
 ];
@@ -47,6 +63,65 @@ function profileInitials(name: string): string {
   return initials || "Q";
 }
 
+function HeaderDestinationButton({
+  destination,
+  isActive,
+  profileName,
+  variant,
+  onNavigate,
+}: {
+  destination: HeaderDestination;
+  isActive: boolean;
+  profileName: string;
+  variant: "desktop" | "mobile";
+  onNavigate: Navigate;
+}) {
+  const Icon = destination.icon;
+  const descriptionId = `${variant}-${destination.id}-description`;
+  const description =
+    destination.id === "progress"
+      ? `${profileName} · ${destination.description}`
+      : destination.description;
+
+  return (
+    <button
+      className={`nav-item ${isActive ? "active" : ""}`}
+      data-nav={destination.dataNav}
+      type="button"
+      onClick={() => onNavigate(destination.id)}
+      aria-current={isActive ? "page" : undefined}
+      aria-label={destination.label}
+      aria-describedby={descriptionId}
+    >
+      <span className="nav-item-icon" aria-hidden="true">
+        {destination.id === "progress" ? (
+          <span className="nav-profile-avatar">
+            {profileInitials(profileName)}
+          </span>
+        ) : (
+          Icon && <Icon size={17} strokeWidth={1.8} />
+        )}
+      </span>
+      <span className="nav-item-copy">
+        <strong className="nav-item-label">
+          <span className="nav-item-label-desktop">{destination.label}</span>
+          <span className="nav-item-label-mobile">
+            {destination.shortLabel}
+          </span>
+        </strong>
+        <small id={descriptionId} className="nav-item-description">
+          {description}
+        </small>
+      </span>
+      {isActive && (
+        <span className="nav-current" aria-hidden="true">
+          Şu an
+        </span>
+      )}
+    </button>
+  );
+}
+
 export function AppHeader({
   screen,
   profileName,
@@ -55,28 +130,25 @@ export function AppHeader({
   onSettingsChange,
 }: AppHeaderProps) {
   const isDark = settings.theme === "dark";
-  const navigationItems = navigation.map((item) => {
-    const Icon = item.icon;
 
-    return (
-      <button
-        key={item.id}
-        className={`nav-item ${screen === item.id ? "active" : ""}`}
-        data-nav={item.dataNav}
-        type="button"
-        onClick={() => onNavigate(item.id)}
-        aria-current={screen === item.id ? "page" : undefined}
-      >
-        <span className="nav-item-icon" aria-hidden="true">
-          <Icon size={18} strokeWidth={1.8} />
-        </span>
-        <span className="nav-item-label">{item.label}</span>
-      </button>
-    );
-  });
+  const renderDestinations = (variant: "desktop" | "mobile") =>
+    destinations.map((destination) => (
+      <HeaderDestinationButton
+        key={destination.id}
+        destination={destination}
+        isActive={screen === destination.id}
+        profileName={profileName}
+        variant={variant}
+        onNavigate={onNavigate}
+      />
+    ));
 
   return (
     <>
+      <a className="skip-link" href="#main-content">
+        İçeriğe geç
+      </a>
+
       <header className="app-header">
         <div className="header-inner">
           <button
@@ -84,35 +156,28 @@ export function AppHeader({
             type="button"
             onClick={() => onNavigate("home")}
             aria-label="Queryvale ana sayfa"
+            aria-current={screen === "home" ? "page" : undefined}
           >
             <span className="brand-mark" aria-hidden="true">
-              <DatabaseZap size={18} strokeWidth={1.8} />
+              <DatabaseZap size={19} strokeWidth={1.8} />
             </span>
-            <span className="brand-word">Queryvale</span>
+            <span className="brand-copy">
+              <strong className="brand-word">Queryvale</strong>
+              <small className="brand-tagline">Sorudan kanıta</small>
+            </span>
           </button>
 
-          <nav className="primary-nav" aria-label="Ana menü">
-            {navigationItems}
+          <nav className="primary-nav" aria-label="Çalışma bölümleri">
+            {renderDestinations("desktop")}
           </nav>
 
-          <div className="header-actions">
+          <div
+            className="header-actions"
+            role="group"
+            aria-label="Görünüm ve tercihler"
+          >
             <button
-              className={`profile-control ${screen === "progress" ? "active" : ""}`}
-              type="button"
-              onClick={() => onNavigate("progress")}
-              aria-label={`${profileName} profilini ve ilerleme panelini aç`}
-              aria-current={screen === "progress" ? "page" : undefined}
-            >
-              <span className="profile-avatar" aria-hidden="true">
-                {profileInitials(profileName)}
-              </span>
-              <span className="profile-control-copy">
-                <strong>{profileName}</strong>
-                <small>Bu cihazdaki profil</small>
-              </span>
-            </button>
-            <button
-              className="icon-button header-theme-button"
+              className="header-utility header-theme-control"
               type="button"
               onClick={() =>
                 onSettingsChange({
@@ -122,22 +187,37 @@ export function AppHeader({
               }
               aria-label={isDark ? "Açık temaya geç" : "Koyu temaya geç"}
             >
-              {isDark ? <Sun size={16} /> : <Moon size={16} />}
+              <span className="header-utility-icon" aria-hidden="true">
+                {isDark ? <Sun size={16} /> : <Moon size={16} />}
+              </span>
+              <span className="header-utility-copy" aria-hidden="true">
+                <strong>{isDark ? "Açık görünüm" : "Koyu görünüm"}</strong>
+                <small>Temayı değiştir</small>
+              </span>
             </button>
             <button
-              className="icon-button"
+              className={`header-utility header-settings-control ${
+                screen === "settings" ? "active" : ""
+              }`}
               type="button"
               onClick={() => onNavigate("settings")}
               aria-label="Ayarları aç"
+              aria-current={screen === "settings" ? "page" : undefined}
             >
-              <Settings2 size={16} />
+              <span className="header-utility-icon" aria-hidden="true">
+                <Settings2 size={16} />
+              </span>
+              <span className="header-utility-copy" aria-hidden="true">
+                <strong>Ayarlar</strong>
+                <small>Tercihler ve yedek</small>
+              </span>
             </button>
           </div>
         </div>
       </header>
 
-      <nav className="mobile-primary-nav" aria-label="Mobil ana menü">
-        {navigationItems}
+      <nav className="mobile-primary-nav" aria-label="Ana menü">
+        {renderDestinations("mobile")}
       </nav>
     </>
   );

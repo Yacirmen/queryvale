@@ -381,7 +381,11 @@ export function ProgressScreen({
   const activeDaysInWindow = activityCells.filter((cell) => cell.active).length;
 
   return (
-    <main className="page progress-dashboard-page">
+    <main
+      id="main-content"
+      className="page progress-dashboard-page"
+      tabIndex={-1}
+    >
       <div className="page-container progress-dashboard-container">
         <section
           className="progress-dashboard-hero"

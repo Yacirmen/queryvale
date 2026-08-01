@@ -591,7 +591,7 @@ export function WorkspaceScreen({
   );
 
   return (
-    <main className="workspace-page">
+    <main id="main-content" className="workspace-page" tabIndex={-1}>
       <div className="workspace-topbar">
         <div className="workspace-breadcrumb">
           <span>{task.moduleId.replace("module-", "Modül ")}</span>

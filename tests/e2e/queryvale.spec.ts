@@ -1,5 +1,36 @@
 import { expect, test } from "@playwright/test";
 
+test("header keeps one clear active destination without horizontal overflow", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const currentDestinations = page.locator('[aria-current="page"]:visible');
+  await expect(currentDestinations).toHaveCount(1);
+  await expect(
+    page.getByRole("button", { name: "Queryvale ana sayfa" }),
+  ).toHaveAttribute("aria-current", "page");
+
+  await page.getByRole("button", { name: "Vaka Rotası" }).click();
+  await expect(page).toHaveURL(/#\/learn$/);
+  await expect(currentDestinations).toHaveCount(1);
+  await expect(
+    page.getByRole("button", { name: "Vaka Rotası" }),
+  ).toHaveAttribute("aria-current", "page");
+
+  await page.getByRole("button", { name: "Ayarları aç" }).click();
+  await expect(page).toHaveURL(/#\/settings$/);
+  await expect(currentDestinations).toHaveCount(1);
+  await expect(
+    page.getByRole("button", { name: "Ayarları aç" }),
+  ).toHaveAttribute("aria-current", "page");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+});
+
 test("desktop landing keeps one sticky canvas while native scroll changes scenes", async ({
   page,
   isMobile,
@@ -313,7 +344,7 @@ test("landing, onboarding and first real SQL task", async ({
   ).toBeVisible();
   await expect(page).toHaveURL(/#\/lab\/m1-t2$/);
 
-  await page.getByRole("button", { name: "İlerleme", exact: true }).click();
+  await page.getByRole("button", { name: "Profilim", exact: true }).click();
   const evidenceNotebook = page.getByRole("region", {
     name: "Kanıt Defteri",
   });
@@ -366,7 +397,7 @@ test("learning path and settings remain usable on a narrow viewport", async ({
       () => document.documentElement.scrollWidth - window.innerWidth,
     ),
   ).toBeLessThanOrEqual(0);
-  await page.getByRole("button", { name: "Öğrenme yolu", exact: true }).click();
+  await page.getByRole("button", { name: "Vaka Rotası", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Öğrenme yolu" }),
   ).toBeVisible();
@@ -378,6 +409,6 @@ test("learning path and settings remain usable on a narrow viewport", async ({
   await expect(page.locator(".task-status-label").first()).toBeVisible();
   await expect(page.locator("body")).not.toHaveCSS("overflow-x", "scroll");
 
-  await page.getByRole("button", { name: "Laboratuvar" }).click();
+  await page.getByRole("button", { name: "SQL Laboratuvarı" }).click();
   await expect(page.getByRole("button", { name: /Çalıştır/i })).toBeVisible();
 });

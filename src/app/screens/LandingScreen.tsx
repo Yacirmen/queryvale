@@ -21,7 +21,11 @@ export function LandingScreen({ onNavigate }: LandingScreenProps) {
   const storyTrackRef = useRef<HTMLElement>(null);
 
   return (
-    <main className="page landing-premium landing-station">
+    <main
+      id="main-content"
+      className="page landing-premium landing-station"
+      tabIndex={-1}
+    >
       <section
         ref={storyTrackRef}
         className="home-station-section"

@@ -230,7 +230,7 @@ export function LearningPathScreen({
   };
 
   return (
-    <main className="page learning-path-page">
+    <main id="main-content" className="page learning-path-page" tabIndex={-1}>
       <div className="page-container">
         <section
           className="learning-hero"

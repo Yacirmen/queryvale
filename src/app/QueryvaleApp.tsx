@@ -60,6 +60,7 @@ export function QueryvaleApp() {
   const progressRef = useRef(progress);
   const isLoadedRef = useRef(false);
   const isReplacingProgressRef = useRef(false);
+  const shouldFocusScreenRef = useRef(false);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   const activeTask = useMemo(
@@ -105,11 +106,18 @@ export function QueryvaleApp() {
       if (hashTask && tasks.some((task) => task.id === hashTask)) {
         setActiveTaskId(hashTask);
       }
+      shouldFocusScreenRef.current = true;
       setScreen(nextScreen);
     };
     window.addEventListener("hashchange", listener);
     return () => window.removeEventListener("hashchange", listener);
   }, []);
+
+  useEffect(() => {
+    if (!isLoaded || !shouldFocusScreenRef.current) return;
+    shouldFocusScreenRef.current = false;
+    document.getElementById("main-content")?.focus({ preventScroll: true });
+  }, [isLoaded, screen]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = progress.settings.theme;
@@ -210,9 +218,17 @@ export function QueryvaleApp() {
       }
       if (options?.onboarding) setShowOnboarding(true);
       const nextRoute = routeFor(nextScreen, nextTaskId);
+      shouldFocusScreenRef.current = true;
       setScreen(nextScreen);
       if (window.location.hash !== nextRoute) window.location.hash = nextRoute;
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      const reduceMotion =
+        progressRef.current.settings.reducedMotion ||
+        (typeof window.matchMedia === "function" &&
+          window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+      window.scrollTo({
+        top: 0,
+        behavior: reduceMotion ? "auto" : "smooth",
+      });
     },
     [activeTaskId, persist],
   );

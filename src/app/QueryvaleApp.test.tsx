@@ -469,10 +469,9 @@ describe("QueryvaleApp", () => {
     ).toBeDisabled();
 
     await user.click(
-      within(screen.getByRole("navigation", { name: "Ana menü" })).getByRole(
-        "button",
-        { name: /^İlerleme$/ },
-      ),
+      within(
+        screen.getByRole("navigation", { name: "Çalışma bölümleri" }),
+      ).getByRole("button", { name: /^Profilim$/ }),
     );
     const notebook = await screen.findByRole("region", {
       name: "Kanıt Defteri",
@@ -524,10 +523,9 @@ describe("QueryvaleApp", () => {
     });
 
     await user.click(
-      within(screen.getByRole("navigation", { name: "Ana menü" })).getByRole(
-        "button",
-        { name: /^İlerleme$/ },
-      ),
+      within(
+        screen.getByRole("navigation", { name: "Çalışma bölümleri" }),
+      ).getByRole("button", { name: /^Profilim$/ }),
     );
     const notebook = await screen.findByRole("region", {
       name: "Kanıt Defteri",
@@ -845,9 +843,9 @@ describe("QueryvaleApp", () => {
 
     await user.click(
       within(
-        await screen.findByRole("navigation", { name: "Ana menü" }),
+        await screen.findByRole("navigation", { name: "Çalışma bölümleri" }),
       ).getByRole("button", {
-        name: /^Öğrenme yolu$/,
+        name: /^Vaka Rotası$/,
       }),
     );
     expect(
@@ -870,6 +868,30 @@ describe("QueryvaleApp", () => {
     ).toBeInTheDocument();
   });
 
+  it("moves focus to the routed screen and avoids smooth scroll when motion is reduced", async () => {
+    const initial = createDefaultProgress();
+    await saveProgress({
+      ...initial,
+      settings: { ...initial.settings, reducedMotion: true },
+    });
+    const user = userEvent.setup();
+    const scrollTo = vi.mocked(window.scrollTo);
+    scrollTo.mockClear();
+    render(<QueryvaleApp />);
+
+    await user.click(
+      within(
+        await screen.findByRole("navigation", { name: "Çalışma bölümleri" }),
+      ).getByRole("button", { name: "Vaka Rotası" }),
+    );
+
+    await waitFor(() => expect(screen.getByRole("main")).toHaveFocus());
+    expect(scrollTo).toHaveBeenLastCalledWith({
+      top: 0,
+      behavior: "auto",
+    });
+  });
+
   it("clears the exact legacy starter without discarding user progress", async () => {
     const user = userEvent.setup();
     const legacyStarter =
@@ -890,10 +912,9 @@ describe("QueryvaleApp", () => {
       await screen.findByRole("textbox", { name: "SQL sorgu editörü" }),
     ).toHaveValue("");
     await user.click(
-      within(screen.getByRole("navigation", { name: "Ana menü" })).getByRole(
-        "button",
-        { name: /^İlerleme$/ },
-      ),
+      within(
+        screen.getByRole("navigation", { name: "Çalışma bölümleri" }),
+      ).getByRole("button", { name: /^Profilim$/ }),
     );
     expect(screen.getByText("1 toplam deneme")).toBeInTheDocument();
     const moduleProgressSection = screen
@@ -921,9 +942,9 @@ describe("QueryvaleApp", () => {
     render(<QueryvaleApp />);
 
     await user.click(
-      await screen.findByRole("button", {
-        name: "SQL Kaşifi profilini ve ilerleme panelini aç",
-      }),
+      within(
+        await screen.findByRole("navigation", { name: "Çalışma bölümleri" }),
+      ).getByRole("button", { name: "Profilim" }),
     );
     await user.click(
       screen.getByRole("button", {
@@ -939,9 +960,9 @@ describe("QueryvaleApp", () => {
       await screen.findByRole("heading", { name: "Yasir Usta" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", {
-        name: "Yasir Usta profilini ve ilerleme panelini aç",
-      }),
+      within(
+        screen.getByRole("navigation", { name: "Çalışma bölümleri" }),
+      ).getByText("Yasir Usta · İlerleme ve Kanıt Defteri"),
     ).toBeInTheDocument();
 
     await waitFor(async () => {
@@ -978,9 +999,9 @@ describe("QueryvaleApp", () => {
     render(<QueryvaleApp />);
 
     await user.click(
-      await screen.findByRole("button", {
-        name: "SQL Kaşifi profilini ve ilerleme panelini aç",
-      }),
+      within(
+        await screen.findByRole("navigation", { name: "Çalışma bölümleri" }),
+      ).getByRole("button", { name: "Profilim" }),
     );
     await user.click(
       screen.getByRole("button", {
