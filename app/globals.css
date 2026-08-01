@@ -3398,6 +3398,24 @@ button {
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--success) 12%, transparent);
 }
 
+.draft-autosave-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--workbench-text-muted);
+  font-size: var(--font-size-caption);
+  white-space: nowrap;
+}
+
+.draft-autosave-status svg {
+  color: var(--success);
+}
+
+.draft-autosave-status.session-only,
+.draft-autosave-status.session-only svg {
+  color: var(--amber);
+}
+
 .toolbar-spacer {
   margin-left: auto;
 }
@@ -6177,7 +6195,8 @@ button {
   .editor-toolbar .soft-button span,
   .editor-toolbar .primary-button .button-label,
   .editor-toolbar .primary-button .keycap,
-  .engine-state {
+  .engine-state,
+  .draft-autosave-status {
     display: none;
   }
 

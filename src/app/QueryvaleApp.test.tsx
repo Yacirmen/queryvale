@@ -413,6 +413,88 @@ describe("QueryvaleApp", () => {
     ).toHaveValue("");
   });
 
+  it("resumes the stored case from the landing page without resetting progress", async () => {
+    const firstQuery = "SELECT product_name, category FROM products;";
+    const resumeQuery = "SELECT DISTINCT category FROM products;";
+    let stored = recordAttempt(
+      createDefaultProgress(),
+      "m1-t1",
+      firstQuery,
+      true,
+      24,
+    );
+    stored = recordAttempt(stored, "m1-t2", resumeQuery, false, 12);
+    stored = { ...stored, lastOpenedTaskId: "m1-t2" };
+    await saveProgress(stored);
+    const user = userEvent.setup();
+
+    render(<QueryvaleApp />);
+
+    const resumeButton = await screen.findByRole("button", {
+      name: "Kaldığın vakaya devam et",
+    });
+    expect(resumeButton).toHaveAttribute(
+      "title",
+      `Son konumun: ${tasks[1].title}`,
+    );
+    await user.click(resumeButton);
+
+    expect(
+      await screen.findByRole("heading", { name: tasks[1].title }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: "SQL sorgu editörü" }),
+    ).toHaveValue(resumeQuery);
+    await waitFor(async () => {
+      const restored = await loadProgress();
+      expect(restored.lastOpenedTaskId).toBe("m1-t2");
+      expect(restored.tasks["m1-t1"]).toMatchObject({
+        completed: true,
+        lastQuery: firstQuery,
+      });
+      expect(restored.tasks["m1-t2"]).toMatchObject({
+        completed: false,
+        lastQuery: resumeQuery,
+      });
+    });
+  });
+
+  it("recovers a legacy first-task pointer once and then marks the location trusted", async () => {
+    const laterQuery =
+      "SELECT category, COUNT(*) FROM products GROUP BY category;";
+    const legacyProgress = {
+      ...recordAttempt(createDefaultProgress(), "m1-t3", laterQuery, false, 18),
+      lastOpenedTaskId: "m1-t1",
+      lastOpenedTaskIdTrusted: false,
+    };
+    await saveProgress(legacyProgress);
+    const user = userEvent.setup();
+
+    render(<QueryvaleApp />);
+
+    const resumeButton = await screen.findByRole("button", {
+      name: "Kaldığın vakaya devam et",
+    });
+    expect(resumeButton).toHaveAttribute(
+      "title",
+      `Son konumun: ${tasks[2].title}`,
+    );
+    await user.click(resumeButton);
+    expect(
+      await screen.findByRole("heading", { name: tasks[2].title }),
+    ).toBeInTheDocument();
+    await waitFor(async () => {
+      expect(await loadProgress()).toMatchObject({
+        lastOpenedTaskId: "m1-t3",
+        lastOpenedTaskIdTrusted: true,
+        tasks: {
+          "m1-t3": { lastQuery: laterQuery, attempts: 1 },
+        },
+      });
+    });
+  });
+
   it("turns a verified run into a persistent evidence notebook decision", async () => {
     window.location.hash = "#/lab/m1-t1";
     const user = userEvent.setup();
@@ -596,6 +678,149 @@ describe("QueryvaleApp", () => {
 
     act(() => editorShortcutHarness.actions.get(runShortcut)?.());
     expect(await screen.findByText("Doğru çözüm")).toBeInTheDocument();
+  });
+
+  it("automatically saves an unrun SQL draft without requiring Ctrl+S", async () => {
+    window.location.hash = "#/lab/m1-t1";
+    const user = userEvent.setup();
+    render(<QueryvaleApp />);
+
+    const editor = await screen.findByRole("textbox", {
+      name: "SQL sorgu editörü",
+    });
+    const draft = "SELECT product_name FROM products;";
+
+    expect(screen.getByText("Otomatik kayıt açık")).toBeInTheDocument();
+    await user.type(editor, draft);
+
+    await waitFor(
+      async () => {
+        const restored = await loadProgress();
+        expect(restored.tasks["m1-t1"]).toMatchObject({
+          attempts: 0,
+          completed: false,
+          lastQuery: draft,
+        });
+      },
+      { timeout: 2_500 },
+    );
+  });
+
+  it("labels draft storage as session-only when IndexedDB is unavailable", async () => {
+    window.location.hash = "#/lab/m1-t1";
+    const indexedDbDescriptor = Object.getOwnPropertyDescriptor(
+      globalThis,
+      "indexedDB",
+    );
+    Object.defineProperty(globalThis, "indexedDB", {
+      configurable: true,
+      value: undefined,
+    });
+
+    try {
+      const user = userEvent.setup();
+      render(<QueryvaleApp />);
+
+      const sessionOnly = await screen.findByText("Yalnız bu oturum");
+      expect(sessionOnly).toHaveAttribute(
+        "title",
+        "Kalıcı depolama kullanılamıyor; taslak yalnız bu oturumda tutuluyor",
+      );
+      expect(screen.queryByText("Otomatik kayıt açık")).not.toBeInTheDocument();
+
+      fireEvent.change(
+        screen.getByRole("textbox", { name: "SQL sorgu editörü" }),
+        { target: { value: "SELECT product_name FROM products;" } },
+      );
+      await user.click(screen.getByRole("button", { name: /Kaydet/i }));
+      expect(
+        await screen.findByText("Taslak yalnız bu oturum için tutuldu."),
+      ).toBeInTheDocument();
+      await act(
+        () =>
+          new Promise<void>((resolve) => {
+            window.setTimeout(resolve, 0);
+          }),
+      );
+      expect(screen.getByText("Yalnız bu oturum")).toBeInTheDocument();
+      expect(screen.queryByText("Otomatik kayıt açık")).not.toBeInTheDocument();
+    } finally {
+      if (indexedDbDescriptor) {
+        Object.defineProperty(globalThis, "indexedDB", indexedDbDescriptor);
+      }
+    }
+  });
+
+  it("flushes a pending SQL draft when the learner leaves the workspace", async () => {
+    window.location.hash = "#/lab/m1-t1";
+    const user = userEvent.setup();
+    render(<QueryvaleApp />);
+
+    const editor = await screen.findByRole("textbox", {
+      name: "SQL sorgu editörü",
+    });
+    const draft = "SELECT category FROM products;";
+    fireEvent.change(editor, { target: { value: draft } });
+    await user.click(
+      screen.getByRole("button", { name: "Queryvale ana sayfa" }),
+    );
+
+    const resumeButton = await screen.findByRole("button", {
+      name: "Kaldığın vakaya devam et",
+    });
+    await waitFor(async () => {
+      expect((await loadProgress()).tasks["m1-t1"].lastQuery).toBe(draft);
+    });
+    await user.click(resumeButton);
+
+    expect(
+      await screen.findByRole("textbox", { name: "SQL sorgu editörü" }),
+    ).toHaveValue(draft);
+  });
+
+  it("keeps the newly opened case as the resume location while flushing the previous draft", async () => {
+    window.location.hash = "#/lab/m1-t1";
+    const user = userEvent.setup();
+    render(<QueryvaleApp />);
+
+    const editor = await screen.findByRole("textbox", {
+      name: "SQL sorgu editörü",
+    });
+    const draft = "SELECT product_name FROM products;";
+    fireEvent.change(editor, { target: { value: draft } });
+    await user.click(screen.getByRole("button", { name: "Sonraki görev" }));
+
+    expect(
+      await screen.findByRole("heading", { name: tasks[1].title }),
+    ).toBeInTheDocument();
+    await waitFor(async () => {
+      const restored = await loadProgress();
+      expect(restored.lastOpenedTaskId).toBe("m1-t2");
+      expect(restored.tasks["m1-t1"].lastQuery).toBe(draft);
+    });
+  });
+
+  it("persists a valid lab location reached through browser history", async () => {
+    window.location.hash = "#/lab/m1-t1";
+    render(<QueryvaleApp />);
+
+    expect(
+      await screen.findByRole("heading", { name: tasks[0].title }),
+    ).toBeInTheDocument();
+    act(() => {
+      window.history.pushState(null, "", "#/lab/m1-t2");
+      window.dispatchEvent(new Event("hashchange"));
+    });
+
+    expect(
+      await screen.findByRole("heading", { name: tasks[1].title }),
+    ).toBeInTheDocument();
+    await waitFor(async () => {
+      expect(await loadProgress()).toMatchObject({
+        lastOpenedTaskId: "m1-t2",
+        lastOpenedTaskIdTrusted: true,
+      });
+    });
   });
 
   it("keeps a newer theme change when a running query saves its result", async () => {

@@ -10,6 +10,7 @@ import {
   Lightbulb,
 } from "lucide-react";
 import { useRef } from "react";
+import type { LessonTask } from "../../types/lesson";
 import type { Navigate } from "../appTypes";
 import { withInstantRootScroll } from "./instantScroll";
 import { LandingSqlFilm } from "./LandingSqlFilm";
@@ -17,9 +18,17 @@ import { LandingStory } from "./LandingStory";
 
 interface LandingScreenProps {
   onNavigate: Navigate;
+  resumeTask: LessonTask | undefined;
+  isReturningLearner: boolean;
+  showOnboardingOnStart: boolean;
 }
 
-export function LandingScreen({ onNavigate }: LandingScreenProps) {
+export function LandingScreen({
+  onNavigate,
+  resumeTask,
+  isReturningLearner,
+  showOnboardingOnStart,
+}: LandingScreenProps) {
   const productIntroductionRef = useRef<HTMLElement>(null);
 
   const continueToProductIntroduction = () => {
@@ -77,12 +86,19 @@ export function LandingScreen({ onNavigate }: LandingScreenProps) {
                     type="button"
                     onClick={() =>
                       onNavigate("workspace", {
-                        taskId: "m1-t1",
-                        onboarding: true,
+                        taskId: resumeTask?.id,
+                        onboarding: showOnboardingOnStart,
                       })
                     }
+                    title={
+                      isReturningLearner && resumeTask
+                        ? `Son konumun: ${resumeTask.title}`
+                        : undefined
+                    }
                   >
-                    Rehberli ilk vakayı başlat
+                    {isReturningLearner
+                      ? "Kaldığın vakaya devam et"
+                      : "Rehberli ilk vakayı başlat"}
                     <ArrowRight size={17} />
                   </button>
                   <button

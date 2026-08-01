@@ -31,7 +31,7 @@ Bu yol haritası tarih vaadi değil, bağımlılık ve değer sırasıdır. Her 
 - Hazırlık ipuçları yetmediğinde açık talep üzerine, cezasız tam çalışan çözüm
 - Değerlendirme durumuna özel koçluk ve başarı sonrası transfer odaklı debrief
 - Doğru değerlendirmeden üretilen sınırlı kanıt snapshot’ı, isteğe bağlı karar notu ve Kanıt Defteri
-- IndexedDB v3 ilerleme, ayarlar ve `evidenceByTaskId` kalıcılığı
+- IndexedDB v4 ilerleme, güvenilir devam konumu, otomatik SQL taslağı, ayarlar ve `evidenceByTaskId` kalıcılığı
 - İçe/dışa aktarma ve onaylı reset
 - İlerleme özeti ve sıradaki görev önerisi
 

@@ -50,10 +50,11 @@ export interface EvidenceNotebookEntry {
 }
 
 export interface ProgressState {
-  version: 3;
+  version: 4;
   profile: ProgressProfile;
   startedAt: string;
   lastOpenedTaskId: string;
+  lastOpenedTaskIdTrusted: boolean;
   activityDates: string[];
   tasks: Record<string, TaskProgress>;
   settings: EditorSettings;
@@ -68,6 +69,12 @@ type ProgressData = Pick<
 interface ProgressStateV2 extends ProgressData {
   version: 2;
   profile: ProgressProfile;
+}
+
+interface ProgressStateV3 extends ProgressData {
+  version: 3;
+  profile: ProgressProfile;
+  evidenceByTaskId: Record<string, EvidenceNotebookEntry>;
 }
 
 interface ProgressStateV1 extends ProgressData {
@@ -172,13 +179,14 @@ export function updateProfileName(
 
 export function createDefaultProgress(): ProgressState {
   return {
-    version: 3,
+    version: 4,
     profile: {
       id: globalThis.crypto.randomUUID(),
       displayName: DEFAULT_PROFILE_DISPLAY_NAME,
     },
     startedAt: new Date().toISOString(),
     lastOpenedTaskId: "m1-t1",
+    lastOpenedTaskIdTrusted: true,
     activityDates: [],
     tasks: {},
     settings: { ...defaultSettings },
@@ -389,10 +397,41 @@ function isProgressState(value: unknown): value is ProgressState {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const candidate = value as Partial<ProgressState>;
   return (
+    candidate.version === 4 &&
+    hasValidProgressData(value) &&
+    typeof candidate.lastOpenedTaskIdTrusted === "boolean" &&
+    isProgressProfile(candidate.profile) &&
+    isEvidenceNotebook(candidate.evidenceByTaskId, candidate.tasks ?? {})
+  );
+}
+
+function isProgressStateV3(value: unknown): value is ProgressStateV3 {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const candidate = value as Partial<ProgressStateV3>;
+  return (
     candidate.version === 3 &&
     hasValidProgressData(value) &&
     isProgressProfile(candidate.profile) &&
     isEvidenceNotebook(candidate.evidenceByTaskId, candidate.tasks ?? {})
+  );
+}
+
+function cloneEvidenceNotebook(
+  evidenceByTaskId: Record<string, EvidenceNotebookEntry>,
+): Record<string, EvidenceNotebookEntry> {
+  return Object.fromEntries(
+    Object.entries(evidenceByTaskId).map(([taskId, entry]) => [
+      taskId,
+      {
+        taskId: entry.taskId,
+        verifiedRun: {
+          ...entry.verifiedRun,
+          columns: [...entry.verifiedRun.columns],
+          previewRows: entry.verifiedRun.previewRows.map((row) => [...row]),
+        },
+        ...(entry.note ? { note: { ...entry.note } } : {}),
+      },
+    ]),
   );
 }
 
@@ -413,26 +452,13 @@ export function migrateProgressState(
         displayName: profileName.normalizedName,
       },
       settings: { ...defaultSettings, ...value.settings },
-      evidenceByTaskId: Object.fromEntries(
-        Object.entries(value.evidenceByTaskId).map(([taskId, entry]) => [
-          taskId,
-          {
-            taskId: entry.taskId,
-            verifiedRun: {
-              ...entry.verifiedRun,
-              columns: [...entry.verifiedRun.columns],
-              previewRows: entry.verifiedRun.previewRows.map((row) => [...row]),
-            },
-            ...(entry.note ? { note: { ...entry.note } } : {}),
-          },
-        ]),
-      ),
+      evidenceByTaskId: cloneEvidenceNotebook(value.evidenceByTaskId),
     };
   }
 
-  if (isProgressStateV2(value)) {
+  if (isProgressStateV3(value)) {
     return {
-      version: 3,
+      version: 4,
       profile: {
         id: value.profile.id,
         displayName: validateProfileName(value.profile.displayName)
@@ -440,6 +466,25 @@ export function migrateProgressState(
       },
       startedAt: value.startedAt,
       lastOpenedTaskId: value.lastOpenedTaskId,
+      lastOpenedTaskIdTrusted: false,
+      activityDates: [...value.activityDates],
+      tasks: { ...value.tasks },
+      settings: { ...defaultSettings, ...value.settings },
+      evidenceByTaskId: cloneEvidenceNotebook(value.evidenceByTaskId),
+    };
+  }
+
+  if (isProgressStateV2(value)) {
+    return {
+      version: 4,
+      profile: {
+        id: value.profile.id,
+        displayName: validateProfileName(value.profile.displayName)
+          .normalizedName,
+      },
+      startedAt: value.startedAt,
+      lastOpenedTaskId: value.lastOpenedTaskId,
+      lastOpenedTaskIdTrusted: false,
       activityDates: [...value.activityDates],
       tasks: { ...value.tasks },
       settings: { ...defaultSettings, ...value.settings },
@@ -449,13 +494,14 @@ export function migrateProgressState(
 
   if (isProgressStateV1(value)) {
     return {
-      version: 3,
+      version: 4,
       profile: {
         id: globalThis.crypto.randomUUID(),
         displayName: DEFAULT_PROFILE_DISPLAY_NAME,
       },
       startedAt: value.startedAt,
       lastOpenedTaskId: value.lastOpenedTaskId,
+      lastOpenedTaskIdTrusted: false,
       activityDates: [...value.activityDates],
       tasks: { ...value.tasks },
       settings: { ...defaultSettings, ...value.settings },
@@ -484,7 +530,11 @@ export async function loadProgress(): Promise<ProgressState> {
       return createDefaultProgress();
     }
 
-    if (isProgressStateV1(stored) || isProgressStateV2(stored)) {
+    if (
+      isProgressStateV1(stored) ||
+      isProgressStateV2(stored) ||
+      isProgressStateV3(stored)
+    ) {
       try {
         await writeStoredState(migrated);
       } catch {
@@ -563,7 +613,11 @@ export function recordTaskOpen(
   state: ProgressState,
   taskId: string,
 ): ProgressState {
-  return { ...state, lastOpenedTaskId: taskId };
+  return {
+    ...state,
+    lastOpenedTaskId: taskId,
+    lastOpenedTaskIdTrusted: true,
+  };
 }
 
 function cloneVerifiedRunSnapshot(

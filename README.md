@@ -21,6 +21,7 @@ Queryvale, SQL sözdizimini ezberleten bir kurs değil; kullanıcıyı gerçek b
 - Bulgu, öneri ve isteğe bağlı çekinceyi saklayan karar notu ile Kanıt Defteri
 - Şema, örnek veri, SQL editörü ve sonuçları bir araya getiren çalışma alanı
 - Hesapsız ve backend’siz, IndexedDB tabanlı yerel ilerleme
+- Yazarken otomatik kaydedilen SQL taslakları; `⌘/Ctrl+S` ile anında kayıt
 - Açık/koyu tema, editör tercihleri ve reduced-motion desteği
 - Dışa/içe aktarılabilir ilerleme verisi
 - Masaüstü öncelikli, tablet ve mobilde kullanılabilir responsive deneyim
@@ -64,7 +65,9 @@ göreli asset yolları nedeniyle proje alt yolu için ek rewrite gerekmez.
 
 Yayın herkese açıktır. Kullanıcı adı, ilerleme ve Kanıt Defteri her tarayıcının
 IndexedDB alanında bağımsız kalır; cihazlar arası canlı eşitleme yapılmaz. Repo
-veya alan adı değişirse ilerleme önce JSON olarak dışa aktarılmalıdır.
+veya alan adı değişirse ilerleme önce JSON olarak dışa aktarılmalıdır. Görev
+konumu, denemeler, ipuçları, tamamlanmalar, kanıtlar ve SQL taslakları aynı
+origin içinde otomatik kaydedilir; normal kullanımda `⌘/Ctrl+S` gerekmez.
 
 ## Komutlar
 

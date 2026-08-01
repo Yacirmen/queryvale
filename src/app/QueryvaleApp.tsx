@@ -16,6 +16,7 @@ import {
   type ProgressState,
   updateProfileName,
 } from "../features/progress/progressStore";
+import { selectResumeTask } from "../features/progress/resumeTask";
 import type { AppScreen, Navigate, NavigateOptions } from "./appTypes";
 import { AppHeader } from "./components/AppHeader";
 import { OnboardingDialog } from "./components/Dialogs";
@@ -52,6 +53,7 @@ export function QueryvaleApp() {
   const [activeTaskId, setActiveTaskId] = useState(tasks[0]?.id ?? "");
   const [isLoaded, setIsLoaded] = useState(false);
   const [isReplacingProgress, setIsReplacingProgress] = useState(false);
+  const [persistenceAvailable, setPersistenceAvailable] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [notice, setNotice] = useState<{
     tone: "success" | "error";
@@ -67,23 +69,49 @@ export function QueryvaleApp() {
     () => tasks.find((task) => task.id === activeTaskId) ?? tasks[0],
     [activeTaskId],
   );
+  const resumeSelection = useMemo(
+    () => selectResumeTask(tasks, progress),
+    [progress],
+  );
 
   useEffect(() => {
     let current = true;
     void loadProgress().then((stored) => {
       if (!current) return;
       const hashTask = taskIdFromHash(window.location.hash);
-      const candidateTask =
-        tasks.find((task) => task.id === hashTask) ??
-        tasks.find((task) => task.id === stored.lastOpenedTaskId) ??
-        tasks[0];
-      progressRef.current = stored;
+      const hashCandidate = tasks.find((task) => task.id === hashTask);
+      const resumeCandidate = selectResumeTask(tasks, stored).task;
+      const candidateTask = hashCandidate ?? resumeCandidate ?? tasks[0];
+      const hydratedProgress =
+        candidateTask &&
+        (!stored.lastOpenedTaskIdTrusted ||
+          (hashCandidate && stored.lastOpenedTaskId !== hashCandidate.id))
+          ? {
+              ...stored,
+              lastOpenedTaskId: candidateTask.id,
+              lastOpenedTaskIdTrusted: true,
+            }
+          : stored;
+      if (hydratedProgress !== stored) {
+        const hydrationWrite = saveProgress(hydratedProgress);
+        saveQueueRef.current = hydrationWrite.catch(() => undefined);
+        void hydrationWrite.catch(() => {
+          setPersistenceAvailable(false);
+          setNotice({
+            tone: "error",
+            message: "Kaldığın görev bu cihazda kaydedilemedi.",
+          });
+        });
+      }
+      progressRef.current = hydratedProgress;
       isLoadedRef.current = true;
-      setProgress(stored);
+      setProgress(hydratedProgress);
       setActiveTaskId(candidateTask?.id ?? "");
       setScreen(screenFromHash(window.location.hash));
       setIsLoaded(true);
-      if (!isProgressPersistenceAvailable()) {
+      const canPersist = isProgressPersistenceAvailable();
+      setPersistenceAvailable(canPersist);
+      if (!canPersist) {
         const persistenceIssue = getProgressPersistenceIssue();
         setNotice({
           tone: "error",
@@ -97,20 +125,6 @@ export function QueryvaleApp() {
     return () => {
       current = false;
     };
-  }, []);
-
-  useEffect(() => {
-    const listener = () => {
-      const nextScreen = screenFromHash(window.location.hash);
-      const hashTask = taskIdFromHash(window.location.hash);
-      if (hashTask && tasks.some((task) => task.id === hashTask)) {
-        setActiveTaskId(hashTask);
-      }
-      if (isLoadedRef.current) shouldFocusScreenRef.current = true;
-      setScreen(nextScreen);
-    };
-    window.addEventListener("hashchange", listener);
-    return () => window.removeEventListener("hashchange", listener);
   }, []);
 
   useEffect(() => {
@@ -154,15 +168,45 @@ export function QueryvaleApp() {
       if (!isLoadedRef.current || isReplacingProgressRef.current) return;
       progressRef.current = next;
       setProgress(next);
-      void enqueueSave(next).catch(() =>
-        setNotice({
-          tone: "error",
-          message: "İlerleme bu cihazda kaydedilemedi.",
-        }),
-      );
+      void enqueueSave(next)
+        .then(() => setPersistenceAvailable(isProgressPersistenceAvailable()))
+        .catch(() => {
+          setPersistenceAvailable(false);
+          setNotice({
+            tone: "error",
+            message: "İlerleme bu cihazda kaydedilemedi.",
+          });
+        });
     },
     [enqueueSave],
   );
+
+  useEffect(() => {
+    const listener = () => {
+      const nextScreen = screenFromHash(window.location.hash);
+      const hashTask = taskIdFromHash(window.location.hash);
+      if (hashTask && tasks.some((task) => task.id === hashTask)) {
+        setActiveTaskId(hashTask);
+        if (isLoadedRef.current) {
+          const current = progressRef.current;
+          if (
+            current.lastOpenedTaskId !== hashTask ||
+            !current.lastOpenedTaskIdTrusted
+          ) {
+            persist({
+              ...current,
+              lastOpenedTaskId: hashTask,
+              lastOpenedTaskIdTrusted: true,
+            });
+          }
+        }
+      }
+      if (isLoadedRef.current) shouldFocusScreenRef.current = true;
+      setScreen(nextScreen);
+    };
+    window.addEventListener("hashchange", listener);
+    return () => window.removeEventListener("hashchange", listener);
+  }, [persist]);
 
   const persistWorkspaceProgress = useCallback(
     (update: (current: ProgressState) => ProgressState) => {
@@ -172,6 +216,7 @@ export function QueryvaleApp() {
       persist({
         ...current,
         lastOpenedTaskId: next.lastOpenedTaskId,
+        lastOpenedTaskIdTrusted: next.lastOpenedTaskIdTrusted,
         activityDates: next.activityDates,
         tasks: next.tasks,
         evidenceByTaskId: next.evidenceByTaskId,
@@ -189,7 +234,9 @@ export function QueryvaleApp() {
       setProgress(next);
       try {
         await enqueueSave(next, { replaceIncompatible: true });
+        setPersistenceAvailable(isProgressPersistenceAvailable());
       } catch (error) {
+        setPersistenceAvailable(false);
         progressRef.current = previous;
         setProgress(previous);
         throw error;
@@ -212,6 +259,7 @@ export function QueryvaleApp() {
           const nextProgress = {
             ...progressRef.current,
             lastOpenedTaskId: nextTaskId,
+            lastOpenedTaskIdTrusted: true,
           };
           persist(nextProgress);
         }
@@ -330,10 +378,16 @@ export function QueryvaleApp() {
       if (!confirmed) {
         return;
       }
-      await replaceProgress(imported);
+      const importedResumeTask = selectResumeTask(tasks, imported).task;
+      const normalizedImport = {
+        ...imported,
+        lastOpenedTaskId: importedResumeTask?.id ?? imported.lastOpenedTaskId,
+        lastOpenedTaskIdTrusted: true,
+      };
+      await replaceProgress(normalizedImport);
       setActiveTaskId(
-        tasks.some((task) => task.id === imported.lastOpenedTaskId)
-          ? imported.lastOpenedTaskId
+        tasks.some((task) => task.id === normalizedImport.lastOpenedTaskId)
+          ? normalizedImport.lastOpenedTaskId
           : (tasks[0]?.id ?? ""),
       );
       setNotice({
@@ -391,7 +445,14 @@ export function QueryvaleApp() {
         onSettingsChange={updateSettings}
       />
 
-      {screen === "home" && <LandingScreen onNavigate={navigate} />}
+      {screen === "home" && (
+        <LandingScreen
+          onNavigate={navigate}
+          resumeTask={resumeSelection.task}
+          isReturningLearner={resumeSelection.isReturningLearner}
+          showOnboardingOnStart={resumeSelection.shouldShowOnboarding}
+        />
+      )}
       {screen === "learn" && (
         <LearningPathScreen
           modules={modules}
@@ -407,6 +468,7 @@ export function QueryvaleApp() {
           tasks={tasks}
           progress={progress}
           settings={progress.settings}
+          persistenceAvailable={persistenceAvailable}
           onProgressChange={persistWorkspaceProgress}
           onNavigate={navigate}
         />

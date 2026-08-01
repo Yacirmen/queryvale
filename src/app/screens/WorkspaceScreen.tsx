@@ -61,6 +61,7 @@ interface WorkspaceScreenProps {
   tasks: LessonTask[];
   progress: ProgressState;
   settings: EditorSettings;
+  persistenceAvailable: boolean;
   onProgressChange: (update: (current: ProgressState) => ProgressState) => void;
   onNavigate: Navigate;
 }
@@ -117,12 +118,14 @@ const HINT_ACTION_LABELS = [
   "Gerekli parçaları göster",
   "Sorgu iskeletini göster",
 ] as const;
+const DRAFT_AUTOSAVE_DELAY_MS = 700;
 
 export function WorkspaceScreen({
   task,
   tasks,
   progress,
   settings,
+  persistenceAvailable,
   onProgressChange,
   onNavigate,
 }: WorkspaceScreenProps) {
@@ -150,6 +153,9 @@ export function WorkspaceScreen({
   const databaseRef = useRef<TaskDatabase | undefined>(undefined);
   const runGenerationRef = useRef(0);
   const draftRevisionRef = useRef(0);
+  const queryRef = useRef(query);
+  const lastPersistedQueryRef = useRef(query);
+  const draftDirtyRef = useRef(false);
   const openedAtRef = useRef(0);
   const workbenchRef = useRef<HTMLDivElement>(null);
   const resultsContentRef = useRef<HTMLDivElement>(null);
@@ -220,22 +226,74 @@ export function WorkspaceScreen({
     return () => window.clearTimeout(timeout);
   }, [toast]);
 
+  const persistDraft = useCallback(
+    (
+      nextQuery: string,
+      options: { announce?: boolean; preserveLocation?: boolean } = {},
+    ) => {
+      if (
+        draftDirtyRef.current ||
+        nextQuery !== lastPersistedQueryRef.current
+      ) {
+        draftRevisionRef.current += 1;
+        onProgressChange((current) => {
+          const previous =
+            current.tasks[task.id] ?? createDraftProgress(task.id, nextQuery);
+          return {
+            ...current,
+            lastOpenedTaskId: options.preserveLocation
+              ? current.lastOpenedTaskId
+              : task.id,
+            lastOpenedTaskIdTrusted: options.preserveLocation
+              ? current.lastOpenedTaskIdTrusted
+              : true,
+            tasks: {
+              ...current.tasks,
+              [task.id]: { ...previous, lastQuery: nextQuery },
+            },
+          };
+        });
+        lastPersistedQueryRef.current = nextQuery;
+        draftDirtyRef.current = false;
+      }
+      if (options.announce) {
+        setToast(
+          persistenceAvailable
+            ? "Sorgu ve ilerleme bu cihaza kaydedildi."
+            : "Taslak yalnız bu oturum için tutuldu.",
+        );
+      }
+    },
+    [onProgressChange, persistenceAvailable, task.id],
+  );
+
   const saveDraft = useCallback(() => {
-    draftRevisionRef.current += 1;
-    onProgressChange((current) => {
-      const previous =
-        current.tasks[task.id] ?? createDraftProgress(task.id, query);
-      return {
-        ...current,
-        lastOpenedTaskId: task.id,
-        tasks: {
-          ...current.tasks,
-          [task.id]: { ...previous, lastQuery: query },
-        },
-      };
-    });
-    setToast("Sorgu ve ilerleme bu cihaza kaydedildi.");
-  }, [onProgressChange, query, task.id]);
+    persistDraft(queryRef.current, { announce: true });
+  }, [persistDraft]);
+
+  const updateQuery = useCallback((nextQuery: string) => {
+    queryRef.current = nextQuery;
+    draftDirtyRef.current = true;
+    setQuery(nextQuery);
+  }, []);
+
+  useEffect(() => {
+    if (!draftDirtyRef.current && query === lastPersistedQueryRef.current) {
+      return;
+    }
+    const timeout = window.setTimeout(
+      () => persistDraft(query),
+      DRAFT_AUTOSAVE_DELAY_MS,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [persistDraft, query]);
+
+  useEffect(
+    () => () => {
+      persistDraft(queryRef.current, { preserveLocation: true });
+    },
+    [persistDraft],
+  );
 
   const runQuery = useCallback(async () => {
     if (!query.trim() || isRunning) return;
@@ -291,6 +349,7 @@ export function WorkspaceScreen({
         return {
           ...nextProgress,
           lastOpenedTaskId: task.id,
+          lastOpenedTaskIdTrusted: true,
           tasks: {
             ...nextProgress.tasks,
             [task.id]: {
@@ -323,6 +382,7 @@ export function WorkspaceScreen({
         return {
           ...nextProgress,
           lastOpenedTaskId: task.id,
+          lastOpenedTaskIdTrusted: true,
           tasks: {
             ...nextProgress.tasks,
             [task.id]: {
@@ -376,19 +436,22 @@ export function WorkspaceScreen({
     try {
       await database.reset();
       if (!isCurrentReset()) return;
-      setQuery("");
+      updateQuery("");
       onProgressChange((current) => {
         const previous =
           current.tasks[task.id] ?? createDraftProgress(task.id, "");
         return {
           ...current,
           lastOpenedTaskId: task.id,
+          lastOpenedTaskIdTrusted: true,
           tasks: {
             ...current.tasks,
             [task.id]: { ...previous, lastQuery: "" },
           },
         };
       });
+      lastPersistedQueryRef.current = "";
+      draftDirtyRef.current = false;
       setEngineSetupError(undefined);
       setEngineState("ready");
       setToast("Görev verisi ve editör başlangıç durumuna döndü.");
@@ -400,7 +463,7 @@ export function WorkspaceScreen({
       );
       setEvaluation(undefined);
     }
-  }, [onProgressChange, task]);
+  }, [onProgressChange, task, updateQuery]);
 
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
@@ -1130,6 +1193,25 @@ export function WorkspaceScreen({
                     ? "PostgreSQL hazır"
                     : "Motoru kontrol et"}
               </span>
+              <span
+                className={`draft-autosave-status ${
+                  persistenceAvailable ? "" : "session-only"
+                }`}
+                title={
+                  persistenceAvailable
+                    ? "SQL taslağın yazarken otomatik kaydedilir"
+                    : "Kalıcı depolama kullanılamıyor; taslak yalnız bu oturumda tutuluyor"
+                }
+              >
+                {persistenceAvailable ? (
+                  <CheckCircle2 size={12} />
+                ) : (
+                  <CircleAlert size={12} />
+                )}
+                {persistenceAvailable
+                  ? "Otomatik kayıt açık"
+                  : "Yalnız bu oturum"}
+              </span>
               <span className="toolbar-spacer" />
               <button
                 className="ghost-button"
@@ -1176,7 +1258,7 @@ export function WorkspaceScreen({
                   height="100%"
                   language="sql"
                   value={query}
-                  onChange={(value) => setQuery(value ?? "")}
+                  onChange={(value) => updateQuery(value ?? "")}
                   theme={
                     settings.theme === "dark"
                       ? "queryvale-dark"

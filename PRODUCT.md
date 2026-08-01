@@ -11,27 +11,27 @@
 
 ## Bilgi mimarisi
 
-| Ekran                         | Birincil amaç                                                                   | Birincil eylem        |
-| ----------------------------- | ------------------------------------------------------------------------------- | --------------------- |
-| Ana sayfa                     | Kanıt rotasının değerini ve tarayıcı içi çalışma biçimini açıklamak             | İlk vakaya başla      |
-| Öğrenme yolu / kariyer rotası | Dört kariyer bölümünü, ön koşulları ve sıradaki işi görünür kılmak              | Devam et              |
-| Görev alanı                   | `Sor → İncele → Sorgula → Doğrula → Anlat` döngüsünü tek vaka üzerinde yürütmek | Sorguyu çalıştır      |
-| İlerleme / Kanıt Defteri      | Doğrulanmış çalışmaları, karar notlarını ve pratik sinyallerini geri çağırmak   | Vakayı veya kanıtı aç |
-| Ayarlar                       | Deneyimi ve yerel veriyi yönetmek                                               | Tercihi kaydet/aktar  |
+| Ekran                         | Birincil amaç                                                                   | Birincil eylem                   |
+| ----------------------------- | ------------------------------------------------------------------------------- | -------------------------------- |
+| Ana sayfa                     | Kanıt rotasının değerini ve tarayıcı içi çalışma biçimini açıklamak             | Başla / kaldığın yerden devam et |
+| Öğrenme yolu / kariyer rotası | Dört kariyer bölümünü, ön koşulları ve sıradaki işi görünür kılmak              | Devam et                         |
+| Görev alanı                   | `Sor → İncele → Sorgula → Doğrula → Anlat` döngüsünü tek vaka üzerinde yürütmek | Sorguyu çalıştır                 |
+| İlerleme / Kanıt Defteri      | Doğrulanmış çalışmaları, karar notlarını ve pratik sinyallerini geri çağırmak   | Vakayı veya kanıtı aç            |
+| Ayarlar                       | Deneyimi ve yerel veriyi yönetmek                                               | Tercihi kaydet/aktar             |
 
 ## Birincil akış
 
 1. Ana sayfa ürün vaadini ve tarayıcı içi çalışma modelini açıklar.
-2. “İlk göreve başla” kısa, atlanabilir onboarding’i açar.
+2. Yeni kullanıcıda “İlk göreve başla” kısa, atlanabilir onboarding’i açar; geri dönen kullanıcıda “Kaldığın vakaya devam et” son güvenilir konumu açar.
 3. Kariyer rotası çalışan modülleri dört mesleki bölüm altında gösterir ve sıradaki vakayı önerir.
 4. Çalışma alanı görev hedefini, kavram odağını, çıktı tanesini, kabul kontrollerini ve şemayı gösterir.
-5. Kullanıcı sorgusunu yazar; `Cmd/Ctrl + Enter` ile çalıştırabilir.
+5. Kullanıcı sorgusunu yazar; taslak otomatik kaydolur ve `Cmd/Ctrl + Enter` ile çalıştırılabilir.
 6. Sonuç tablosu gerçek satırları, yürütme süresini ve satır sayısını gösterir.
 7. Değerlendirme; yürütme, kolon, satır, sıra ve kavram katmanlarını açıklar.
 8. Başarısız denemede değerlendirme katmanına özel kontrol adımları ve sırayla açılan ipuçları sunulur.
 9. Doğru değerlendirmede sınırlı bir yerel kanıt snapshot’ı oluşturulur; kullanıcı çıktıyı görmeden otomatik olarak sonraki vakaya geçirilmez.
 10. Kullanıcı isterse bulgu, öneri ve çekincesini karar notu olarak yazar; not otomatik puanlanmaz.
-11. Sorgu, deneme, ilerleme ve kanıt kaydı v3 yerel çalışma alanına yazılır.
+11. Sorgu, deneme, ilerleme ve kanıt kaydı v4 yerel çalışma alanına yazılır.
 
 ## Çalışma alanı gereksinimleri
 
@@ -39,13 +39,13 @@
 - Dar ekranda mantıksal sekmeler ve dokunma hedefleri; yatay taşmaya dayalı ana akış yok
 - Açılır/kapanır şema; tablo ilişkileri ve örnek satırlar
 - Monaco Editor için belirgin yükleniyor ve hata durumu
-- Çalıştır, sıfırla ve güvenli biçimde kaydet eylemleri
+- Çalıştır, sıfırla, otomatik taslak kaydı ve anında manuel kayıt eylemleri
 - Sonuçlarda sticky başlık, yatay kaydırma, `NULL` gösterimi ve satır limiti bilgisi
 - Sorgu hatası için teknik ayrıntı + öğretici açıklama
 - Görev navigasyonu, tamamlanma ve modül ilerlemesi
 - Kısayollar:
   - `Cmd/Ctrl + Enter`: çalıştır
-  - `Cmd/Ctrl + S`: sorgu/ilerleme kaydet
+  - `Cmd/Ctrl + S`: otomatik kaydı beklemeden sorgu/ilerlemeyi hemen kaydet
   - `Cmd/Ctrl + K`: komut ve yardım paneli
   - `Esc`: açık ikincil paneli kapat
 
@@ -95,7 +95,7 @@ Profil adı hesap veya kimlik doğrulama değildir; yalnızca o tarayıcıdaki i
 - Kanıt kaydı yalnız evaluator `correct` sonucunu verdiğinde oluşturulur.
 - Snapshot sorguyu, sınırlı kolon listesini, en fazla 10 önizleme satırını ve toplam satır sayısı/kesilme bilgisini taşır; veritabanı dökümü değildir.
 - Karar notu bulgu ve öneriyi, isteğe bağlı olarak da çekinceyi saklar. Not kullanıcının düşünme alanıdır; doğruluk veya ustalık puanı üretmez.
-- Kanıtlar v3 yerel çalışma alanının parçasıdır ve doğrulanmış içe/dışa aktarma akışına dahildir.
+- Kanıtlar v4 yerel çalışma alanının parçasıdır ve doğrulanmış içe/dışa aktarma akışına dahildir.
 - Tek bir doğru çalıştırma ya da yazılmış not, kavramın kalıcı öğrenildiğini veya bir mesleki yeterliliği kanıtladığı iddiasıyla sunulmaz.
 
 ## Tasarım sistemi

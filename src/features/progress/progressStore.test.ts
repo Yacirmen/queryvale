@@ -97,6 +97,26 @@ function createLegacyV2Progress() {
   };
 }
 
+function createLegacyV3Progress() {
+  const current = recordAttempt(
+    createDefaultProgress(),
+    "m1-t3",
+    "SELECT category, COUNT(*) FROM products GROUP BY category",
+    false,
+    0,
+  );
+  return {
+    version: 3 as const,
+    profile: current.profile,
+    startedAt: current.startedAt,
+    lastOpenedTaskId: "m1-t1",
+    activityDates: current.activityDates,
+    tasks: current.tasks,
+    settings: current.settings,
+    evidenceByTaskId: current.evidenceByTaskId,
+  };
+}
+
 function createFirstTaskSnapshot(query = "SELECT product_name FROM products") {
   return createVerifiedRunSnapshot(
     "m1-t1",
@@ -131,7 +151,8 @@ describe("progressStore", () => {
     );
     await saveProgress(state);
     const restored = await loadProgress();
-    expect(restored.version).toBe(3);
+    expect(restored.version).toBe(4);
+    expect(restored.lastOpenedTaskIdTrusted).toBe(true);
     expect(restored.profile.id).toBe(state.profile.id);
     expect(restored.profile.displayName).toBe(DEFAULT_PROFILE_DISPLAY_NAME);
     expect(restored.tasks["m1-t1"].completed).toBe(true);
@@ -176,7 +197,8 @@ describe("progressStore", () => {
     const legacy = createLegacyV1Progress();
     const migrated = importProgress(JSON.stringify(legacy));
 
-    expect(migrated.version).toBe(3);
+    expect(migrated.version).toBe(4);
+    expect(migrated.lastOpenedTaskIdTrusted).toBe(false);
     expect(migrated.profile.id).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu,
     );
@@ -187,10 +209,10 @@ describe("progressStore", () => {
     expect(migrated.tasks).toEqual(legacy.tasks);
     expect(migrated.settings).toEqual(legacy.settings);
     expect(migrated.evidenceByTaskId).toEqual({});
-    expect(JSON.parse(exportProgress(migrated))).toMatchObject({ version: 3 });
+    expect(JSON.parse(exportProgress(migrated))).toMatchObject({ version: 4 });
   });
 
-  it("loads and persists an IndexedDB v1 record as v3", async () => {
+  it("loads and persists an IndexedDB v1 record as v4", async () => {
     const legacy = createLegacyV1Progress();
     await putRawProgress(legacy);
 
@@ -201,10 +223,11 @@ describe("progressStore", () => {
       tasks?: unknown;
     };
 
-    expect(loaded.version).toBe(3);
+    expect(loaded.version).toBe(4);
+    expect(loaded.lastOpenedTaskIdTrusted).toBe(false);
     expect(loaded.tasks).toEqual(legacy.tasks);
     expect(loaded.evidenceByTaskId).toEqual({});
-    expect(persisted.version).toBe(3);
+    expect(persisted.version).toBe(4);
     expect(persisted.profile?.id).toBe(loaded.profile.id);
     expect(persisted.profile?.displayName).toBe(DEFAULT_PROFILE_DISPLAY_NAME);
     expect(persisted.tasks).toEqual(legacy.tasks);
@@ -223,22 +246,47 @@ describe("progressStore", () => {
       evidenceByTaskId?: unknown;
     };
 
-    expect(loaded.version).toBe(3);
+    expect(loaded.version).toBe(4);
+    expect(loaded.lastOpenedTaskIdTrusted).toBe(false);
     expect(loaded.profile).toEqual(legacy.profile);
     expect(loaded.tasks).toEqual(legacy.tasks);
     expect(loaded.evidenceByTaskId).toEqual({});
-    expect(persisted.version).toBe(3);
+    expect(persisted.version).toBe(4);
     expect(persisted.profile).toEqual(legacy.profile);
     expect(persisted.tasks).toEqual(legacy.tasks);
     expect(persisted.evidenceByTaskId).toEqual({});
   });
 
+  it("migrates a v3 pointer as untrusted so the app can recover it once", async () => {
+    const legacy = createLegacyV3Progress();
+    await putRawProgress(legacy);
+
+    const loaded = await loadProgress();
+    const persisted = (await readRawProgress()) as {
+      version?: number;
+      lastOpenedTaskIdTrusted?: boolean;
+      tasks?: unknown;
+    };
+
+    expect(loaded).toMatchObject({
+      version: 4,
+      lastOpenedTaskId: "m1-t1",
+      lastOpenedTaskIdTrusted: false,
+    });
+    expect(loaded.tasks).toEqual(legacy.tasks);
+    expect(persisted).toMatchObject({
+      version: 4,
+      lastOpenedTaskIdTrusted: false,
+      tasks: legacy.tasks,
+    });
+  });
+
   it("preserves an incompatible stored record instead of overwriting it", async () => {
-    const futureRecord = { version: 4, marker: "future-progress" };
+    const futureRecord = { version: 5, marker: "future-progress" };
     await putRawProgress(futureRecord);
 
     const fallback = await loadProgress();
-    expect(fallback.version).toBe(3);
+    expect(fallback.version).toBe(4);
     expect(getProgressPersistenceIssue()).toBe("incompatible");
     await expect(saveProgress(fallback)).rejects.toThrow(/korunuyor/);
     expect(await readRawProgress()).toEqual(futureRecord);
