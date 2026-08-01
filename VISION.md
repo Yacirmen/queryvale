@@ -27,7 +27,7 @@ Her vaka aynı karar döngüsünü görünür kılar:
 4. **Doğrula:** Kolon, satır, sıra, kavram ve kabul kontrolleriyle çıktıyı sınar.
 5. **Anlat:** Doğrulanmış çıktıyı bulgu, öneri ve gerekiyorsa çekince içeren bir karar notuna dönüştür.
 
-Mevcut rota bu döngüyü **Temeli kur**, **İş sorusunu çöz**, **Örüntüyü keşfet** ve **Karara dönüştür** adlı dört kariyer bölümünde taşır. Bu bölümler ayrı veya sahte bir ilerleme sistemi değil, çalışan 10 modül ve 31 vakanın mesleki sonuçlara göre sunum katmanıdır.
+Mevcut rota bu döngüyü **Temeli kur**, **İş sorusunu çöz**, **Örüntüyü keşfet** ve **Karara dönüştür** adlı dört kariyer bölümünde taşır. Bu bölümler ayrı veya sahte bir ilerleme sistemi değil, çalışan 10 modül ve 40 vakanın mesleki sonuçlara göre sunum katmanıdır.
 
 ## Kimin için?
 

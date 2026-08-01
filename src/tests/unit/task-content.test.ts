@@ -126,6 +126,40 @@ describe("task content validation", () => {
     );
   });
 
+  it("requires a trusted post-state contract for mutation tasks", () => {
+    const missingVerification = validateTaskDefinition(
+      genericTask({
+        validationMode: "mutation",
+        concepts: ["UPDATE"],
+        requiredConcepts: ["UPDATE"],
+        solutionSql: "UPDATE sales SET id = id + 1 RETURNING id;",
+      }),
+    );
+    expect(missingVerification.map((issue) => issue.path)).toContain(
+      "mutationVerification",
+    );
+
+    const completeMutation = validateTaskDefinition(
+      genericTask({
+        validationMode: "mutation",
+        concepts: ["UPDATE"],
+        requiredConcepts: ["UPDATE"],
+        solutionSql: "UPDATE sales SET id = id + 1 RETURNING id;",
+        mutationVerification: {
+          sql: "SELECT id FROM sales ORDER BY id",
+          expectedColumns: ["id"],
+          expectedResult: [[2]],
+          orderSensitive: true,
+        },
+      }),
+    );
+    expect(
+      completeMutation.filter((issue) =>
+        issue.path.startsWith("mutationVerification"),
+      ),
+    ).toEqual([]);
+  });
+
   it("reports incomplete learning brief, coaching and debrief content", () => {
     const issues = validateTaskDefinition(
       genericTask({

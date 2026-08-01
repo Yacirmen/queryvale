@@ -1,12 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { tasks } from "./curriculum";
 import { AUTHORED_TASK_LEARNING_CONTENT } from "./learningContentCatalog";
-
-const ALL_TASK_IDS = Array.from({ length: 10 }, (_, moduleIndex) =>
-  Array.from(
-    { length: moduleIndex < 7 ? 4 : 1 },
-    (_, taskIndex) => `m${moduleIndex + 1}-t${taskIndex + 1}`,
-  ),
-).flat();
 
 function leafStrings(value: unknown): string[] {
   if (typeof value === "string") return [value];
@@ -19,9 +13,12 @@ function leafStrings(value: unknown): string[] {
 
 describe("task learning content", () => {
   it("covers every shipped task exactly once", () => {
-    expect(Object.keys(AUTHORED_TASK_LEARNING_CONTENT).sort()).toEqual(
-      ALL_TASK_IDS.sort(),
-    );
+    const shippedTaskIds = tasks.map((task) => task.id);
+    const authoredTaskIds = Object.keys(AUTHORED_TASK_LEARNING_CONTENT);
+
+    expect(new Set(shippedTaskIds).size).toBe(shippedTaskIds.length);
+    expect(authoredTaskIds).toHaveLength(shippedTaskIds.length);
+    expect(authoredTaskIds.sort()).toEqual([...shippedTaskIds].sort());
   });
 
   it("keeps the rich learning contract deep enough for every authored task", () => {

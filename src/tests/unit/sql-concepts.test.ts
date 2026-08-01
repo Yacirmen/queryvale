@@ -60,6 +60,66 @@ describe("SQL concept detection", () => {
     expect(check.satisfied).toBe(true);
   });
 
+  it("detects PostgreSQL upserts separately from plain INSERT and UPDATE", () => {
+    const upsert = detectSqlConcepts(`
+      INSERT INTO daily_snapshots (branch_id, snapshot_date, backlog)
+      VALUES (10, DATE '2026-06-01', 24)
+      ON CONFLICT (branch_id, snapshot_date)
+      DO UPDATE SET backlog = EXCLUDED.backlog
+      RETURNING branch_id, snapshot_date, backlog
+    `);
+
+    expect(upsert.has("INSERT")).toBe(true);
+    expect(upsert.has("UPDATE")).toBe(true);
+    expect(upsert.has("UPSERT")).toBe(true);
+    expect(normalizeConceptName("upsert")).toBe("UPSERT");
+    expect(normalizeConceptName("on conflict")).toBe("UPSERT");
+
+    const insert = detectSqlConcepts(`
+      INSERT INTO daily_snapshots (branch_id, snapshot_date, backlog)
+      VALUES (11, DATE '2026-06-01', 8)
+      RETURNING branch_id
+    `);
+    expect(insert.has("INSERT")).toBe(true);
+    expect(insert.has("UPDATE")).toBe(false);
+    expect(insert.has("UPSERT")).toBe(false);
+
+    const update = detectSqlConcepts(`
+      UPDATE daily_snapshots
+      SET backlog = 8
+      WHERE branch_id = 11
+    `);
+    expect(update.has("INSERT")).toBe(false);
+    expect(update.has("UPDATE")).toBe(true);
+    expect(update.has("UPSERT")).toBe(false);
+
+    const doNothing = detectSqlConcepts(`
+      INSERT INTO daily_snapshots (branch_id, snapshot_date, backlog)
+      VALUES (11, DATE '2026-06-01', 8)
+      ON CONFLICT (branch_id, snapshot_date) DO NOTHING
+    `);
+    expect(doNothing.has("INSERT")).toBe(true);
+    expect(doNothing.has("UPDATE")).toBe(false);
+    expect(doNothing.has("UPSERT")).toBe(false);
+  });
+
+  it("does not infer an upsert from comments or string values", () => {
+    const concepts = detectSqlConcepts(`
+      INSERT INTO audit_log (message)
+      VALUES ('ON CONFLICT DO UPDATE is the documented recovery path')
+      -- ON CONFLICT (message) DO UPDATE SET message = EXCLUDED.message
+      RETURNING message
+    `);
+
+    expect(concepts.has("INSERT")).toBe(true);
+    expect(concepts.has("UPDATE")).toBe(false);
+    expect(concepts.has("UPSERT")).toBe(false);
+    expect(checkRequiredConcepts("SELECT 1", ["UPSERT"])).toMatchObject({
+      satisfied: false,
+      missing: ["UPSERT"],
+    });
+  });
+
   it("recognizes every concept used as a curriculum requirement", () => {
     for (const task of tasks) {
       for (const concept of task.requiredConcepts) {

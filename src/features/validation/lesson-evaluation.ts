@@ -26,12 +26,13 @@ export function evaluateLessonQuery(
   sql: string,
   result: Pick<QueryExecutionResult, "columns" | "rows"> | undefined,
   executionError?: unknown,
+  mutationVerificationResult?: Pick<QueryExecutionResult, "columns" | "rows">,
 ): QueryEvaluation {
   const feedback = executionError
     ? translateSqlError(executionError)
     : undefined;
 
-  return evaluateQuery({
+  const visibleEvaluation = evaluateQuery({
     sql,
     actualResult: result,
     executionError: feedback
@@ -47,4 +48,45 @@ export function evaluateLessonQuery(
         : [],
     options: lessonEvaluationOptions(task),
   });
+
+  if (!visibleEvaluation.correct || !task.mutationVerification) {
+    return visibleEvaluation;
+  }
+
+  if (!mutationVerificationResult) {
+    return {
+      level: 1,
+      status: "execution-error",
+      correct: false,
+      title: "Değişiklik doğrulanamadı",
+      message:
+        "Sorgu bir sonuç döndürdü ancak gerçek tablo durumu doğrulanamadı. Görev verisini sıfırlayıp yeniden dene.",
+    };
+  }
+
+  const verification = task.mutationVerification;
+  const stateEvaluation = evaluateQuery({
+    sql: verification.sql,
+    actualResult: mutationVerificationResult,
+    expectedColumns: verification.expectedColumns,
+    expectedRows: verification.expectedResult,
+    orderSensitive: verification.orderSensitive,
+    requiredConcepts: [],
+    options: lessonEvaluationOptions(task),
+  });
+
+  if (!stateEvaluation.correct) {
+    return {
+      level: 3,
+      status: "rows-wrong",
+      correct: false,
+      title: "Görünen çıktı ile gerçek değişiklik uyuşmuyor",
+      message:
+        "RETURNING çıktısı beklenen biçimde görünse de tablodaki gerçek durum görev sözleşmesiyle eşleşmedi. Hedef koşulunu ve yazılan değeri kontrol et.",
+      expectedRowCount: verification.expectedResult.length,
+      actualRowCount: mutationVerificationResult.rows.length,
+    };
+  }
+
+  return visibleEvaluation;
 }

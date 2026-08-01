@@ -93,7 +93,7 @@ describe("analyst journey", () => {
     });
     expect(progress[3]).toMatchObject({
       completedTaskCount: 1,
-      totalTaskCount: 3,
+      totalTaskCount: 12,
       status: "active",
     });
   });

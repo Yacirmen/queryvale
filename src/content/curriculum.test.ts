@@ -8,14 +8,11 @@ import {
 import { validateTaskCollection } from "../features/validation";
 
 describe("curriculum", () => {
-  it("ships ten modules and thirty-one linked tasks", () => {
+  it("ships ten modules and forty linked tasks", () => {
     expect(modules).toHaveLength(10);
-    expect(tasks).toHaveLength(31);
-    expect(modules.slice(0, 7).map((module) => module.tasks.length)).toEqual([
-      4, 4, 4, 4, 4, 4, 4,
-    ]);
-    expect(modules.slice(7).every((module) => module.tasks.length >= 1)).toBe(
-      true,
+    expect(tasks).toHaveLength(40);
+    expect(modules.map((module) => module.tasks.length)).toEqual(
+      Array.from({ length: 10 }, () => 4),
     );
   });
 
@@ -83,7 +80,9 @@ describe("curriculum", () => {
 
     for (const task of tasks) {
       expect(task.hints).toHaveLength(3);
-      expect(task.solutionSql.trim()).toMatch(/^(?:SELECT|WITH|UPDATE)\b/i);
+      expect(task.solutionSql.trim()).toMatch(
+        /^(?:SELECT|WITH|UPDATE|INSERT|DELETE)\b/i,
+      );
       expect(task.expectedColumns.length).toBeGreaterThan(0);
       expect(
         task.expectedResult.every(

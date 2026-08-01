@@ -26,6 +26,7 @@ Her görev aşağıdaki alanları destekler:
 | `sampleRows`                     | Şemayla tutarlı, cevabı tamamen ele vermeyen örnek                         |
 | `expectedColumns`                | Ad, sıra, alias/case politikası                                            |
 | `validationMode`                 | Sonuç, sıra, tolerans ve kavram politikası                                 |
+| `mutationVerification`           | DML sonrası gerçek tablo durumunu doğrulayan gizli, güvenilen SELECT       |
 | `expectedResult`                 | Doğrulanmış referans sonuç veya güvenilir üretim tanımı                    |
 | `orderSensitive`                 | İş talebi sıralama gerektiriyorsa `true`                                   |
 | `requiredConcepts`               | Sonuç doğru olsa da öğrenme hedefi için gereken sinyaller                  |
@@ -110,6 +111,7 @@ Zayıf senaryo:
 - Float hesaplarında açık epsilon tanımlanır; parasal veri mümkünse exact numeric kullanır.
 - `requiredConcepts`, alternatif doğru yolları sebepsiz reddetmemelidir. Yalnız dersin hedefi başka türlü ölçülemiyorsa kullanılır.
 - Yasak işlem listesi güvenlik illüzyonu değil, görev bütünlüğü içindir.
+- `mutation` görevinde görünen `RETURNING` sonucu tek başına başarı kanıtı değildir. `mutationVerification`, aynı veritabanında hedef satırın değiştiğini ve korunması gereken satırların değişmediğini denetlemelidir.
 
 ## Göreve özel koçluk
 
@@ -142,6 +144,7 @@ Yeni görev, bir öncekinin tüm karmaşıklığını rastgele büyütmek yerine
 - [ ] Doğru sonuç gerçek motorla üretildi mi?
 - [ ] Yapısal olarak farklı doğru çözüm kabul ediliyor mu?
 - [ ] Yanlış çözüm anlamlı geri bildirim alıyor mu?
+- [ ] DML görevinde gerçek post-state doğrulanıyor ve sabit/literal `RETURNING` taklidi reddediliyor mu?
 - [ ] Üç ipucu giderek daha açık mı?
 - [ ] `solutionSql` eksiksiz mi, açık talepte mi gösteriliyor ve gerçek motorda doğru kabul ediliyor mu?
 - [ ] Çıktı tanesi ve en az üç kabul kontrolü açık mı?

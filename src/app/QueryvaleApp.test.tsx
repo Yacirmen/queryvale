@@ -90,6 +90,19 @@ vi.mock("../features/sql-engine", () => ({
           );
         }
         if (task.id === "m8-t1") {
+          if (/^\s*select\b/i.test(sql)) {
+            return {
+              columns: ["product_id", "stock_quantity"],
+              rows: [
+                { product_id: 801, stock_quantity: mutationStock },
+                { product_id: 802, stock_quantity: 6 },
+              ],
+              rowCount: 2,
+              affectedRows: 0,
+              truncated: false,
+              durationMs: 2,
+            };
+          }
           const decrement = Number(
             sql.match(/stock_quantity\s*-\s*(\d+)/i)?.[1] ?? 0,
           );

@@ -3,11 +3,122 @@ import {
   evaluateQuery,
   valuesEqual,
 } from "../../features/validation/evaluate-query";
+import { evaluateLessonQuery } from "../../features/validation/lesson-evaluation";
+import type { LessonTask } from "../../types/lesson";
 
 const result = (
   columns: string[],
   rows: Array<Record<string, string | number | boolean | Date | null>>,
 ) => ({ columns, rows });
+
+const mutationTask = (): LessonTask => ({
+  id: "mutation-post-state",
+  slug: "mutation-post-state",
+  moduleId: "module-8",
+  title: "Stoğu güncelle",
+  subtitle: "Görünen sonuç ile kalıcı durumu birlikte doğrula.",
+  scenario: "Depo ekibi tek bir ürünün stoğunu azaltacak.",
+  objective: "801 numaralı ürünün stoğunu üç azalt.",
+  difficulty: "intermediate",
+  estimatedMinutes: 8,
+  prerequisites: [],
+  concepts: ["UPDATE", "ARITHMETIC"],
+  setupSql:
+    "CREATE TABLE inventory (product_id integer primary key, stock_quantity integer);",
+  schema: {
+    tables: [
+      {
+        name: "inventory",
+        description: "Ürün stokları",
+        columns: [
+          {
+            name: "product_id",
+            dataType: "integer",
+            nullable: false,
+            primaryKey: true,
+          },
+          {
+            name: "stock_quantity",
+            dataType: "integer",
+            nullable: false,
+          },
+        ],
+      },
+    ],
+  },
+  sampleRows: [
+    {
+      tableName: "inventory",
+      rows: [
+        { product_id: 801, stock_quantity: 12 },
+        { product_id: 802, stock_quantity: 6 },
+      ],
+    },
+  ],
+  expectedColumns: ["product_id", "stock_quantity"],
+  validationMode: "mutation",
+  mutationVerification: {
+    sql: "SELECT product_id, stock_quantity FROM inventory ORDER BY product_id",
+    expectedColumns: ["product_id", "stock_quantity"],
+    expectedResult: [
+      [801, 9],
+      [802, 6],
+    ],
+    orderSensitive: true,
+  },
+  expectedResult: [[801, 9]],
+  orderSensitive: false,
+  requiredConcepts: ["UPDATE", "ARITHMETIC"],
+  forbiddenOperations: ["DELETE", "INSERT"],
+  validationOptions: {
+    numericTolerance: 0.0001,
+    columnNameCaseSensitive: false,
+    textCaseSensitive: true,
+    trimText: true,
+    aliasesMustMatch: true,
+  },
+  hints: ["Hedefi seç.", "Mevcut değeri azalt.", "Değişen satırı döndür."],
+  solutionSql:
+    "UPDATE inventory SET stock_quantity = stock_quantity - 3 WHERE product_id = 801 RETURNING product_id, stock_quantity;",
+  learningBrief: {
+    conceptAnchor: "Mutasyonu gerçek tablo durumuyla doğrulamak",
+    outputGrain: "Her satır değişen bir üründür.",
+    acceptanceChecks: ["801 değişir.", "802 korunur.", "Yeni stok döner."],
+    dataNotes: ["Başlangıç stoğu 12'dir."],
+  },
+  coaching: {
+    "execution-error": {
+      title: "Sözdizimini kontrol et",
+      checks: ["UPDATE doğru mu?", "Tablo doğru mu?"],
+    },
+    "columns-wrong": {
+      title: "Kolonları kontrol et",
+      checks: ["Kimlik var mı?", "Stok var mı?"],
+    },
+    "rows-wrong": {
+      title: "Durumu kontrol et",
+      checks: ["801 dokuz mu?", "802 altı mı?"],
+    },
+    "order-wrong": {
+      title: "Sırayı kontrol et",
+      checks: ["Kimliğe göre mi?", "Artan mı?"],
+    },
+    "required-concept-missing": {
+      title: "Mutasyonu uygula",
+      checks: ["UPDATE var mı?", "Göreli hesap var mı?"],
+    },
+  },
+  debrief: {
+    steps: ["Hedefle.", "Güncelle.", "Doğrula."],
+    whyItWorks: "Post-state görünür sonuçtan bağımsız kanıt üretir.",
+    edgeCases: ["Ürün bulunmayabilir.", "Stok yetersiz olabilir."],
+    workplaceImpact: "Yanlış mutasyonların başarı sayılmasını önler.",
+    transfer: { prompt: "Başka ürün?", reveal: "Hedef kimliği değiştir." },
+  },
+  explanation: "UPDATE gerçek değeri değiştirir.",
+  completionMessage: "Stok doğrulandı.",
+  nextTaskId: null,
+});
 
 describe("evaluateQuery", () => {
   it("returns all six pedagogical levels distinctly", () => {
@@ -142,15 +253,52 @@ describe("evaluateQuery", () => {
   it("maps column values correctly when column order is not significant", () => {
     const evaluation = evaluateQuery({
       sql: "SELECT total, city FROM sales",
-      actualResult: result(
-        ["total", "city"],
-        [{ total: 100, city: "İzmir" }],
-      ),
+      actualResult: result(["total", "city"], [{ total: 100, city: "İzmir" }]),
       expectedColumns: ["city", "total"],
       expectedRows: [["İzmir", 100]],
       options: { columnOrderSensitive: false },
     });
     expect(evaluation.status).toBe("correct");
   });
-});
 
+  it("requires a mutation's visible result and trusted post-state to agree", () => {
+    const task = mutationTask();
+    const sql = task.solutionSql;
+    const visibleResult = result(
+      ["product_id", "stock_quantity"],
+      [{ product_id: 801, stock_quantity: 9 }],
+    );
+    const correctState = result(
+      ["product_id", "stock_quantity"],
+      [
+        { product_id: 801, stock_quantity: 9 },
+        { product_id: 802, stock_quantity: 6 },
+      ],
+    );
+
+    expect(
+      evaluateLessonQuery(task, sql, visibleResult, undefined, correctState),
+    ).toMatchObject({ status: "correct", correct: true });
+
+    const spoofedState = result(
+      ["product_id", "stock_quantity"],
+      [
+        { product_id: 801, stock_quantity: 0 },
+        { product_id: 802, stock_quantity: 6 },
+      ],
+    );
+    expect(
+      evaluateLessonQuery(task, sql, visibleResult, undefined, spoofedState),
+    ).toMatchObject({
+      status: "rows-wrong",
+      correct: false,
+      title: "Görünen çıktı ile gerçek değişiklik uyuşmuyor",
+    });
+
+    expect(evaluateLessonQuery(task, sql, visibleResult)).toMatchObject({
+      status: "execution-error",
+      correct: false,
+      title: "Değişiklik doğrulanamadı",
+    });
+  });
+});

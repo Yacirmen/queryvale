@@ -325,7 +325,17 @@ export function WorkspaceScreen({
       }
       const execution = await database.run(query);
       if (!isCurrentRun()) return;
-      const nextEvaluation = evaluateLessonQuery(task, query, execution);
+      const mutationVerificationResult = task.mutationVerification
+        ? await database.run(task.mutationVerification.sql)
+        : undefined;
+      if (!isCurrentRun()) return;
+      const nextEvaluation = evaluateLessonQuery(
+        task,
+        query,
+        execution,
+        undefined,
+        mutationVerificationResult,
+      );
       const elapsed = Math.max(
         1,
         Math.round((Date.now() - openedAtRef.current) / 1000),

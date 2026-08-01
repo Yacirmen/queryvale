@@ -296,6 +296,37 @@ export const TASK_SOLUTIONS: Readonly<Record<string, string>> = {
     WHERE product_id = 801
     RETURNING product_id, stock_quantity;
   `),
+  "m8-t2": sql(`
+    INSERT INTO inventory_movements (
+      movement_id,
+      product_id,
+      quantity_delta,
+      movement_type
+    )
+    VALUES (3004, 803, 4, 'IN')
+    RETURNING movement_id, product_id, quantity_delta, movement_type;
+  `),
+  "m8-t3": sql(`
+    DELETE FROM import_rows
+    WHERE batch_id = 'B-77'
+      AND row_no = 2
+      AND status = 'draft'
+    RETURNING import_row_id, batch_id, status;
+  `),
+  "m8-t4": sql(`
+    INSERT INTO branch_daily_metrics (
+      branch_id,
+      metric_date,
+      order_count,
+      revenue
+    )
+    VALUES (1, DATE '2026-05-20', 14, 1620.00)
+    ON CONFLICT (branch_id, metric_date)
+    DO UPDATE SET
+      order_count = EXCLUDED.order_count,
+      revenue = EXCLUDED.revenue
+    RETURNING branch_id, metric_date, order_count, revenue;
+  `),
   "m9-t1": sql(`
     SELECT
       d.month_label,
@@ -306,6 +337,49 @@ export const TASK_SOLUTIONS: Readonly<Record<string, string>> = {
     INNER JOIN dim_date d ON d.date_key = f.date_key
     GROUP BY d.month_label, p.category
     ORDER BY d.month_label, p.category;
+  `),
+  "m9-t2": sql(`
+    SELECT customer_id, segment, valid_from
+    FROM dim_customer
+    WHERE valid_to IS NULL
+    ORDER BY customer_id;
+  `),
+  "m9-t3": sql(`
+    SELECT f.sale_key, f.product_key, f.revenue_amount
+    FROM fact_sales f
+    LEFT JOIN dim_product p ON p.product_key = f.product_key
+    WHERE p.product_key IS NULL
+    ORDER BY f.sale_key;
+  `),
+  "m9-t4": sql(`
+    WITH coverage AS (
+      SELECT
+        w.week_start,
+        c.channel_id,
+        c.channel_name
+      FROM dim_week w
+      CROSS JOIN dim_channel c
+    ),
+    order_totals AS (
+      SELECT
+        w.week_start,
+        f.channel_id,
+        COUNT(*) AS order_count,
+        SUM(f.revenue) AS revenue
+      FROM fact_orders f
+      INNER JOIN dim_week w ON w.week_key = f.week_key
+      GROUP BY w.week_start, f.channel_id
+    )
+    SELECT
+      c.week_start,
+      c.channel_name,
+      COALESCE(o.order_count, 0) AS order_count,
+      COALESCE(o.revenue, 0) AS revenue
+    FROM coverage c
+    LEFT JOIN order_totals o
+      ON o.week_start = c.week_start
+     AND o.channel_id = c.channel_id
+    ORDER BY c.week_start, c.channel_name;
   `),
   "m10-t1": sql(`
     SELECT
@@ -329,6 +403,167 @@ export const TASK_SOLUTIONS: Readonly<Record<string, string>> = {
      AND s.sale_month = '2026-05'
     GROUP BY b.branch_id, b.branch_name, t.target_amount
     ORDER BY achievement_rate DESC;
+  `),
+  "m10-t2": sql(`
+    WITH active_customers AS (
+      SELECT c.customer_id, c.customer_name
+      FROM subscriptions s
+      INNER JOIN customers c ON c.customer_id = s.customer_id
+      WHERE s.status = 'active'
+    ),
+    last_usage AS (
+      SELECT customer_id, MAX(event_date) AS last_activity_date
+      FROM usage_events
+      GROUP BY customer_id
+    ),
+    open_tickets AS (
+      SELECT
+        customer_id,
+        COUNT(*) FILTER (WHERE status = 'open') AS open_ticket_count
+      FROM support_tickets
+      GROUP BY customer_id
+    ),
+    signals AS (
+      SELECT
+        c.customer_name,
+        u.last_activity_date,
+        CASE
+          WHEN u.last_activity_date IS NULL THEN NULL
+          ELSE DATE '2026-06-01' - u.last_activity_date
+        END AS inactive_days,
+        COALESCE(t.open_ticket_count, 0) AS open_ticket_count
+      FROM active_customers c
+      LEFT JOIN last_usage u ON u.customer_id = c.customer_id
+      LEFT JOIN open_tickets t ON t.customer_id = c.customer_id
+    ),
+    risked AS (
+      SELECT
+        customer_name,
+        last_activity_date,
+        inactive_days,
+        open_ticket_count,
+        CASE
+          WHEN last_activity_date IS NULL THEN 'Yüksek'
+          WHEN inactive_days >= 45 OR open_ticket_count >= 2 THEN 'Yüksek'
+          WHEN inactive_days >= 30 OR open_ticket_count >= 1 THEN 'Orta'
+          ELSE 'Düşük'
+        END AS risk_level
+      FROM signals
+    )
+    SELECT
+      customer_name,
+      last_activity_date,
+      inactive_days,
+      open_ticket_count,
+      risk_level
+    FROM risked
+    ORDER BY
+      CASE risk_level
+        WHEN 'Yüksek' THEN 1
+        WHEN 'Orta' THEN 2
+        ELSE 3
+      END,
+      inactive_days DESC NULLS FIRST,
+      customer_name;
+  `),
+  "m10-t3": sql(`
+    WITH spend_totals AS (
+      SELECT campaign_id, SUM(spend_amount) AS total_spend
+      FROM spend_events
+      GROUP BY campaign_id
+    ),
+    order_totals AS (
+      SELECT campaign_id, SUM(gross_revenue) AS gross_revenue
+      FROM attributed_orders
+      GROUP BY campaign_id
+    ),
+    refund_totals AS (
+      SELECT campaign_id, SUM(refund_amount) AS total_refunds
+      FROM refunds
+      GROUP BY campaign_id
+    ),
+    metrics AS (
+      SELECT
+        c.campaign_name,
+        COALESCE(s.total_spend, 0) AS total_spend,
+        COALESCE(o.gross_revenue, 0) -
+          COALESCE(r.total_refunds, 0) AS net_revenue
+      FROM campaigns c
+      LEFT JOIN spend_totals s ON s.campaign_id = c.campaign_id
+      LEFT JOIN order_totals o ON o.campaign_id = c.campaign_id
+      LEFT JOIN refund_totals r ON r.campaign_id = c.campaign_id
+    )
+    SELECT
+      campaign_name,
+      total_spend,
+      net_revenue,
+      net_revenue - total_spend AS profit,
+      CASE
+        WHEN total_spend = 0 THEN 0
+        ELSE ROUND(net_revenue / total_spend, 2)
+      END AS roas
+    FROM metrics
+    ORDER BY profit DESC, campaign_name;
+  `),
+  "m10-t4": sql(`
+    WITH incident_daily AS (
+      SELECT
+        branch_id,
+        incident_date,
+        COUNT(*) AS incident_count,
+        COUNT(*) FILTER (WHERE severity = 'critical') AS critical_count
+      FROM incidents
+      GROUP BY branch_id, incident_date
+    ),
+    base AS (
+      SELECT
+        b.branch_id,
+        b.branch_name,
+        o.operation_date,
+        o.incoming_count - o.resolved_count AS backlog_delta,
+        o.avg_delay_hours,
+        t.backlog_limit,
+        COALESCE(i.incident_count, 0) AS incident_count,
+        COALESCE(i.critical_count, 0) AS critical_count
+      FROM daily_operations o
+      INNER JOIN branches b ON b.branch_id = o.branch_id
+      INNER JOIN capacity_targets t ON t.branch_id = o.branch_id
+      LEFT JOIN incident_daily i
+        ON i.branch_id = o.branch_id
+       AND i.incident_date = o.operation_date
+    ),
+    windowed AS (
+      SELECT
+        *,
+        SUM(backlog_delta) OVER (
+          PARTITION BY branch_id
+          ORDER BY operation_date
+          ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        ) AS running_backlog,
+        avg_delay_hours - LAG(avg_delay_hours) OVER (
+          PARTITION BY branch_id
+          ORDER BY operation_date
+        ) AS delay_change
+      FROM base
+    )
+    SELECT
+      branch_name,
+      operation_date,
+      backlog_delta,
+      running_backlog,
+      delay_change,
+      incident_count,
+      CASE
+        WHEN critical_count > 0
+          OR running_backlog > backlog_limit
+          OR delay_change >= 2 THEN 'Acil'
+        WHEN running_backlog > backlog_limit * 0.7
+          OR delay_change > 0
+          OR incident_count > 0 THEN 'İzle'
+        ELSE 'Normal'
+      END AS alert_status
+    FROM windowed
+    ORDER BY branch_name, operation_date;
   `),
 };
 

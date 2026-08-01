@@ -26,7 +26,7 @@ Bu yol haritası tarih vaadi değil, bağımlılık ve değer sırasıdır. Her 
 ### P0: Öğrenme ve kalıcılık
 
 - İlk yedi modül için çalışan, doğrulanmış 28 görevlik öğrenme yolu
-- Modül 8–10 için vaatleriyle sınırlı birer çalışan odak vaka; toplam 31 görev
+- Modül 8–10 için tamamlanmış üretim kalitesi genişleme: güvenli veri değişikliği, modelleme/veri güveni ve yönetici raporu alanlarında dörder vaka; toplam 40 görev
 - Her görevde kavram odağı, çıktı tanesi, kabul kontrolleri ve üç kademeli ipucu
 - Hazırlık ipuçları yetmediğinde açık talep üzerine, cezasız tam çalışan çözüm
 - Değerlendirme durumuna özel koçluk ve başarı sonrası transfer odaklı debrief
@@ -54,12 +54,11 @@ Bu yol haritası tarih vaadi değil, bağımlılık ve değer sırasıdır. Her 
 
 ## Paralel — İçerik derinliği ve ürün akıcılığı
 
-1. Modül 8–10 için üretim kalitesinde görev genişlemesi
-2. Daha zengin tablo ilişki görünümü ve erişilebilir veri önizleme
-3. İçerik yazarı için fixture/preview ve yanlış-sorgu yardımcıları
-4. Büyük sonuçlar için sanallaştırılmış tablo
-5. Tam offline PWA cache stratejisi ve güncelleme UX’i
-6. Yerel performans/öğrenme içgörülerinin daha iyi öneri üretmesi
+1. Daha zengin tablo ilişki görünümü ve erişilebilir veri önizleme
+2. İçerik yazarı için fixture/preview ve yanlış-sorgu yardımcıları
+3. Büyük sonuçlar için sanallaştırılmış tablo
+4. Tam offline PWA cache stratejisi ve güncelleme UX’i
+5. Yerel performans/öğrenme içgörülerinin daha iyi öneri üretmesi
 
 ## Daha sonra — Araç köprüleri
 

@@ -262,6 +262,62 @@ export function validateTaskDefinition(
     });
   }
 
+  if (task.validationMode === "mutation") {
+    const verification = source.mutationVerification as
+      UnknownRecord | undefined;
+    if (!verification || typeof verification !== "object") {
+      issues.push({
+        severity: "error",
+        path: "mutationVerification",
+        message:
+          "Mutation görevleri RETURNING çıktısına ek olarak gerçek tablo durumunu doğrulamalıdır.",
+      });
+    } else {
+      if (
+        typeof verification.sql !== "string" ||
+        verification.sql.trim().length === 0
+      ) {
+        issues.push({
+          severity: "error",
+          path: "mutationVerification.sql",
+          message: "Mutation doğrulaması boş olmayan bir SELECT içermelidir.",
+        });
+      }
+      if (
+        !Array.isArray(verification.expectedColumns) ||
+        verification.expectedColumns.length === 0
+      ) {
+        issues.push({
+          severity: "error",
+          path: "mutationVerification.expectedColumns",
+          message: "Mutation doğrulaması beklenen kolonları tanımlamalıdır.",
+        });
+      }
+      if (!Array.isArray(verification.expectedResult)) {
+        issues.push({
+          severity: "error",
+          path: "mutationVerification.expectedResult",
+          message:
+            "Mutation doğrulaması beklenen tablo durumunu tanımlamalıdır.",
+        });
+      }
+      if (typeof verification.orderSensitive !== "boolean") {
+        issues.push({
+          severity: "error",
+          path: "mutationVerification.orderSensitive",
+          message: "Mutation doğrulamasının sıra politikası açık olmalıdır.",
+        });
+      }
+    }
+  } else if (source.mutationVerification !== undefined) {
+    issues.push({
+      severity: "error",
+      path: "mutationVerification",
+      message:
+        "Gizli tablo durumu doğrulaması yalnız mutation görevlerinde kullanılır.",
+    });
+  }
+
   if (!Array.isArray(source.hints) || source.hints.length < 3) {
     issues.push({
       severity: "error",

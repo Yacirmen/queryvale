@@ -1,56 +1,17 @@
 import {
-  DEFAULT_VALIDATION_OPTIONS,
   defineModule,
-  defineTask,
   type CurriculumModule,
-  type ForbiddenOperation,
-  type LessonLearningContent,
   type LessonTask,
   type TaskSampleData,
   type TaskSchema,
-  type ValidationOptions,
 } from "../types/lesson";
 import { assertValidTaskCollection } from "../features/validation/task-content";
-import { createDefaultLearningContent } from "./createDefaultLearningContent";
-import { AUTHORED_TASK_LEARNING_CONTENT } from "./learningContentCatalog";
-import { getTaskSolution } from "./taskSolutions";
-
-const READ_ONLY_FORBIDDEN: ForbiddenOperation[] = [
-  "DROP_DATABASE",
-  "DROP_TABLE",
-  "ALTER_TABLE",
-  "CREATE_TABLE",
-  "TRUNCATE",
-  "INSERT",
-  "UPDATE",
-  "DELETE",
-  "SYSTEM_CATALOG_ACCESS",
-  "MULTIPLE_STATEMENTS",
-];
-
-type AuthoredTask = Omit<
-  LessonTask,
-  "solutionSql" | "validationOptions" | keyof LessonLearningContent
-> & {
-  validationOptions?: Partial<ValidationOptions>;
-};
-
-const createTask = (task: AuthoredTask): LessonTask => {
-  const { validationOptions, ...baseTask } = task;
-  const learningContent =
-    AUTHORED_TASK_LEARNING_CONTENT[task.id] ??
-    createDefaultLearningContent(baseTask);
-
-  return defineTask({
-    ...baseTask,
-    ...learningContent,
-    solutionSql: getTaskSolution(task.id),
-    validationOptions: {
-      ...DEFAULT_VALIDATION_OPTIONS,
-      ...validationOptions,
-    },
-  });
-};
+import { createTask, READ_ONLY_FORBIDDEN } from "./curriculumTaskFactory";
+import {
+  module8ExpansionTasks,
+  module9ExpansionTasks,
+  module10ExpansionTasks,
+} from "./advancedExpansionTasks";
 
 const productSetupSql = `
   CREATE TABLE products (
@@ -2588,6 +2549,19 @@ const mutationTask = createTask({
     "SYSTEM_CATALOG_ACCESS",
     "MULTIPLE_STATEMENTS",
   ],
+  mutationVerification: {
+    sql: `
+      SELECT product_id, stock_quantity
+      FROM inventory
+      ORDER BY product_id;
+    `,
+    expectedColumns: ["product_id", "stock_quantity"],
+    expectedResult: [
+      [801, 9],
+      [802, 6],
+    ],
+    orderSensitive: true,
+  },
   hints: [
     "Bir satırdaki değeri değiştirmek için UPDATE ve hedefi sınırlamak için WHERE kullan.",
     "Yeni değer mevcut stock_quantity değerinden 3 çıkarılarak hesaplanabilir.",
@@ -2597,7 +2571,7 @@ const mutationTask = createTask({
     "UPDATE seçilen satırın değerini yerinde değiştirir. WHERE olmadan tüm tablo etkilenebileceği için hedef koşulu kritik önemdedir; RETURNING değişikliği aynı işlemde doğrular.",
   completionMessage:
     "Stok güvenle ayrıldı ve kalan miktar doğrulandı. İlk kontrollü veri değişikliğini yaptın.",
-  nextTaskId: "m9-t1",
+  nextTaskId: "m8-t2",
 });
 
 const modelingTask = createTask({
@@ -2612,7 +2586,7 @@ const modelingTask = createTask({
     "fact_sales tablosunu dim_product ve dim_date ile birleştir. month_label ve category bazında quantity * unit_price toplamını revenue adıyla getir; ay ve kategoriye göre artan sırala.",
   difficulty: "advanced",
   estimatedMinutes: 20,
-  prerequisites: ["m8-t1"],
+  prerequisites: ["m8-t4"],
   concepts: [
     "STAR_SCHEMA",
     "INNER_JOIN",
@@ -2779,7 +2753,7 @@ const modelingTask = createTask({
     "Yıldız şemada fact tablo sayısal olayları, dimension tabloları analiz bağlamını taşır. Boyutları fact anahtarları üzerinden birleştirmek tekrar kullanılabilir rapor kırılımları sağlar.",
   completionMessage:
     "İlk veri martı çıktın hazır. Fact ve dimension rollerini çalışan bir raporda birleştirdin.",
-  nextTaskId: "m10-t1",
+  nextTaskId: "m9-t2",
 });
 
 const capstoneTask = createTask({
@@ -2794,7 +2768,7 @@ const capstoneTask = createTask({
     "branches, monthly_targets ve branch_sales tablolarını kullan. 2026-05 dönemi için her şubenin branch_name, target_amount, actual_amount, yüzde achievement_rate ve target_status kolonlarını getir. Satışı olmayan şubede actual_amount ve oran 0 olsun; actual hedefe ulaştıysa Hedefte, aksi halde Geride yaz. Orana göre azalan sırala.",
   difficulty: "advanced",
   estimatedMinutes: 25,
-  prerequisites: ["m9-t1"],
+  prerequisites: ["m9-t4"],
   concepts: [
     "REPORTING",
     "LEFT_JOIN",
@@ -2950,7 +2924,7 @@ const capstoneTask = createTask({
     "Bu sorgu ana veri, hedef ve işlem tablolarını aynı yönetici çıktısında birleştirir. LEFT JOIN kapsamı korur; aggregation gerçekleşeni, CASE ise metriği karar etiketine dönüştürür.",
   completionMessage:
     "Yönetici raporu yayına hazır. SQL yapı taşlarını uçtan uca bir iş kararına dönüştürdün.",
-  nextTaskId: null,
+  nextTaskId: "m10-t2",
 });
 
 export const curriculum: CurriculumModule[] = [
@@ -3107,60 +3081,68 @@ export const curriculum: CurriculumModule[] = [
     slug: "data-manipulation",
     order: 8,
     title: "Kontrollü veri güncelleme",
-    subtitle: "Tek satırlık değişikliği hedefle, uygula ve kanıtla.",
+    subtitle: "Veri değişikliğini hedefle, uygula ve gerçek durumla kanıtla.",
     description:
-      "UPDATE, WHERE, göreli değer hesabı ve RETURNING ile güvenli bir stok değişikliğini uçtan uca doğrula.",
+      "UPDATE, INSERT, DELETE ve UPSERT işlemlerini dar hedef, constraint, RETURNING ve gizli post-state kontrolleriyle güvenle uygula.",
     difficulty: "intermediate",
-    estimatedMinutes: 12,
+    estimatedMinutes: 54,
     topics: [
       "UPDATE",
       "WHERE ile güvenli hedefleme",
       "Göreli değer güncelleme",
       "RETURNING",
       "Constraint geri bildirimi",
+      "INSERT ve DELETE",
+      "Idempotent UPSERT",
     ],
     prerequisites: ["module-7"],
-    tasks: [mutationTask],
+    tasks: [mutationTask, ...module8ExpansionTasks],
   }),
   defineModule({
     id: "module-9",
     slug: "data-modeling",
     order: 9,
-    title: "Yıldız şemaya giriş",
-    subtitle: "Fact ve dimension rollerini çalışan bir raporda ayır.",
+    title: "Analitik veri modelleme",
+    subtitle: "Fact, dimension, tarihçe ve veri kalitesini aynı modelde yönet.",
     description:
-      "Satış olaylarını ürün ve tarih boyutlarına bağlayarak ay-kategori tanesinde ilk analitik veri martı çıktısını üret.",
+      "Yıldız şema raporu, SCD Type 2 güncelliği, yetim fact denetimi ve sıfır kombinasyonları koruyan yoğun veri martı üret.",
     difficulty: "advanced",
-    estimatedMinutes: 20,
+    estimatedMinutes: 72,
     topics: [
       "Fact ve dimension rolleri",
       "Star schema",
       "Boyut anahtarları",
       "Rapor tanesi",
       "Analitik JOIN",
+      "SCD Type 2",
+      "Yetim anahtar denetimi",
+      "Kapsama omurgası ve sıfır olay",
     ],
     prerequisites: ["module-8"],
-    tasks: [modelingTask],
+    tasks: [modelingTask, ...module9ExpansionTasks],
   }),
   defineModule({
     id: "module-10",
     slug: "business-analyst-projects",
     order: 10,
-    title: "Yönetici raporu projesi",
-    subtitle: "SQL yapı taşlarını hedef–gerçekleşme karar setine dönüştür.",
+    title: "Veri analisti karar projeleri",
+    subtitle: "Çok kaynaklı veriyi açıklanabilir aksiyon setlerine dönüştür.",
     description:
-      "Şube hedeflerini ve satışlarını kapsamı koruyarak birleştir; oran, durum etiketi ve sıfır aktiviteli şubeleri tek yönetici çıktısında sun.",
+      "Hedef gerçekleşme, müşteri kayıp riski, kampanya kârlılığı ve operasyon erken uyarısını cardinality güvenli, çok adımlı SQL teslimlerine dönüştür.",
     difficulty: "advanced",
-    estimatedMinutes: 25,
+    estimatedMinutes: 121,
     topics: [
       "Satış hedef gerçekleşme analizi",
       "Kapsam koruyan JOIN",
       "Sıfır aktiviteli varlıklar",
       "Oran ve koşullu karar etiketi",
       "Yönetici raporu veri seti",
+      "Müşteri risk kuyruğu",
+      "Kampanya kârlılığı ve fanout",
+      "Window tabanlı erken uyarı",
     ],
     prerequisites: ["module-9"],
-    tasks: [capstoneTask],
+    tasks: [capstoneTask, ...module10ExpansionTasks],
   }),
 ];
 

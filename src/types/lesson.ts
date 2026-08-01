@@ -66,6 +66,7 @@ export type SQLConcept =
   | "MOVING_AVERAGE"
   | "CREATE_TABLE"
   | "INSERT"
+  | "UPSERT"
   | "UPDATE"
   | "DELETE"
   | "CONSTRAINT"
@@ -172,6 +173,18 @@ export interface LessonLearningContent {
   debrief: TaskDebrief;
 }
 
+/**
+ * Trusted, learner-invisible assertion executed after a mutation statement.
+ * RETURNING proves what a statement chose to show; this contract proves the
+ * persisted table state that the lesson actually promises.
+ */
+export interface MutationVerification {
+  sql: string;
+  expectedColumns: string[];
+  expectedResult: SqlScalar[][];
+  orderSensitive: boolean;
+}
+
 export interface LessonTask extends LessonLearningContent {
   id: string;
   slug: string;
@@ -189,6 +202,7 @@ export interface LessonTask extends LessonLearningContent {
   sampleRows: TaskSampleData[];
   expectedColumns: string[];
   validationMode: ValidationMode;
+  mutationVerification?: MutationVerification;
   expectedResult: SqlScalar[][];
   orderSensitive: boolean;
   requiredConcepts: SQLConcept[];

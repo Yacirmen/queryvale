@@ -48,6 +48,7 @@ export type SqlConcept =
   | "LAG"
   | "LEAD"
   | "INSERT"
+  | "UPSERT"
   | "UPDATE"
   | "DELETE"
   | "CREATE_TABLE"
@@ -109,6 +110,8 @@ const CONCEPT_ALIASES: Record<string, SqlConcept> = {
   LAG: "LAG",
   LEAD: "LEAD",
   INSERT: "INSERT",
+  UPSERT: "UPSERT",
+  ON_CONFLICT: "UPSERT",
   UPDATE: "UPDATE",
   DELETE: "DELETE",
   CREATE_TABLE: "CREATE_TABLE",
@@ -137,7 +140,10 @@ export function detectSqlConcepts(sql: string): ReadonlySet<SqlConcept> {
   add("SELECT", /\bselect\b/i);
   add("DISTINCT", /\bselect\s+distinct\b/i);
   add("WHERE", /\bwhere\b/i);
-  add("COMPARISON", /(?:<>|!=|>=|<=|(?<![<>=])=(?!=)|(?<![<>=])>(?!=)|(?<![<>=])<(?!=))/);
+  add(
+    "COMPARISON",
+    /(?:<>|!=|>=|<=|(?<![<>=])=(?!=)|(?<![<>=])>(?!=)|(?<![<>=])<(?!=))/,
+  );
   add("ORDER_BY", /\border\s+by\b/i);
   add("LIMIT", /\blimit\b/i);
   add("AND", /\band\b/i);
@@ -147,7 +153,10 @@ export function detectSqlConcepts(sql: string): ReadonlySet<SqlConcept> {
   add("BETWEEN", /\bbetween\b/i);
   add("LIKE", /\b(?:i?like)\b/i);
   add("IS_NULL", /\bis\s+(?:not\s+)?null\b/i);
-  add("ARITHMETIC", /(?:[a-z_][a-z0-9_.]*|\d+(?:\.\d+)?|\))\s*[+*/%-]\s*(?:[a-z_(]|\d)/i);
+  add(
+    "ARITHMETIC",
+    /(?:[a-z_][a-z0-9_.]*|\d+(?:\.\d+)?|\))\s*[+*/%-]\s*(?:[a-z_(]|\d)/i,
+  );
   add(
     "STRING_FUNCTION",
     /\b(?:upper|lower|trim|concat|substring|substr|replace|length|string_agg)\s*\(|\|\|/i,
@@ -180,6 +189,10 @@ export function detectSqlConcepts(sql: string): ReadonlySet<SqlConcept> {
   add("LAG", /\blag\s*\(/i);
   add("LEAD", /\blead\s*\(/i);
   add("INSERT", /\binsert\s+into\b/i);
+  add(
+    "UPSERT",
+    /\binsert\s+into\b[\s\S]*\bon\s+conflict\b[\s\S]*\bdo\s+update\b/i,
+  );
   add("UPDATE", /\bupdate\b/i);
   add("DELETE", /\bdelete\s+from\b/i);
   add("CREATE_TABLE", /\bcreate\s+(?:temporary\s+|temp\s+)?table\b/i);
@@ -221,11 +234,7 @@ export function detectSqlConcepts(sql: string): ReadonlySet<SqlConcept> {
     concepts.add("WINDOW");
   }
 
-  if (
-    /\bsum\s*\([^)]*\)\s*over\s*\([^)]*\border\s+by\b[^)]*\)/i.test(
-      masked,
-    )
-  ) {
+  if (/\bsum\s*\([^)]*\)\s*over\s*\([^)]*\border\s+by\b[^)]*\)/i.test(masked)) {
     concepts.add("RUNNING_TOTAL");
   }
 
@@ -262,9 +271,7 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-export function normalizeConceptName(
-  concept: string,
-): SqlConcept | undefined {
+export function normalizeConceptName(concept: string): SqlConcept | undefined {
   const normalized = concept
     .trim()
     .toUpperCase()
