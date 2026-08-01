@@ -315,8 +315,27 @@ describe("QueryvaleApp", () => {
     render(<QueryvaleApp />);
 
     expect(
-      screen.getByRole("heading", { name: /Soruyu sorguya/i }),
+      screen.getByRole("heading", { name: /Bir sorgu nasıl büyür/i }),
     ).toBeInTheDocument();
+    const previousScrollBehavior =
+      document.documentElement.style.getPropertyValue("scroll-behavior");
+    document.documentElement.style.setProperty("scroll-behavior", "smooth");
+    await user.click(screen.getByRole("button", { name: /Tanıtıma geç/i }));
+    expect(
+      screen.getByRole("heading", { name: /Bir tabloyla başla/i }),
+    ).toBeInTheDocument();
+    expect(document.getElementById("product-introduction")).toHaveFocus();
+    expect(
+      document.documentElement.style.getPropertyValue("scroll-behavior"),
+    ).toBe("smooth");
+    if (previousScrollBehavior) {
+      document.documentElement.style.setProperty(
+        "scroll-behavior",
+        previousScrollBehavior,
+      );
+    } else {
+      document.documentElement.style.removeProperty("scroll-behavior");
+    }
     expect(
       screen.getByRole("tablist", { name: "Analiz döngüsü aşamaları" }),
     ).toBeInTheDocument();

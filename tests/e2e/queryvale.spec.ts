@@ -31,26 +31,24 @@ test("header keeps one clear active destination without horizontal overflow", as
   ).toBe(true);
 });
 
-test("desktop landing keeps one sticky canvas while native scroll changes scenes", async ({
+test("desktop landing keeps one SQL canvas while native scroll grows the query", async ({
   page,
   isMobile,
 }) => {
   test.skip(isMobile, "Mobil görünüm erişilebilir tab deck kullanır.");
   await page.goto("/");
 
-  const deck = page.locator(".home-journey-deck");
-  const stickyStage = page.locator(".home-station-sticky");
-  await expect(deck).toHaveAttribute("data-scroll-mode", "cinematic");
+  const film = page.locator(".landing-sql-film-shell");
+  const stickyStage = page.locator(".landing-sql-film-sticky");
+  await expect(film).toHaveAttribute("data-scroll-mode", "cinematic");
   const initialTop = await stickyStage.evaluate(
     (element) => element.getBoundingClientRect().top,
   );
 
   const scrollToStoryProgress = (progress: number) =>
     page.evaluate((nextProgress) => {
-      const track = document.querySelector<HTMLElement>(
-        ".home-station-section",
-      );
-      if (!track) throw new Error("Landing story track bulunamadı.");
+      const track = document.querySelector<HTMLElement>(".landing-sql-film");
+      if (!track) throw new Error("Landing SQL film track bulunamadı.");
       const headerHeight =
         Number.parseFloat(
           getComputedStyle(document.documentElement).getPropertyValue(
@@ -66,9 +64,9 @@ test("desktop landing keeps one sticky canvas while native scroll changes scenes
       });
     }, progress);
 
-  await scrollToStoryProgress(0.5);
+  await scrollToStoryProgress(0.376);
   await expect(
-    page.getByRole("tab", { name: /3\. adım: Sorgula/i }),
+    page.getByRole("tab", { name: /3\. adım: Gerçekleşen/i }),
   ).toHaveAttribute("aria-selected", "true");
   await expect
     .poll(() =>
@@ -76,15 +74,16 @@ test("desktop landing keeps one sticky canvas while native scroll changes scenes
     )
     .toBeCloseTo(initialTop, 0);
 
-  await scrollToStoryProgress(1);
+  await scrollToStoryProgress(0.9);
   await expect(
-    page.getByRole("tab", { name: /5\. adım: Anlat/i }),
+    page.getByRole("tab", { name: /6\. adım: Karar/i }),
   ).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(".landing-sql-code")).toContainText("DENSE_RANK");
   await expect(page).toHaveURL(/\/$/);
 
-  await scrollToStoryProgress(0.25);
+  await scrollToStoryProgress(0.208);
   await expect(
-    page.getByRole("tab", { name: /2\. adım: İncele/i }),
+    page.getByRole("tab", { name: /2\. adım: Hedef/i }),
   ).toHaveAttribute("aria-selected", "true");
 });
 
@@ -95,11 +94,17 @@ test("landing, onboarding and first real SQL task", async ({
   test.setTimeout(60_000);
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: /Soruyu sorguya/i }),
+    page.getByRole("heading", { name: /Bir sorgu nasıl büyür/i }),
   ).toBeVisible();
+  await page.getByRole("button", { name: /Tanıtıma geç/i }).click();
+  await expect(
+    page.getByRole("heading", { name: /Bir tabloyla başla/i }),
+  ).toBeVisible();
+  await expect(page.locator("#product-introduction")).toBeFocused();
   const journeyDeck = page.getByRole("region", {
     name: "Queryvale analiz döngüsü",
   });
+  await expect(journeyDeck).toHaveAttribute("data-scroll-mode", "manual");
   await expect(journeyDeck).toBeVisible();
   await page.getByRole("tab", { name: /3\. adım: Sorgula/i }).click();
   await expect(

@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { useRef } from "react";
 import type { Navigate } from "../appTypes";
+import { withInstantRootScroll } from "./instantScroll";
+import { LandingSqlFilm } from "./LandingSqlFilm";
 import { LandingStory } from "./LandingStory";
 
 interface LandingScreenProps {
@@ -18,7 +20,16 @@ interface LandingScreenProps {
 }
 
 export function LandingScreen({ onNavigate }: LandingScreenProps) {
-  const storyTrackRef = useRef<HTMLElement>(null);
+  const productIntroductionRef = useRef<HTMLElement>(null);
+
+  const continueToProductIntroduction = () => {
+    const target = productIntroductionRef.current;
+    if (!target) return;
+    withInstantRootScroll(() => {
+      target.scrollIntoView?.({ behavior: "auto", block: "start" });
+      target.focus({ preventScroll: true });
+    });
+  };
 
   return (
     <main
@@ -26,10 +37,14 @@ export function LandingScreen({ onNavigate }: LandingScreenProps) {
       className="page landing-premium landing-station"
       tabIndex={-1}
     >
+      <LandingSqlFilm onContinue={continueToProductIntroduction} />
+
       <section
-        ref={storyTrackRef}
-        className="home-station-section"
+        id="product-introduction"
+        ref={productIntroductionRef}
+        className="home-station-section home-station-section-static"
         aria-labelledby="home-station-title"
+        tabIndex={-1}
       >
         <div className="home-station-sticky">
           <div className="home-station-atmosphere" aria-hidden="true">
@@ -44,15 +59,16 @@ export function LandingScreen({ onNavigate }: LandingScreenProps) {
               <div className="home-station-copy">
                 <div className="home-station-kicker">
                   <span className="home-station-pulse" />
-                  Uygulamalı veri analisti laboratuvarı
+                  SQL öğrenmek için sakin bir çalışma alanı
                 </div>
-                <h1 id="home-station-title">
-                  Soruyu sorguya.
-                  <span>Sorguyu kanıta.</span>
-                </h1>
+                <h2 id="home-station-title">
+                  Bir tabloyla başla.
+                  <span>İçindeki hikâyeyi bul.</span>
+                </h2>
                 <p className="home-station-lead">
-                  Gerçekçi bir iş briefini oku; SQL’ini tarayıcıda çalıştır,
-                  çıktını doğrula ve kendi karar notunu yaz.
+                  Queryvale’de gerçek iş sorularını kendi hızında çözersin.
+                  Denersin, yanılırsın, ipucu alırsın; sonunda yalnız doğru
+                  sorguyu değil, neden doğru olduğunu da görürsün.
                 </p>
 
                 <div className="home-station-actions">
@@ -104,7 +120,7 @@ export function LandingScreen({ onNavigate }: LandingScreenProps) {
                 </div>
               </div>
 
-              <LandingStory scrollTrackRef={storyTrackRef} />
+              <LandingStory />
             </div>
 
             <div

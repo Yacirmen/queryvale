@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     template: "%s · Queryvale",
   },
   description:
-    "İş sorusunu SQL'e, doğrulanmış çıktıyı karar kanıtına dönüştüren tarayıcı tabanlı veri analisti laboratuvarı.",
+    "Gerçek iş sorularını kendi hızında çözerek SQL'i ve veri analisti düşünme biçimini öğrenebileceğin tarayıcı tabanlı laboratuvar.",
   applicationName: "Queryvale",
   keywords: [
     "SQL",
@@ -30,22 +30,22 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Queryvale — Veriyi karara dönüştür",
     description:
-      "Soruyu sorguya, doğrulanmış sorguyu anlatılabilir bir karar kanıtına dönüştür.",
+      "Bir sorgunun adım adım nasıl büyüyüp anlatılabilir bir karara dönüştüğünü keşfet.",
     type: "website",
     locale: "tr_TR",
     images: [
       {
         url: "/og.png",
         width: 1200,
-        height: 631,
-        alt: "Queryvale — Soruyu sorguya, sorguyu kanıta dönüştür",
+        height: 630,
+        alt: "Queryvale — Bir sorgu nasıl büyür?",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Queryvale — Veriyi karara dönüştür",
-    description: "Soruları sorguya, sorguları kanıta dönüştür.",
+    description: "Bir tabloyla başla, içindeki hikâyeyi SQL ile bul.",
     images: ["/og.png"],
   },
 };

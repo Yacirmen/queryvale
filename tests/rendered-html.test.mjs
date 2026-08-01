@@ -29,7 +29,8 @@ test("server-renders Queryvale product metadata and shell", async () => {
 
   const html = await response.text();
   assert.match(html, /<title>Queryvale — Veriyi karara dönüştür<\/title>/i);
-  assert.match(html, /Soruyu sorguya/i);
+  assert.match(html, /Bir sorgu nasıl büyür/i);
+  assert.match(html, /Bir tabloyla başla/i);
   assert.match(html, /Queryvale/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
 });
