@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 async function render() {
@@ -37,4 +38,25 @@ test("server-renders Queryvale product metadata and shell", async () => {
   assert.match(html, /Katalog görünümünü hazırla/i);
   assert.match(html, /Queryvale/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
+});
+
+test("portable shell ships the canonical Queryvale sharing metadata", async () => {
+  const portableHtml = await readFile(
+    new URL("../portable/index.html", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    portableHtml,
+    /<title>Queryvale — SQL ezberleme, veri analisti gibi çalış<\/title>/i,
+  );
+  assert.match(
+    portableHtml,
+    /https:\/\/yacirmen\.github\.io\/queryvale\/og-analyst-loop\.png/i,
+  );
+  assert.match(portableHtml, /Bir karar notuna dönüştür/i);
+  assert.doesNotMatch(
+    portableHtml,
+    /https:\/\/yacirmen\.github\.io\/queryvale\/og\.png/i,
+  );
 });
