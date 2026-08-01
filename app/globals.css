@@ -5548,8 +5548,19 @@ button {
   }
 }
 
-@media (max-width: 920px) and (min-width: 821px) {
-  .header-theme-control {
+@media (max-width: 920px) {
+  .header-actions {
+    gap: 4px;
+  }
+
+  .header-utility {
+    width: 44px;
+    min-width: 44px;
+    padding: 4px;
+    justify-content: center;
+  }
+
+  .header-utility-copy {
     display: none;
   }
 }
@@ -5591,7 +5602,7 @@ button {
   }
 
   .header-theme-control {
-    display: none;
+    display: inline-flex;
   }
 
   .header-utility-copy small {

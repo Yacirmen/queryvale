@@ -38,6 +38,16 @@ describe("AppHeader", () => {
       within(navigation).getByRole("button", { name: "Profilim" }),
     ).not.toHaveAttribute("aria-current");
     expect(screen.getByText("Sorudan kanıta")).toBeVisible();
+
+    const utilities = screen.getByRole("group", {
+      name: "Görünüm ve tercihler",
+    });
+    expect(
+      within(utilities).getByRole("button", { name: "Açık temaya geç" }),
+    ).toBeVisible();
+    expect(
+      within(utilities).getByRole("button", { name: "Ayarları aç" }),
+    ).toBeVisible();
   });
 
   it("routes every explicit control and marks home and settings states", async () => {
