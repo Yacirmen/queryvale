@@ -19,6 +19,7 @@ import {
   saveProgress,
   updateProfileName,
 } from "../features/progress/progressStore";
+import { buildModuleAccessStates } from "../features/progress/moduleAccess";
 import { QueryvaleApp } from "./QueryvaleApp";
 
 const correctRows = [
@@ -49,6 +50,18 @@ const progressPersistenceHarness = vi.hoisted(() => ({
   loadGate: undefined as Promise<void> | undefined,
   saveDelays: [] as number[],
 }));
+
+function progressWithCompletedModulesBefore(moduleId: string) {
+  const targetIndex = modules.findIndex((module) => module.id === moduleId);
+  return modules
+    .slice(0, Math.max(0, targetIndex))
+    .flatMap((module) => module.tasks)
+    .reduce(
+      (current, task) =>
+        recordAttempt(current, task.id, task.solutionSql, true, 1),
+      createDefaultProgress(),
+    );
+}
 
 vi.mock("../features/progress/progressStore", async (importOriginal) => {
   const actual =
@@ -307,6 +320,7 @@ describe("QueryvaleApp", () => {
 
   it("starts every mutation attempt from a fresh fixture", async () => {
     window.location.hash = "#/lab/m8-t1";
+    await saveProgress(progressWithCompletedModulesBefore("module-8"));
     const user = userEvent.setup();
     const mutationTask = tasks.find((task) => task.id === "m8-t1");
     expect(mutationTask).toBeDefined();
@@ -347,6 +361,131 @@ describe("QueryvaleApp", () => {
       ),
     ).toBeVisible();
     expect(sqlEngineHarness.mutationResetCount).toBe(2);
+  });
+
+  it("redirects a locked direct hash to the first accessible missing task", async () => {
+    const lockedTask = modules[1].tasks[0];
+    window.location.hash = `#/lab/${lockedTask.id}`;
+
+    render(<QueryvaleApp />);
+
+    await screen.findByRole("textbox", { name: "SQL sorgu editörü" });
+    await waitFor(() =>
+      expect(window.location.hash).toBe(`#/lab/${tasks[0].id}`),
+    );
+    expect(
+      screen.getByRole("heading", { name: tasks[0].title }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Vaka\s+01\s+\/\s+40/)).toBeInTheDocument();
+    expect(await screen.findByText(/henüz kilitli/i)).toHaveTextContent(
+      modules[0].title,
+    );
+    await waitFor(async () => {
+      const stored = await loadProgress();
+      expect(stored.lastOpenedTaskId).toBe(tasks[0].id);
+    });
+  });
+
+  it("labels the final studio with its own twelve-project counter", async () => {
+    const projectTask = modules.at(-1)!.tasks[0];
+    const unlockedProgress = tasks
+      .filter((task) => task.moduleId !== projectTask.moduleId)
+      .reduce(
+        (current, task) =>
+          recordAttempt(current, task.id, task.solutionSql, true, 1),
+        createDefaultProgress(),
+      );
+    expect(
+      buildModuleAccessStates(modules, tasks, unlockedProgress.tasks).at(-1),
+    ).toMatchObject({ isUnlocked: true });
+    await saveProgress(unlockedProgress);
+    expect(
+      buildModuleAccessStates(modules, tasks, (await loadProgress()).tasks).at(
+        -1,
+      ),
+    ).toMatchObject({ isUnlocked: true });
+    window.history.replaceState(null, "", `#/lab/${projectTask.id}`);
+
+    render(<QueryvaleApp />);
+
+    await waitFor(() =>
+      expect(window.location.hash).toBe(`#/lab/${projectTask.id}`),
+    );
+    expect(
+      await screen.findByRole("heading", { name: projectTask.title }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Proje\s+01\s+\/\s+12/)).toBeInTheDocument();
+  });
+
+  it("keeps the header laboratory entry on the first accessible task", async () => {
+    const lockedTask = modules[1].tasks[0];
+    const lockedLocation = {
+      ...recordAttempt(
+        createDefaultProgress(),
+        lockedTask.id,
+        "SELECT 1",
+        false,
+        1,
+      ),
+      lastOpenedTaskId: lockedTask.id,
+      lastOpenedTaskIdTrusted: true,
+    };
+    await saveProgress(lockedLocation);
+    window.location.hash = "#/learn";
+    const user = userEvent.setup();
+
+    render(<QueryvaleApp />);
+
+    await screen.findByRole("heading", { level: 1, name: "Rota" });
+    expect(await screen.findByText(/henüz kilitli/i)).toHaveTextContent(
+      modules[0].title,
+    );
+    await user.click(
+      within(
+        screen.getByRole("navigation", { name: "Çalışma alanları" }),
+      ).getByRole("button", { name: "SQL Laboratuvarı" }),
+    );
+
+    await screen.findByRole("textbox", { name: "SQL sorgu editörü" });
+    expect(
+      screen.getByRole("heading", { name: tasks[0].title }),
+    ).toBeInTheDocument();
+    expect(window.location.hash).toBe(`#/lab/${tasks[0].id}`);
+  });
+
+  it("routes a legacy locked completion CTA without deleting its record", async () => {
+    const lockedTask = modules[1].tasks[0];
+    const legacyForwardProgress = {
+      ...recordAttempt(
+        createDefaultProgress(),
+        lockedTask.id,
+        lockedTask.solutionSql,
+        true,
+        1,
+      ),
+      lastOpenedTaskId: tasks[0].id,
+      lastOpenedTaskIdTrusted: true,
+    };
+    await saveProgress(legacyForwardProgress);
+    window.location.hash = "#/progress";
+    const user = userEvent.setup();
+
+    render(<QueryvaleApp />);
+
+    const legacyCompletion = await screen.findByRole("button", {
+      name: new RegExp(lockedTask.title, "i"),
+    });
+    await user.click(legacyCompletion);
+
+    expect(window.location.hash).toBe(`#/lab/${tasks[0].id}`);
+    expect(await screen.findByText(/henüz kilitli/i)).toHaveTextContent(
+      modules[0].title,
+    );
+    await waitFor(async () => {
+      const stored = await loadProgress();
+      expect(stored.tasks[lockedTask.id]).toMatchObject({ completed: true });
+      expect(stored.lastOpenedTaskId).toBe(tasks[0].id);
+    });
   });
 
   it("starts blank, reveals a hint and advances after a correct query", async () => {
@@ -1678,10 +1817,10 @@ describe("QueryvaleApp", () => {
     render(<QueryvaleApp />);
 
     const overallProgress = await screen.findByRole("progressbar", {
-      name: "Tamamlanan vaka oranı",
+      name: "Tamamlanan çalışma oranı",
     });
     expect(overallProgress).toHaveAttribute("aria-valuenow", "0");
-    expect(screen.getByText(`0 / ${tasks.length} vaka`)).toBeInTheDocument();
+    expect(screen.getByText(`0 / ${tasks.length} çalışma`)).toBeInTheDocument();
   });
 
   it("changes the theme from the global header", async () => {

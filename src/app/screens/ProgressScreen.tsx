@@ -8,6 +8,7 @@ import {
   Edit3,
   Flame,
   Lightbulb,
+  Lock,
   Radar,
   Save,
   Sparkles,
@@ -27,6 +28,10 @@ import {
   getAwardedCaseScore,
   summarizeScores,
 } from "../../features/progress/scoring";
+import {
+  buildModuleAccessStates,
+  findFirstAccessibleIncompleteTask,
+} from "../../features/progress/moduleAccess";
 import type { Navigate } from "../appTypes";
 
 interface ProgressScreenProps {
@@ -192,16 +197,19 @@ export function ProgressScreen({
     };
   }, [evidenceByTaskId, progress.activityDates, progress.tasks, tasks]);
 
+  const moduleAccess = useMemo(
+    () => buildModuleAccessStates(modules, tasks, progress.tasks),
+    [modules, progress.tasks, tasks],
+  );
+
+  const moduleAccessById = useMemo(
+    () => new Map(moduleAccess.map((state) => [state.moduleId, state])),
+    [moduleAccess],
+  );
+
   const recommendedTask = useMemo(
-    () =>
-      tasks.find(
-        (task) =>
-          !progress.tasks[task.id]?.completed &&
-          task.prerequisites.every(
-            (prerequisite) => progress.tasks[prerequisite]?.completed,
-          ),
-      ) ?? tasks.find((task) => !progress.tasks[task.id]?.completed),
-    [progress.tasks, tasks],
+    () => findFirstAccessibleIncompleteTask(modules, tasks, progress.tasks),
+    [modules, progress.tasks, tasks],
   );
 
   const moduleProgress = useMemo(() => {
@@ -213,6 +221,8 @@ export function ProgressScreen({
     );
 
     return modules.map((module, index) => {
+      const access = moduleAccessById.get(module.id);
+      const isUnlocked = access?.isUnlocked ?? index === 0;
       const completed = module.tasks.filter(
         (task) => progress.tasks[task.id]?.completed,
       ).length;
@@ -246,15 +256,17 @@ export function ProgressScreen({
         progress.tasks,
       );
       const isComplete = rate === 100;
-      const state = isComplete
-        ? "Tamamlandı"
-        : active
-          ? "Devam ediyor"
-          : skipped
-            ? "Eksik adım var"
-            : module.tasks.some((task) => task.id === recommendedTask?.id)
-              ? "Sıradaki"
-              : "Başlamadı";
+      const state = !isUnlocked
+        ? "Kilitli"
+        : isComplete
+          ? "Tamamlandı"
+          : active
+            ? "Devam ediyor"
+            : skipped
+              ? "Eksik adım var"
+              : module.tasks.some((task) => task.id === recommendedTask?.id)
+                ? "Sıradaki"
+                : "Başlamadı";
 
       return {
         id: module.id,
@@ -262,9 +274,16 @@ export function ProgressScreen({
         title: module.title,
         completed,
         total: module.tasks.length,
+        contentLabel: module.contentKind === "projects" ? "proje" : "vaka",
         rate,
         score,
-        next: isComplete ? module.tasks[0] : suggested,
+        next: isUnlocked
+          ? isComplete
+            ? module.tasks[0]
+            : suggested
+          : undefined,
+        isUnlocked,
+        blockingModuleTitle: access?.blockingModule?.title,
         state,
         action:
           state === "Tamamlandı"
@@ -278,7 +297,7 @@ export function ProgressScreen({
                   : "Göz at",
       };
     });
-  }, [modules, progress, recommendedTask?.id, tasks]);
+  }, [moduleAccessById, modules, progress, recommendedTask?.id, tasks]);
 
   const recentCompletions = useMemo(
     () =>
@@ -505,7 +524,7 @@ export function ProgressScreen({
             <div
               className="progress-ring"
               role="progressbar"
-              aria-label="Tamamlanan vaka oranı"
+              aria-label="Tamamlanan çalışma oranı"
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={metrics.completionRate}
@@ -521,7 +540,7 @@ export function ProgressScreen({
             <div className="progress-overview-copy">
               <span>Genel rota</span>
               <strong>
-                {metrics.completed} / {tasks.length} vaka
+                {metrics.completed} / {tasks.length} çalışma
               </strong>
               <p>
                 {metrics.completed
@@ -546,7 +565,7 @@ export function ProgressScreen({
             </h2>
             <p>
               {recommendedTask?.subtitle ??
-                "Bütün vakalar tamamlandı. İstersen zorlandığın konulara dönüp farklı sorgular deneyebilirsin."}
+                "Bütün çalışmalar tamamlandı. İstersen zorlandığın konulara dönüp farklı sorgular deneyebilirsin."}
             </p>
           </div>
           {recommendedTask && (
@@ -557,7 +576,7 @@ export function ProgressScreen({
                 onNavigate("workspace", { taskId: recommendedTask.id })
               }
             >
-              Vakaya devam et <ArrowRight size={15} />
+              Çalışmaya devam et <ArrowRight size={15} />
             </button>
           )}
         </section>
@@ -567,7 +586,7 @@ export function ProgressScreen({
             <CheckCircle2 size={16} />
             <span>Tamamlanan</span>
             <strong>{metrics.completed}</strong>
-            <small>{tasks.length} vakadan</small>
+            <small>{tasks.length} çalışmadan</small>
           </article>
           <article>
             <Target size={16} />
@@ -670,7 +689,7 @@ export function ProgressScreen({
                           ) : (
                             <p className="evidence-note-pending">
                               Sorgun doğrulandı. Çıktıyı bir bulgu ve karar
-                              önerisine dönüştürmek için vakaya dön.
+                              önerisine dönüştürmek için çalışmaya dön.
                             </p>
                           )}
 
@@ -742,9 +761,9 @@ export function ProgressScreen({
                           onClick={() =>
                             onNavigate("workspace", { taskId: task.id })
                           }
-                          aria-label={`Vakayı aç: ${task.title}`}
+                          aria-label={`Çalışmayı aç: ${task.title}`}
                         >
-                          Vakayı aç <ArrowRight size={14} />
+                          Çalışmayı aç <ArrowRight size={14} />
                         </button>
                       </article>
                     );
@@ -785,7 +804,10 @@ export function ProgressScreen({
 
               <div className="module-progress-list">
                 {moduleProgress.map((module) => (
-                  <article className="module-progress-row" key={module.id}>
+                  <article
+                    className={`module-progress-row ${module.isUnlocked ? "" : "locked"}`}
+                    key={module.id}
+                  >
                     <span className="module-progress-index">
                       {String(module.index).padStart(2, "0")}
                     </span>
@@ -793,9 +815,10 @@ export function ProgressScreen({
                       <div>
                         <h3>{module.title}</h3>
                         <span
-                          className={`module-progress-state ${module.rate === 100 ? "complete" : ""} ${module.state === "Eksik adım var" ? "attention" : ""} ${module.state === "Sıradaki" ? "next" : ""}`}
+                          className={`module-progress-state ${module.state === "Tamamlandı" ? "complete" : ""} ${module.state === "Eksik adım var" ? "attention" : ""} ${module.state === "Sıradaki" ? "next" : ""} ${module.state === "Kilitli" ? "locked" : ""}`}
                         >
-                          {module.rate === 100 && <Check size={12} />}
+                          {module.state === "Tamamlandı" && <Check size={12} />}
+                          {module.state === "Kilitli" && <Lock size={12} />}
                           {module.state}
                         </span>
                       </div>
@@ -814,8 +837,9 @@ export function ProgressScreen({
                           />
                         </div>
                         <span>
-                          {module.completed}/{module.total} vaka ·{" "}
-                          {module.score.earned}/{module.score.possible} puan
+                          {module.completed}/{module.total}{" "}
+                          {module.contentLabel} · {module.score.earned}/
+                          {module.score.possible} puan
                         </span>
                       </div>
                     </div>
@@ -831,12 +855,20 @@ export function ProgressScreen({
                         {module.action}
                         <ArrowRight size={14} />
                       </button>
-                    ) : (
+                    ) : module.isUnlocked ? (
                       <span
                         className="module-progress-done"
                         aria-label="Tamamlandı"
                       >
                         <CheckCircle2 size={18} />
+                      </span>
+                    ) : (
+                      <span
+                        className="module-progress-locked"
+                        aria-label={`${module.title} kilitli. Önce ${module.blockingModuleTitle ?? "önceki SQL konusunu"} tamamla.`}
+                      >
+                        <Lock size={15} aria-hidden="true" />
+                        Önce {module.blockingModuleTitle ?? "önceki konu"}
                       </span>
                     )}
                   </article>
@@ -895,8 +927,8 @@ export function ProgressScreen({
                   <div>
                     <strong>İlk kazanım burada görünecek</strong>
                     <p>
-                      Bir vakayı doğru tamamladığında tarihini ve kaç denemede
-                      çözdüğünü kaydedeceğiz.
+                      Bir çalışmayı doğru tamamladığında tarihini ve kaç
+                      denemede çözdüğünü kaydedeceğiz.
                     </p>
                   </div>
                 </div>
@@ -984,7 +1016,7 @@ export function ProgressScreen({
                       >
                         {formatConcept(signal.concept)}
                         <small>
-                          {signal.verified} vakada doğrulandı
+                          {signal.verified} çalışmada doğrulandı
                           {signal.inProgress
                             ? ` · ${signal.inProgress} çalışma sürüyor`
                             : ""}
@@ -1061,7 +1093,7 @@ export function ProgressScreen({
               </button>
               <small>
                 Analiz puanı ilk doğru çalıştırmada kilitlenir; yardım düzeyini
-                gösterir, vaka tamamlanmasını veya rota erişimini engellemez.
+                gösterir, çalışma tamamlanmasını veya rota erişimini engellemez.
               </small>
             </section>
           </aside>

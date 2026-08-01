@@ -9,6 +9,8 @@ import {
 import { tasks } from "../../content/curriculum";
 import { evaluateLessonQuery } from "../../features/validation";
 import type { LessonTask } from "../../types/lesson";
+import { MARKETING_PROJECT_MISTAKES_PART_ONE } from "./marketingProjectMistakesPartOne";
+import { MARKETING_PROJECT_MISTAKES_PART_TWO } from "./marketingProjectMistakesPartTwo";
 
 let database: TaskDatabase | undefined;
 
@@ -1821,7 +1823,10 @@ describe("PGlite task database integration", () => {
     expect(cases).toHaveLength(40);
     expect(new Set(cases.map((testCase) => testCase.taskId)).size).toBe(40);
     expect(cases.map((testCase) => testCase.taskId).sort()).toEqual(
-      tasks.map((task) => task.id).sort(),
+      tasks
+        .filter((task) => task.moduleId !== "module-11")
+        .map((task) => task.id)
+        .sort(),
     );
 
     for (const testCase of cases) {
@@ -1956,4 +1961,43 @@ describe("PGlite task database integration", () => {
       database = undefined;
     }
   }, 90_000);
+
+  it("executes all marketing project solutions and rejects project-specific analytical mistakes", async () => {
+    const projectTasks = tasks.filter((task) => task.moduleId === "module-11");
+    const mistakes = {
+      ...MARKETING_PROJECT_MISTAKES_PART_ONE,
+      ...MARKETING_PROJECT_MISTAKES_PART_TWO,
+    };
+    expect(projectTasks).toHaveLength(12);
+    expect(Object.keys(mistakes).sort()).toEqual(
+      projectTasks.map((task) => task.id).sort(),
+    );
+
+    for (const task of projectTasks) {
+      database = createTaskDatabaseForLesson(task);
+      await database.initialize();
+
+      const accepted = await runAndEvaluateLesson(
+        database,
+        task,
+        task.solutionSql,
+      );
+      expect(accepted.status, `${task.id}: ${accepted.message}`).toBe(
+        "correct",
+      );
+
+      const mistake = mistakes[task.id as keyof typeof mistakes];
+      expect(
+        mistake,
+        `${task.id}: realistic mistake fixture is missing`,
+      ).toBeDefined();
+      const rejected = await runAndEvaluateLesson(database, task, mistake.sql);
+      expect(rejected.status, `${task.id}: ${rejected.message}`).toBe(
+        mistake.expectedStatus,
+      );
+
+      await database.dispose();
+      database = undefined;
+    }
+  }, 240_000);
 });

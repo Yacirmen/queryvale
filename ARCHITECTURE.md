@@ -31,6 +31,7 @@ Framework bağımsız tip ve saf fonksiyonlar:
 - doğrulanmış çalışma snapshot’ı normalizasyonu ve boyut sınırları,
 - ilerleme istatistikleri,
 - bağımsız çözüm puanı ve rota/SQL konusu toplamları,
+- tamamlanma kayıtlarından türetilen sıralı modül erişimi ve güvenli görev yönlendirmesi,
 - import/export şema doğrulaması.
 
 Domain katmanı React, Monaco, IndexedDB veya PGlite bilmez.
@@ -78,6 +79,7 @@ Varsayılan motor **PGlite**’tır.
 11. Yalnız değerlendirme `correct` ise sınırlı bir `VerifiedRunSnapshot` oluşturulur ve tamamlanan görevin kanıt kaydına eklenir.
 12. Kullanıcı isterse bu kayda bulgu, öneri ve isteğe bağlı çekince içeren bir karar notu ekler; not evaluator tarafından puanlanmaz.
 13. `ProgressState` v5 tek transaction ile IndexedDB’ye yazılır. SQL taslağı 700 ms debounce ile ve görevden ayrılırken kaydedilir; sonuç paneli açık kalır, sonraki göreve geçiş ayrı kullanıcı eylemidir.
+14. Rota erişimi ayrıca persist edilmez: saf modül erişim seçicisi mevcut tamamlanmalardan ilk eksik modülü bulur; UI ve hash yönlendirmesi sonraki modülleri aynı kararla kilitler, eski ileri kayıtları değiştirmez.
 
 Görev değişimi, reset ve timeout eski oturumun çıktısını geçersiz kılan bir generation/run kimliği kullanır; geç gelen sonuç yeni göreve yazılamaz.
 

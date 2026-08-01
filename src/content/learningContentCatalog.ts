@@ -5,6 +5,8 @@ import { MODULE_810_LEARNING_CONTENT } from "./module810LearningContent";
 import { MODULE_8_EXPANSION_LEARNING_CONTENT } from "./module8ExpansionLearningContent";
 import { MODULE_9_EXPANSION_LEARNING_CONTENT } from "./module9ExpansionLearningContent";
 import { MODULE_10_EXPANSION_LEARNING_CONTENT } from "./module10ExpansionLearningContent";
+import { MARKETING_PROJECT_LEARNING_CONTENT_PART_ONE } from "./marketingProjectsPartOne";
+import { MARKETING_PROJECT_LEARNING_CONTENT_PART_TWO } from "./marketingProjectsPartTwo";
 import { TASK_LEARNING_CONTENT } from "./taskLearningContent";
 
 /**
@@ -21,4 +23,6 @@ export const AUTHORED_TASK_LEARNING_CONTENT: Readonly<
   ...MODULE_8_EXPANSION_LEARNING_CONTENT,
   ...MODULE_9_EXPANSION_LEARNING_CONTENT,
   ...MODULE_10_EXPANSION_LEARNING_CONTENT,
+  ...MARKETING_PROJECT_LEARNING_CONTENT_PART_ONE,
+  ...MARKETING_PROJECT_LEARNING_CONTENT_PART_TWO,
 };

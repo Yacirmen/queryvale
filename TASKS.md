@@ -42,11 +42,12 @@ Bu dosya yürütme panosudur. Durumlar ancak kod, test ve build kanıtıyla gün
 
 - [x] `TaskDefinition` ve `ModuleDefinition` tiplerini tanımlamak
 - [x] İçerik build/test doğrulayıcısını kurmak
-- [x] On modüllük kataloğu ve tutarlı ön koşul zincirini eklemek
+- [x] On bir modüllük kataloğu, tutarlı ön koşul zincirini ve sıralı erişimi eklemek
 - [x] Modül 1 için üretim kalitesinde çalışan görevleri gerçek motorda doğrulamak
 - [x] Modül 2 için üretim kalitesinde çalışan görevleri gerçek motorda doğrulamak
 - [x] Modül 3 için üretim kalitesinde çalışan görevleri gerçek motorda doğrulamak
-- [x] Modül 4–10 için dürüst etiketli genişletilebilir örnekler eklemek
+- [x] Modül 4–10 için üretim kalitesinde çalışan vakaları eklemek
+- [x] Modül 11 için 12 pazarlama analitiği portföy projesini gerçek motorda doğrulamak
 - [x] İlk üç modülün referans çözümlerini, ileri fixture’ların setup SQL’ini gerçek motorda test etmek
 
 ## P0 — İlerleme ve ayarlar

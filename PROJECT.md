@@ -21,9 +21,9 @@ Queryvale, başlangıçtan analitik SQL’e uzanan öğrenme yolunu gerçek iş 
 ### Ürün
 
 - Ana sayfa, öğrenme yolu, çalışma alanı, ilerleme ve ayarlar
-- On modüllük müfredat iskeleti
-- İlk üç modül için uçtan uca çalışır görevler
-- Sonraki modüller için genişletilebilir içerik tanımları
+- On bir modüllük, sıralı açılan müfredat
+- İlk on modülde 40 uçtan uca çalışır vaka
+- Son modülde 12 ilişkili veri setli pazarlama analitiği portföy projesi
 - Açık/koyu tema, klavye kısayolları ve responsive davranış
 
 ### Platform

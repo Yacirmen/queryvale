@@ -8,12 +8,37 @@ import {
 import { validateTaskCollection } from "../features/validation";
 
 describe("curriculum", () => {
-  it("ships ten modules and forty linked tasks", () => {
-    expect(modules).toHaveLength(10);
-    expect(tasks).toHaveLength(40);
-    expect(modules.map((module) => module.tasks.length)).toEqual(
-      Array.from({ length: 10 }, () => 4),
+  it("ships ten lesson modules and a twelve-project final studio", () => {
+    expect(modules).toHaveLength(11);
+    expect(tasks).toHaveLength(52);
+    expect(modules.map((module) => module.tasks.length)).toEqual([
+      ...Array.from({ length: 10 }, () => 4),
+      12,
+    ]);
+    expect(modules.at(-1)).toMatchObject({
+      id: "module-11",
+      contentKind: "projects",
+    });
+  });
+
+  it("keeps the project studio independently selectable after module ten", () => {
+    const projectTasks = modules.at(-1)?.tasks ?? [];
+
+    expect(projectTasks.map((task) => task.id)).toEqual(
+      Array.from({ length: 12 }, (_, index) => `m11-t${index + 1}`),
     );
+    for (const task of projectTasks) {
+      expect(task.prerequisites).toEqual(["m10-t4"]);
+    }
+    projectTasks.forEach((task, index) => {
+      expect(task.nextTaskId, task.id).toBe(
+        projectTasks[index + 1]?.id ?? null,
+      );
+    });
+    expect(tasks.find((task) => task.id === "m10-t4")?.nextTaskId).toBe(
+      "m11-t1",
+    );
+    expect(projectTasks.at(-1)?.nextTaskId).toBeNull();
   });
 
   it("keeps the expanded module 4–7 learning chain continuous", () => {

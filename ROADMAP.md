@@ -9,7 +9,7 @@ Bu yol haritası tarih vaadi değil, bağımlılık ve değer sırasıdır. Her 
 - Queryvale kimliği ve responsive uygulama kabuğu
 - Ana sayfa ve birkaç saniyede anlaşılır değer önerisi
 - İlk vaka içinde kapatılabilir 90 saniyelik rehber ve ana filmden doğrudan vaka/devam eylemi
-- On çalışan SQL konusunu mesleki sonuçlarına göre gruplayan dört bölüm
+- On bir çalışan SQL konusunu mesleki sonuçlarına göre gruplayan dört bölüm
 - Her vakada `Sor → İncele → Sorgula → Doğrula → Anlat` döngüsü
 - Masaüstü öncelikli vaka çalışma alanı; mobilde `Vaka | Veri | SQL | Sonuç` sekmeleri
 - Şema, örnek satır, editor, sonuç ve ipucu panelleri
@@ -25,9 +25,10 @@ Bu yol haritası tarih vaadi değil, bağımlılık ve değer sırasıdır. Her 
 
 ### P0: Öğrenme ve kalıcılık
 
-- On modülün tamamında dörder çalışan ve doğrulanmış vaka; toplam 40 vaka
+- İlk on modülde dörder çalışan ve doğrulanmış vaka; final modülde 12 pazarlama analitiği portföy projesi; toplam 52 çalışma
+- Önceki modüllerin bütün çalışmaları tamamlandıkça sıradakini açan, doğrudan URL'yi de kapsayan erişim sırası
 - Her vakada kavram odağı, çıktı tanesi, kabul kontrolleri ve üç kademeli ipucu
-- Hazırlık ipuçları yetmediğinde açık talep üzerine, cezasız tam çalışan çözüm
+- Hazırlık ipuçları yetmediğinde açık talep üzerine, puan etkisi önceden açıklanan ve ilerlemeyi engellemeyen tam çalışan çözüm
 - Değerlendirme durumuna özel koçluk ve başarı sonrası transfer odaklı debrief
 - Doğru değerlendirmeden üretilen sınırlı kanıt snapshot’ı, isteğe bağlı karar notu ve Kanıt Defteri
 - IndexedDB v5 ilerleme, güvenilir devam konumu, otomatik SQL taslağı, ilk başarıda kilitlenen Analiz puanı, ayarlar ve `evidenceByTaskId` kalıcılığı
@@ -48,7 +49,7 @@ Bu yol haritası tarih vaadi değil, bağımlılık ve değer sırasıdır. Her 
 1. **Evidence Contract ve Data Trust Lab:** her vakada veri tanesi, sahiplik, güncellik, tamlık, `NULL`, duplicate ve join çoğalması kontrollerini görünür, tekrar kullanılabilir bir doğrulama sözleşmesine dönüştürmek
 2. **Metrik ve modelleme:** pay/payda, filtre, boyut, zaman penceresi ve grain tanımlarını; yıldız şema ve güvenli join pratiğiyle birleştirmek
 3. **Insight Studio:** doğrulanmış sonucu bulgu, öneri ve çekinceye dönüştürmeyi; doğru görsel/özet seçimi ve paydaş dilinde açıklamayla çalıştırmak
-4. **Amiral capstone:** belirsiz bir iş talebini veri kontrolü, çok adımlı SQL, metrik kararı, doğrulama ve yönetici özetiyle uçtan uca çözdüren tek güçlü proje
+4. **Proje stüdyosu derinliği:** mevcut 12 pazarlama projesindeki karar notlarını, teslim değerlendirme rubriğini ve taşınabilir portföy görünümünü gerçek kullanıcı testiyle güçlendirmek
 5. **Yerel portföy:** seçili kanıt snapshot’larını ve karar notlarını cihazda derleyip taşınabilir/indirilebilir bir çalışma dosyasına dönüştürmek; sertifika veya bulut profili iddiası taşımamak
 
 ## Paralel — İçerik derinliği ve ürün akıcılığı

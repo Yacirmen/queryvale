@@ -1,4 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { createElement } from "react";
 import { describe, expect, it } from "vitest";
 import { modules, tasks } from "../../content/curriculum";
@@ -92,7 +93,7 @@ describe("buildLearningPathTaskStates", () => {
 });
 
 describe("LearningPathScreen career chapters", () => {
-  it("shows four open career chapters and counts only completed work", () => {
+  it("shows the ordered career route and counts preserved completed work", () => {
     const attemptedFoundationTask = tasks.find(
       (task) => task.moduleId === "module-1",
     )!;
@@ -138,7 +139,7 @@ describe("LearningPathScreen career chapters", () => {
       screen.getByRole("heading", { name: "Bölümler ve SQL konuları" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("region", { name: "Vaka durum özeti" }),
+      screen.getByRole("region", { name: "Çalışma durum özeti" }),
     ).toBeInTheDocument();
 
     const foundationChapter = screen.getByRole("article", {
@@ -148,15 +149,87 @@ describe("LearningPathScreen career chapters", () => {
       name: "İş sorusunu çöz bölümü",
     });
 
-    expect(foundationChapter).toHaveTextContent("0/12 vaka tamamlandı");
+    expect(foundationChapter).toHaveTextContent("0/12 çalışma tamamlandı");
     expect(within(foundationChapter).getByText("Önerilen odak")).toBeVisible();
-    expect(businessChapter).toHaveTextContent("1/8 vaka tamamlandı");
+    expect(businessChapter).toHaveTextContent("1/8 çalışma tamamlandı");
     expect(within(businessChapter).getByText("İlerliyorsun")).toBeVisible();
     expect(
-      screen.getAllByText("İstediğinde açık", { exact: true }),
+      screen.getAllByText("Sırasıyla açılır", { exact: true }),
     ).toHaveLength(2);
-    expect(screen.getByText("7/400")).toBeVisible();
+    expect(screen.getByText(`7/${tasks.length * 10}`)).toBeVisible();
     expect(screen.getByText("7/40 analiz puanı")).toBeVisible();
-    expect(screen.getByText("7/10 puan")).toBeVisible();
+    const lockedSummary = screen.getByRole("button", {
+      name: `${modules[3].title} modülü kilitli`,
+    });
+    expect(lockedSummary).toHaveAttribute("aria-disabled", "true");
+    const lockedCard = lockedSummary.closest(".module-card");
+    expect(lockedCard).toBeInstanceOf(HTMLElement);
+    expect(
+      within(lockedCard as HTMLElement).getByText(
+        new RegExp(`Önce “${modules[0].title}” modülünü tamamla`),
+      ),
+    ).toBeVisible();
+  });
+
+  it("keeps a locked module focusable but prevents keyboard expansion", async () => {
+    const user = userEvent.setup();
+    render(
+      createElement(LearningPathScreen, {
+        modules,
+        tasks,
+        progress: createDefaultProgress(),
+        onNavigate: () => undefined,
+      }),
+    );
+
+    const firstModule = screen.getByRole("button", {
+      name: `${modules[0].title} vakalarını daralt`,
+    });
+    const lockedModule = screen.getByRole("button", {
+      name: `${modules[1].title} modülü kilitli`,
+    });
+
+    expect(firstModule).not.toHaveAttribute("aria-disabled", "true");
+    expect(lockedModule).toHaveAttribute("aria-disabled", "true");
+    expect(lockedModule).toHaveAttribute("aria-expanded", "false");
+    expect(lockedModule).toHaveAccessibleDescription(
+      `Önce “${modules[0].title}” modülünü tamamla`,
+    );
+
+    lockedModule.focus();
+    await user.keyboard("{Enter}");
+
+    expect(lockedModule).toHaveFocus();
+    expect(lockedModule).toHaveAttribute("aria-expanded", "false");
+    expect(document.getElementById(`${modules[1].id}-tasks`)).toBeNull();
+  });
+
+  it("opens the second module after every first-module task is complete", () => {
+    const firstModuleProgress = Object.fromEntries(
+      modules[0].tasks.map((task) => [
+        task.id,
+        taskProgress(task.id, { completed: true, scoreAwarded: 10 }),
+      ]),
+    );
+
+    render(
+      createElement(LearningPathScreen, {
+        modules,
+        tasks,
+        progress: {
+          ...createDefaultProgress(),
+          lastOpenedTaskId: modules[1].tasks[0].id,
+          tasks: firstModuleProgress,
+        },
+        onNavigate: () => undefined,
+      }),
+    );
+
+    const secondModule = screen.getByRole("button", {
+      name: `${modules[1].title} vakalarını daralt`,
+    });
+    expect(secondModule).not.toHaveAttribute("aria-disabled", "true");
+    expect(secondModule).toHaveAttribute("aria-expanded", "true");
+    expect(document.getElementById(`${modules[1].id}-tasks`)).not.toBeNull();
   });
 });

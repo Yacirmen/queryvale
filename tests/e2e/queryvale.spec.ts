@@ -1,5 +1,19 @@
 import { expect, test } from "@playwright/test";
 
+test("locked module links return a new learner to the first accessible case", async ({
+  page,
+}) => {
+  await page.goto("/#/lab/m11-t1");
+
+  await expect(page).toHaveURL(/#\/lab\/m1-t1$/);
+  await expect(
+    page.getByRole("heading", { name: "Katalog görünümünü hazırla" }),
+  ).toBeVisible();
+  const lockNotice = page.locator(".toast[role='status']");
+  await expect(lockNotice).toContainText("Pazarlama analitiği proje stüdyosu");
+  await expect(lockNotice).toContainText("Veriyle ilk temas");
+});
+
 test("header keeps one clear active destination without horizontal overflow", async ({
   page,
 }) => {

@@ -29,7 +29,7 @@ describe("analyst journey", () => {
       },
       {
         title: "Karara dönüştür",
-        moduleIds: ["module-8", "module-9", "module-10"],
+        moduleIds: ["module-8", "module-9", "module-10", "module-11"],
       },
     ]);
 
@@ -93,12 +93,12 @@ describe("analyst journey", () => {
     });
     expect(progress[3]).toMatchObject({
       completedTaskCount: 1,
-      totalTaskCount: 12,
+      totalTaskCount: 24,
       status: "active",
     });
   });
 
-  it("recommends the first incomplete chapter without locking later work", () => {
+  it("recommends the first incomplete chapter presentation", () => {
     const completedFoundation = new Set(analystJourneyChapters[0].taskIds);
     const progress = buildAnalystJourneyProgress(completedFoundation);
 

@@ -1,3 +1,6 @@
+import { MARKETING_PROJECT_SOLUTIONS_PART_ONE } from "./marketingProjectsPartOne";
+import { MARKETING_PROJECT_SOLUTIONS_PART_TWO } from "./marketingProjectsPartTwo";
+
 const sql = (source: string): string => {
   const lines = source.split("\n");
   while (lines[0]?.trim() === "") lines.shift();
@@ -565,6 +568,8 @@ export const TASK_SOLUTIONS: Readonly<Record<string, string>> = {
     FROM windowed
     ORDER BY branch_name, operation_date;
   `),
+  ...MARKETING_PROJECT_SOLUTIONS_PART_ONE,
+  ...MARKETING_PROJECT_SOLUTIONS_PART_TWO,
 };
 
 export function getTaskSolution(taskId: string): string {

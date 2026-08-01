@@ -9,8 +9,10 @@ Queryvale, SQL sözdizimini ezberleten bir kurs değil; gerçek iş sorularını
 ## Neler sunar?
 
 - Satış, müşteri, şube, sipariş ve veri kalitesi gibi gerçekçi iş vakaları
-- Kullanıcı arayüzünde tek sözlük: Rota → Bölüm → Vaka
+- Kullanıcı arayüzünde tek sözlük: Rota → Bölüm → Vaka / Proje
 - Temeli kur → İş sorusunu çöz → Örüntüyü keşfet → Karara dönüştür biçiminde dört bölüm
+- Önceki SQL konusu tamamlandıkça sıradaki konuyu açan, nedeni görünür modül kilitleri
+- Son durak olarak 12 ilişkili veri setine dayalı pazarlama analitiği portföy projesi
 - Tarayıcı içinde çalışan PGlite tabanlı SQL motoru
 - Alternatif doğru sorguları kabul eden sonuç odaklı değerlendirme
 - Kolon, satır, sıralama, `NULL`, duplicate ve zorunlu kavram kontrolleri
@@ -21,7 +23,7 @@ Queryvale, SQL sözdizimini ezberleten bir kurs değil; gerçek iş sorularını
 - İlk vaka içinde kapatılabilir 90 saniyelik başlangıç rehberi
 - Yalnız doğru değerlendirilen çalışmadan üretilen sınırlı, yerel kanıt snapshot’ı
 - Bulgu, öneri ve isteğe bağlı çekinceyi saklayan karar notu ile Kanıt Defteri
-- İlk doğru sorguda kilitlenen 10/7/4/1 Analiz puanı; tam çözüm desteğinde 0, tamamlanma ve rota erişimi yine açık
+- İlk doğru sorguda kilitlenen 10/7/4/1 Analiz puanı; tam çözüm desteğinde 0, puan rota erişimini etkilemez
 - Şema, örnek veri, SQL editörü ve sonuçları bir araya getiren çalışma alanı
 - Hesapsız ve backend’siz, IndexedDB tabanlı yerel ilerleme
 - Yazarken otomatik kaydedilen SQL taslakları; `⌘/Ctrl+S` ile anında kayıt
@@ -121,7 +123,7 @@ Alanların tam sözleşmesi, örnek görev ve editoryal standartlar [CONTENT_GUI
 ## Ürün sınırları ve bilinen kısıtlar
 
 - Her tarayıcı kendi adlandırılabilir öğrenen profilini ve ilerlemesini saklar; cihazlar arası canlı senkronizasyon yoktur.
-- Çalışan rota bugün SQL ağırlıklı 10 iç modül ve 40 vakadır; her modül dörder doğrulanmış vaka taşır. Kullanıcı arayüzünde bu ara katman “SQL konusu” olarak görünür. Python, elektronik tablo ve BI araçları henüz ürün içinde çalıştırılmaz; ileride aynı kanıt döngüsüne bağlanan köprüler olarak değerlendirilecektir.
+- Çalışan rota bugün SQL ağırlıklı 11 modül ve 52 çalışmadır: ilk 10 modülde 40 doğrulanmış vaka, son Pazarlama Analitiği Proje Stüdyosu'nda 12 portföy projesi bulunur. SQL konuları sırayla açılır; eski ileri kayıtlar silinmeden ilk eksik modülün arkasında korunur. Python, elektronik tablo ve BI araçları henüz ürün içinde çalıştırılmaz; ileride aynı kanıt döngüsüne bağlanan köprüler olarak değerlendirilecektir.
 - Tamamlanma, Analiz puanı, deneme, süre, ipucu ve çalışma serisi pratik bağlamıdır; tek başına mesleki ustalık veya işe hazır olma iddiası değildir. Puan rekabet veya sertifika değil, ilk doğru sonuçtaki yardım düzeyinin yerel kaydıdır.
 - Taşınabilir Mac paketi macOS 11 veya yenisinde, Intel ve Apple Silicon işlemcilerde çalışır. Sabit `127.0.0.1:41739` origin'ini kullanır; Node veya internet gerektirmez ve ilerlemeyi aynı tarayıcı origin'inde korur.
 - Canlı web sürümünün tek kanonik adresi `https://yacirmen.github.io/queryvale/` ve tek yayın hattı GitHub Pages'tir.

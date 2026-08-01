@@ -107,6 +107,8 @@ export function LandingScreen({
               Hesap gerekmez
               <span aria-hidden="true">·</span>
               Taslağın otomatik kaydolur
+              <span aria-hidden="true">·</span>
+              40 vaka + 12 portföy projesi
             </p>
           </div>
 

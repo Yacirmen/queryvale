@@ -61,6 +61,26 @@ describe("ProgressScreen learning signals", () => {
     });
   });
 
+  it("shows locked modules without offering a navigation escape", () => {
+    renderProgress(createDefaultProgress());
+
+    const lockedRow = screen
+      .getByRole("heading", { name: modules[1].title })
+      .closest("article");
+    expect(lockedRow).not.toBeNull();
+    expect(within(lockedRow!).getByText("Kilitli")).toBeInTheDocument();
+    expect(
+      within(lockedRow!).getByText(`Önce ${modules[0].title}`),
+    ).toBeInTheDocument();
+    expect(within(lockedRow!).queryByRole("button")).not.toBeInTheDocument();
+
+    const projectRow = screen
+      .getByRole("heading", { name: modules.at(-1)!.title })
+      .closest("article");
+    expect(projectRow).not.toBeNull();
+    expect(projectRow).toHaveTextContent("0/12 proje");
+  });
+
   it("separates an unfinished target from concepts verified by a correct task", () => {
     const task = tasks.find((item) => item.id === "m1-t3");
     expect(task).toBeDefined();

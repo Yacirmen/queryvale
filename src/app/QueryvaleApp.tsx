@@ -16,6 +16,10 @@ import {
   type ProgressState,
   updateProfileName,
 } from "../features/progress/progressStore";
+import {
+  resolveAccessibleTask,
+  type TaskAccessResolution,
+} from "../features/progress/moduleAccess";
 import { selectResumeTask } from "../features/progress/resumeTask";
 import type { AppScreen, Navigate, NavigateOptions } from "./appTypes";
 import { AppHeader } from "./components/AppHeader";
@@ -44,6 +48,17 @@ function taskIdFromHash(hash: string): string | undefined {
   return decodeURIComponent(hash.slice("#/lab/".length));
 }
 
+function moduleLockMessage(
+  resolution: TaskAccessResolution<(typeof tasks)[number]>,
+): string {
+  const requestedModule = modules.find(
+    (module) => module.id === resolution.requestedTask?.moduleId,
+  );
+  return `“${requestedModule?.title ?? "Bu modül"}” henüz kilitli. Önce “${
+    resolution.blockingModule?.title ?? "önceki"
+  }” modülündeki tüm vakaları tamamla. Seni ilk açık eksik vakaya yönlendirdik.`;
+}
+
 export function QueryvaleApp() {
   const [screen, setScreen] = useState<AppScreen>("home");
   const [progress, setProgress] = useState<ProgressState>(() =>
@@ -68,10 +83,18 @@ export function QueryvaleApp() {
     () => tasks.find((task) => task.id === activeTaskId) ?? tasks[0],
     [activeTaskId],
   );
-  const resumeSelection = useMemo(
-    () => selectResumeTask(tasks, progress),
-    [progress],
-  );
+  const resumeSelection = useMemo(() => {
+    const selection = selectResumeTask(tasks, progress);
+    const access = resolveAccessibleTask(
+      selection.task?.id,
+      modules,
+      tasks,
+      progress.tasks,
+    );
+    return access.wasRedirected
+      ? { ...selection, task: access.task }
+      : selection;
+  }, [progress]);
 
   useEffect(() => {
     let current = true;
@@ -80,11 +103,25 @@ export function QueryvaleApp() {
       const hashTask = taskIdFromHash(window.location.hash);
       const hashCandidate = tasks.find((task) => task.id === hashTask);
       const resumeCandidate = selectResumeTask(tasks, stored).task;
-      const candidateTask = hashCandidate ?? resumeCandidate ?? tasks[0];
+      const requestedTask = hashCandidate ?? resumeCandidate ?? tasks[0];
+      const access = resolveAccessibleTask(
+        requestedTask?.id,
+        modules,
+        tasks,
+        stored.tasks,
+      );
+      const candidateTask = access.task;
+      if (hashCandidate && access.wasRedirected && candidateTask) {
+        window.history.replaceState(
+          null,
+          "",
+          routeFor("workspace", candidateTask.id),
+        );
+      }
       const hydratedProgress =
         candidateTask &&
         (!stored.lastOpenedTaskIdTrusted ||
-          (hashCandidate && stored.lastOpenedTaskId !== hashCandidate.id))
+          stored.lastOpenedTaskId !== candidateTask.id)
           ? {
               ...stored,
               lastOpenedTaskId: candidateTask.id,
@@ -119,6 +156,9 @@ export function QueryvaleApp() {
               ? "Mevcut ilerleme kaydı bu sürümle uyumlu değil; korunuyor ve yeni değişiklikler kaydedilmeyecek. Geçerli bir yedeği Ayarlar’dan içe aktarabilir veya ilerlemeyi açıkça sıfırlayabilirsin."
               : "Kalıcı depolama kullanılamıyor; ilerleme bu oturum boyunca bellekte tutulacak.",
         });
+      }
+      if (access.wasRedirected) {
+        setNotice({ tone: "error", message: moduleLockMessage(access) });
       }
     });
     return () => {
@@ -184,17 +224,33 @@ export function QueryvaleApp() {
     const listener = () => {
       const nextScreen = screenFromHash(window.location.hash);
       const hashTask = taskIdFromHash(window.location.hash);
-      if (hashTask && tasks.some((task) => task.id === hashTask)) {
-        setActiveTaskId(hashTask);
+      const requestedTask = tasks.find((task) => task.id === hashTask);
+      if (requestedTask) {
+        const access = resolveAccessibleTask(
+          requestedTask.id,
+          modules,
+          tasks,
+          progressRef.current.tasks,
+        );
+        const accessibleTask = access.task ?? tasks[0];
+        if (access.wasRedirected && accessibleTask) {
+          window.history.replaceState(
+            null,
+            "",
+            routeFor("workspace", accessibleTask.id),
+          );
+          setNotice({ tone: "error", message: moduleLockMessage(access) });
+        }
+        setActiveTaskId(accessibleTask?.id ?? "");
         if (isLoadedRef.current) {
           const current = progressRef.current;
           if (
-            current.lastOpenedTaskId !== hashTask ||
+            current.lastOpenedTaskId !== accessibleTask?.id ||
             !current.lastOpenedTaskIdTrusted
           ) {
             persist({
               ...current,
-              lastOpenedTaskId: hashTask,
+              lastOpenedTaskId: accessibleTask?.id ?? current.lastOpenedTaskId,
               lastOpenedTaskIdTrusted: true,
             });
           }
@@ -252,7 +308,16 @@ export function QueryvaleApp() {
       let nextTaskId = activeTaskId || tasks[0]?.id;
       if (nextScreen === "workspace") {
         const requested = tasks.find((task) => task.id === options?.taskId);
-        nextTaskId = requested?.id ?? nextTaskId;
+        const access = resolveAccessibleTask(
+          requested?.id ?? nextTaskId,
+          modules,
+          tasks,
+          progressRef.current.tasks,
+        );
+        nextTaskId = access.task?.id ?? nextTaskId;
+        if (access.wasRedirected) {
+          setNotice({ tone: "error", message: moduleLockMessage(access) });
+        }
         if (nextTaskId) {
           setActiveTaskId(nextTaskId);
           const nextProgress = {
@@ -378,9 +443,15 @@ export function QueryvaleApp() {
         return;
       }
       const importedResumeTask = selectResumeTask(tasks, imported).task;
+      const importedAccess = resolveAccessibleTask(
+        importedResumeTask?.id,
+        modules,
+        tasks,
+        imported.tasks,
+      );
       const normalizedImport = {
         ...imported,
-        lastOpenedTaskId: importedResumeTask?.id ?? imported.lastOpenedTaskId,
+        lastOpenedTaskId: importedAccess.task?.id ?? imported.lastOpenedTaskId,
         lastOpenedTaskIdTrusted: true,
       };
       await replaceProgress(normalizedImport);
@@ -464,6 +535,7 @@ export function QueryvaleApp() {
         <WorkspaceScreen
           key={activeTask.id}
           task={activeTask}
+          modules={modules}
           tasks={tasks}
           progress={progress}
           settings={progress.settings}

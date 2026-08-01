@@ -64,10 +64,10 @@ const chapterDefinitions: readonly AnalystJourneyChapterDefinition[] = [
     order: 4,
     title: "Karara dönüştür",
     learnerPromise:
-      "Güvenli veri işlemi, analitik model ve çok kaynaklı karar projelerini aynı kanıt zincirinde birleştirirsin.",
+      "Güvenli veri işlemi, analitik model ve pazarlama projelerini aynı kanıt zincirinde birleştirirsin.",
     workplaceOutcome:
-      "Veri güvenini koruyarak risk, kârlılık ve operasyon önceliğini açıklayan yöneticiye hazır karar setleri teslim edersin.",
-    moduleIds: ["module-8", "module-9", "module-10"],
+      "Veri güvenini koruyarak risk, kârlılık, büyüme ve bütçe önceliğini açıklayan yöneticiye hazır karar setleri teslim edersin.",
+    moduleIds: ["module-8", "module-9", "module-10", "module-11"],
   },
 ] as const;
 

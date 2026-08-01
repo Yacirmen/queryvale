@@ -220,6 +220,8 @@ export interface CurriculumModule {
   id: string;
   slug: string;
   order: number;
+  /** Projects reuse the verified task engine while receiving distinct UI copy. */
+  contentKind?: "lessons" | "projects";
   title: string;
   subtitle: string;
   description: string;

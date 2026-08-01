@@ -31,7 +31,11 @@ import {
   useState,
 } from "react";
 import type { OnMount } from "@monaco-editor/react";
-import type { LessonTask, SqlScalar } from "../../types/lesson";
+import type {
+  CurriculumModule,
+  LessonTask,
+  SqlScalar,
+} from "../../types/lesson";
 import {
   createTaskDatabaseForLesson,
   type QueryExecutionResult,
@@ -59,6 +63,7 @@ import {
   getCurrentCaseScore,
   MAX_CASE_SCORE,
 } from "../../features/progress/scoring";
+import { buildModuleAccessStates } from "../../features/progress/moduleAccess";
 import type { Navigate } from "../appTypes";
 import { CommandDialog } from "../components/Dialogs";
 import { FirstCaseGuide } from "../components/FirstCaseGuide";
@@ -68,6 +73,7 @@ const MonacoEditor = lazy(() => import("../components/LocalMonacoEditor"));
 
 interface WorkspaceScreenProps {
   task: LessonTask;
+  modules: CurriculumModule[];
   tasks: LessonTask[];
   progress: ProgressState;
   settings: EditorSettings;
@@ -143,6 +149,7 @@ type MobileWorkspaceView = (typeof MOBILE_WORKSPACE_VIEWS)[number]["id"];
 
 export function WorkspaceScreen({
   task,
+  modules,
   tasks,
   progress,
   settings,
@@ -209,10 +216,37 @@ export function WorkspaceScreen({
 
   const taskIndex = tasks.findIndex((candidate) => candidate.id === task.id);
   const previousTask = taskIndex > 0 ? tasks[taskIndex - 1] : undefined;
-  const nextTask =
+  const requestedNextTask =
     task.nextTaskId !== null
       ? tasks.find((candidate) => candidate.id === task.nextTaskId)
       : tasks[taskIndex + 1];
+  const moduleAccessById = new Map(
+    buildModuleAccessStates(modules, tasks, progress.tasks).map((state) => [
+      state.moduleId,
+      state,
+    ]),
+  );
+  const nextTask =
+    requestedNextTask &&
+    moduleAccessById.get(requestedNextTask.moduleId)?.isUnlocked
+      ? requestedNextTask
+      : undefined;
+  const currentModule = modules.find((module) => module.id === task.moduleId);
+  const isProject = currentModule?.contentKind === "projects";
+  const projectModuleIds = new Set(
+    modules
+      .filter((module) => module.contentKind === "projects")
+      .map((module) => module.id),
+  );
+  const caseTasks = tasks.filter(
+    (candidate) => !projectModuleIds.has(candidate.moduleId),
+  );
+  const currentCaseIndex = caseTasks.findIndex(
+    (candidate) => candidate.id === task.id,
+  );
+  const currentModuleTaskIndex =
+    currentModule?.tasks.findIndex((candidate) => candidate.id === task.id) ??
+    -1;
   const revealedHintCount = visibleHints.filter(
     (index) => index >= 0 && index < task.hints.length,
   ).length;
@@ -849,7 +883,11 @@ export function WorkspaceScreen({
         </div>
         <div className="workspace-topbar-actions">
           <span className="mission-counter">
-            Vaka {String(taskIndex + 1).padStart(2, "0")} / {tasks.length}
+            {isProject ? "Proje" : "Vaka"}{" "}
+            {String(
+              isProject ? currentModuleTaskIndex + 1 : currentCaseIndex + 1,
+            ).padStart(2, "0")}{" "}
+            / {isProject ? currentModule?.tasks.length : caseTasks.length}
           </span>
           <button
             className="icon-button"

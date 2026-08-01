@@ -7,6 +7,7 @@ import {
   ChevronRight,
   CircleAlert,
   Clock3,
+  LockKeyhole,
   Play,
   RotateCcw,
   Route,
@@ -19,6 +20,7 @@ import {
 } from "../../content";
 import type { CurriculumModule, LessonTask } from "../../types/lesson";
 import type { ProgressState } from "../../features/progress/progressStore";
+import { buildModuleAccessStates } from "../../features/progress/moduleAccess";
 import {
   getAwardedCaseScore,
   summarizeScores,
@@ -63,7 +65,7 @@ const chapterStatusCopy = {
   completed: "Bölüm tamamlandı",
   active: "İlerliyorsun",
   recommended: "Önerilen odak",
-  open: "İstediğinde açık",
+  open: "Sırasıyla açılır",
 } as const;
 
 function hasMeaningfulActivity(
@@ -135,6 +137,17 @@ export function LearningPathScreen({
     () => new Map(taskStates.map((item) => [item.task.id, item])),
     [taskStates],
   );
+  const moduleAccess = useMemo(
+    () => buildModuleAccessStates(modules, tasks, progress.tasks),
+    [modules, progress.tasks, tasks],
+  );
+  const moduleAccessById = useMemo(
+    () => new Map(moduleAccess.map((state) => [state.moduleId, state])),
+    [moduleAccess],
+  );
+  const accessibleTaskStates = taskStates.filter(
+    (item) => moduleAccessById.get(item.task.moduleId)?.isUnlocked,
+  );
   const completedTaskIds = useMemo(
     () =>
       new Set(
@@ -148,17 +161,19 @@ export function LearningPathScreen({
     () => buildAnalystJourneyProgress(completedTaskIds),
     [completedTaskIds],
   );
-  const currentItem = taskStates.find((item) => item.isCurrent);
+  const currentItem = accessibleTaskStates.find((item) => item.isCurrent);
   const focusItem =
-    taskStates.find((item) => item.status === "retry") ??
-    taskStates.find((item) => item.status === "skipped") ??
-    taskStates.find(
+    accessibleTaskStates.find((item) => item.status === "retry") ??
+    accessibleTaskStates.find((item) => item.status === "skipped") ??
+    accessibleTaskStates.find(
       (item) => item.isCurrent && item.status === "in-progress",
     ) ??
-    taskStates.find((item) => item.status === "in-progress") ??
-    taskStates.find((item) => item.status === "next") ??
-    taskStates.find((item) => item.isCurrent && item.status !== "completed") ??
-    taskStates.find((item) => item.status !== "completed");
+    accessibleTaskStates.find((item) => item.status === "in-progress") ??
+    accessibleTaskStates.find((item) => item.status === "next") ??
+    accessibleTaskStates.find(
+      (item) => item.isCurrent && item.status !== "completed",
+    ) ??
+    accessibleTaskStates.find((item) => item.status !== "completed");
   const focusModule = focusItem
     ? modules.find((module) => module.id === focusItem.task.moduleId)
     : undefined;
@@ -209,7 +224,12 @@ export function LearningPathScreen({
       ),
     [progress.tasks, tasks],
   );
-  const allExpanded = modules.every((module) => expandedModules.has(module.id));
+  const unlockedModules = modules.filter(
+    (module) => moduleAccessById.get(module.id)?.isUnlocked,
+  );
+  const allExpanded = unlockedModules.every((module) =>
+    expandedModules.has(module.id),
+  );
   const focusReason =
     focusItem?.status === "retry"
       ? "Tekrar bekleyen adım"
@@ -228,6 +248,7 @@ export function LearningPathScreen({
                 : "Önerilen sonraki adım";
 
   const toggleModule = (moduleId: string) => {
+    if (!moduleAccessById.get(moduleId)?.isUnlocked) return;
     setExpandedModules((current) => {
       const next = new Set(current);
       if (next.has(moduleId)) next.delete(moduleId);
@@ -238,7 +259,9 @@ export function LearningPathScreen({
 
   const toggleAllModules = () => {
     setExpandedModules(
-      allExpanded ? new Set() : new Set(modules.map((module) => module.id)),
+      allExpanded
+        ? new Set()
+        : new Set(unlockedModules.map((module) => module.id)),
     );
   };
 
@@ -255,7 +278,8 @@ export function LearningPathScreen({
             <p>
               SQL temellerinden güvenilir bir yönetici çıktısına uzanan dört
               bölümde ilerle. Nerede kaldığını ve işte hangi sonucu üretebilir
-              hâle geldiğini gör. Tüm vakalar açık; sıra yalnızca bir öneridir.
+              hâle geldiğini gör. Her SQL konusu, önceki konuları tamamladığında
+              açılır.
             </p>
           </div>
 
@@ -282,7 +306,7 @@ export function LearningPathScreen({
                 <strong>
                   {completedCount}/{tasks.length}
                 </strong>{" "}
-                vaka tamamlandı
+                çalışma tamamlandı
                 <span>{remainingMinutes} dk kaldı</span>
               </p>
               <div className="path-score-line">
@@ -322,7 +346,7 @@ export function LearningPathScreen({
                   <span className="path-focus-kicker completed">
                     <Check size={14} /> Rota tamamlandı
                   </span>
-                  <strong>Tüm vakalar tamam.</strong>
+                  <strong>Tüm çalışmalar tamam.</strong>
                   <p>
                     İlerlemeni ve ürettiğin kanıtları ayrıntılı
                     inceleyebilirsin.
@@ -352,9 +376,9 @@ export function LearningPathScreen({
               Sorgudan karara ilerlediğin yol
             </h2>
             <p>
-              Bölüm yüzdeleri yalnız doğru sonuçla tamamlanan gerçek vakalardan
-              hesaplanır. Bir vakaya göz atmak veya ipucu açmak ilerleme
-              sayılmaz.
+              Bölüm yüzdeleri yalnız doğru sonuçla tamamlanan gerçek
+              çalışmalardan hesaplanır. Bir çalışmaya göz atmak veya ipucu açmak
+              ilerleme sayılmaz.
             </p>
           </div>
           <div
@@ -409,7 +433,7 @@ export function LearningPathScreen({
                   </div>
                   <p className="career-chapter-progress-count">
                     <strong>{chapter.completedTaskCount}</strong>/
-                    {chapter.totalTaskCount} vaka tamamlandı
+                    {chapter.totalTaskCount} çalışma tamamlandı
                   </p>
                 </article>
               );
@@ -417,7 +441,7 @@ export function LearningPathScreen({
           </div>
         </section>
 
-        <section className="path-status-grid" aria-label="Vaka durum özeti">
+        <section className="path-status-grid" aria-label="Çalışma durum özeti">
           {(
             [
               ["completed", "Tamamlandı", statusCounts.completed],
@@ -445,12 +469,13 @@ export function LearningPathScreen({
           <div>
             <span className="path-section-kicker">
               {journeyProgress.length} bölüm · {modules.length} SQL konusu ·{" "}
-              {tasks.length} vaka
+              {tasks.length} çalışma
             </span>
             <h2>Bölümler ve SQL konuları</h2>
             <p>
               Bölümler iş sonucunu, SQL konuları o sonuca götüren becerileri
-              gösterir. Hiçbiri kilitli değildir.
+              gösterir. İlk konu açıktır; sonraki konu, önceki konuların tüm
+              çalışmaları tamamlanınca açılır.
             </p>
           </div>
           <button
@@ -490,11 +515,21 @@ export function LearningPathScreen({
                     <p>{chapter.workplaceOutcome}</p>
                   </div>
                   <span className="career-chapter-module-progress">
-                    {chapter.completedTaskCount}/{chapter.totalTaskCount} vaka
+                    {chapter.completedTaskCount}/{chapter.totalTaskCount}{" "}
+                    çalışma
                   </span>
                 </header>
                 <div className="career-chapter-module-list">
                   {chapterModules.map((module) => {
+                    const itemLabel =
+                      module.contentKind === "projects" ? "proje" : "vaka";
+                    const itemLabelPlural =
+                      module.contentKind === "projects"
+                        ? "projelerini"
+                        : "vakalarını";
+                    const access = moduleAccessById.get(module.id);
+                    const isUnlocked = access?.isUnlocked ?? false;
+                    const blockingModule = access?.blockingModule;
                     const moduleItems = module.tasks.flatMap((task) => {
                       const item = taskStateById.get(task.id);
                       return item ? [item] : [];
@@ -521,40 +556,55 @@ export function LearningPathScreen({
                       module.tasks.map((task) => task.id),
                       progress.tasks,
                     );
-                    const isExpanded = expandedModules.has(module.id);
+                    const isExpanded =
+                      isUnlocked && expandedModules.has(module.id);
                     const isComplete = completedTasks === module.tasks.length;
                     const isCurrent = moduleItems.some(
                       (item) => item.isCurrent,
                     );
                     const hasAttention = retryTasks + skippedTasks > 0;
-                    const moduleState = isComplete
-                      ? "completed"
-                      : isCurrent
-                        ? "current"
-                        : hasAttention
-                          ? "attention"
-                          : completedTasks + activeTasks > 0
-                            ? "active"
-                            : containsNext
-                              ? "next"
-                              : "upcoming";
-                    const moduleStateLabel = isComplete
-                      ? "Tamamlandı"
-                      : isCurrent
-                        ? "Şu an buradasın"
-                        : hasAttention
-                          ? "Eksik adımlar var"
-                          : completedTasks + activeTasks > 0
-                            ? "Devam ediyor"
-                            : containsNext
-                              ? "Sıradaki konu"
-                              : "Başlamadı";
-                    const moduleSignals = [
-                      retryTasks ? `${retryTasks} tekrar` : "",
-                      skippedTasks ? `${skippedTasks} atlandı` : "",
-                      activeTasks ? `${activeTasks} devam ediyor` : "",
-                      containsNext ? "sıradaki vaka hazır" : "",
-                    ].filter(Boolean);
+                    const moduleState = !isUnlocked
+                      ? "locked"
+                      : isComplete
+                        ? "completed"
+                        : isCurrent
+                          ? "current"
+                          : hasAttention
+                            ? "attention"
+                            : completedTasks + activeTasks > 0
+                              ? "active"
+                              : containsNext
+                                ? "next"
+                                : "upcoming";
+                    const moduleStateLabel = !isUnlocked
+                      ? "Kilitli"
+                      : isComplete
+                        ? "Tamamlandı"
+                        : isCurrent
+                          ? "Şu an buradasın"
+                          : hasAttention
+                            ? "Eksik adımlar var"
+                            : completedTasks + activeTasks > 0
+                              ? "Devam ediyor"
+                              : containsNext
+                                ? "Sıradaki konu"
+                                : "Başlamadı";
+                    const moduleSignals = !isUnlocked
+                      ? [
+                          blockingModule
+                            ? `Önce “${blockingModule.title}” modülünü tamamla`
+                            : "Önceki modülü tamamla",
+                          completedTasks
+                            ? `${completedTasks} eski tamamlama korunuyor`
+                            : "",
+                        ].filter(Boolean)
+                      : [
+                          retryTasks ? `${retryTasks} tekrar` : "",
+                          skippedTasks ? `${skippedTasks} atlandı` : "",
+                          activeTasks ? `${activeTasks} devam ediyor` : "",
+                          containsNext ? `sıradaki ${itemLabel} hazır` : "",
+                        ].filter(Boolean);
+                    const lockDescriptionId = `${module.id}-lock-description`;
 
                     return (
                       <section
@@ -565,15 +615,29 @@ export function LearningPathScreen({
                           <button
                             type="button"
                             className="module-summary-toggle"
-                            onClick={() => toggleModule(module.id)}
-                            aria-expanded={isExpanded}
-                            aria-controls={`${module.id}-tasks`}
-                            aria-label={`${module.title} vakalarını ${
-                              isExpanded ? "daralt" : "aç"
-                            }`}
+                            onClick={() => {
+                              if (isUnlocked) toggleModule(module.id);
+                            }}
+                            aria-disabled={!isUnlocked}
+                            aria-expanded={isUnlocked ? isExpanded : false}
+                            aria-controls={
+                              isUnlocked ? `${module.id}-tasks` : undefined
+                            }
+                            aria-describedby={
+                              isUnlocked ? undefined : lockDescriptionId
+                            }
+                            aria-label={
+                              isUnlocked
+                                ? `${module.title} ${itemLabelPlural} ${
+                                    isExpanded ? "daralt" : "aç"
+                                  }`
+                                : `${module.title} modülü kilitli`
+                            }
                           />
                           <span className="module-index">
-                            {isComplete ? (
+                            {!isUnlocked ? (
+                              <LockKeyhole size={16} />
+                            ) : isComplete ? (
                               <Check size={17} />
                             ) : (
                               String(module.order).padStart(2, "0")
@@ -602,11 +666,13 @@ export function LearningPathScreen({
                               <strong>{completedTasks}</strong>/
                               {module.tasks.length} tamamlandı
                             </span>
-                            <small>
+                            <small
+                              id={isUnlocked ? undefined : lockDescriptionId}
+                            >
                               {moduleSignals.join(" · ") ||
                                 (isComplete
                                   ? "Tüm adımlar hazır"
-                                  : `${module.tasks.length - completedTasks} vaka kaldı`)}
+                                  : `${module.tasks.length - completedTasks} ${itemLabel} kaldı`)}
                             </small>
                             <small className="module-score-note">
                               {moduleScore.earned}/{moduleScore.possible} analiz
@@ -623,7 +689,9 @@ export function LearningPathScreen({
                             className="module-toggle-icon"
                             aria-hidden="true"
                           >
-                            {isExpanded ? (
+                            {!isUnlocked ? (
+                              <LockKeyhole size={16} />
+                            ) : isExpanded ? (
                               <ChevronDown size={17} />
                             ) : (
                               <ChevronRight size={17} />
@@ -631,7 +699,7 @@ export function LearningPathScreen({
                           </span>
                         </div>
 
-                        {isExpanded && (
+                        {isUnlocked && isExpanded && (
                           <div className="task-list" id={`${module.id}-tasks`}>
                             <div className="module-detail-intro">
                               <p>{module.description}</p>

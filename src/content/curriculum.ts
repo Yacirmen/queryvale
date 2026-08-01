@@ -12,6 +12,7 @@ import {
   module9ExpansionTasks,
   module10ExpansionTasks,
 } from "./advancedExpansionTasks";
+import { marketingProjectModule } from "./marketingProjects";
 
 const productSetupSql = `
   CREATE TABLE products (
@@ -3145,6 +3146,7 @@ export const curriculum: CurriculumModule[] = [
     prerequisites: ["module-9"],
     tasks: [capstoneTask, ...module10ExpansionTasks],
   }),
+  marketingProjectModule,
 ];
 
 /** Flat views keep navigation, lookup and progress calculations inexpensive. */
@@ -3176,9 +3178,20 @@ export const getTaskBySlug = (slug: string): LessonTask | undefined =>
 export const assertCurriculumIsValid = (
   authoredModules: readonly CurriculumModule[],
 ): void => {
-  if (authoredModules.length !== 10) {
+  if (authoredModules.length !== 11) {
     throw new Error(
-      `Müfredat tam olarak 10 modül içermeli; bulunan: ${authoredModules.length}.`,
+      `Müfredat tam olarak 11 modül içermeli; bulunan: ${authoredModules.length}.`,
+    );
+  }
+
+  const finalModule = authoredModules.at(-1);
+  if (
+    finalModule?.id !== "module-11" ||
+    finalModule.contentKind !== "projects" ||
+    finalModule.tasks.length !== 12
+  ) {
+    throw new Error(
+      "Son modül, tam 12 çalışmadan oluşan pazarlama proje stüdyosu olmalı.",
     );
   }
 

@@ -23,7 +23,7 @@
 
 1. Ana sayfa ürün vaadini ve tarayıcı içi çalışma modelini açıklar.
 2. Yeni kullanıcıda “İlk vakaya başla” ilk vaka içinde kapatılabilir 90 saniyelik rehberi açar; geri dönen kullanıcıda “Kaldığın vakaya devam et” son güvenilir konumu açar.
-3. Rota, çalışan SQL konularını dört mesleki bölüm altında gösterir ve sıradaki vakayı önerir.
+3. Rota, çalışan SQL konularını dört mesleki bölüm altında gösterir; yalnız önceki SQL konusu tamamlandığında sıradakini açar ve ilk erişilebilir eksiği önerir.
 4. Çalışma alanı önce istenen teslimi ve çıktı sözleşmesini gösterir; kavram, kabul kontrolleri, veri notları ve iş bağlamını ihtiyaç anında açar.
 5. Kullanıcı sorgusunu yazar; taslak otomatik kaydolur ve `Cmd/Ctrl + Enter` ile çalıştırılabilir.
 6. Sonuç tablosu gerçek satırları, yürütme süresini ve satır sayısını gösterir.
@@ -73,10 +73,11 @@ Geri bildirim kullanıcıya sonraki kontrol edilebilir eylemi söylemelidir. Tam
 8. Kontrollü veri güncelleme
 9. Yıldız şemaya giriş
 10. Yönetici raporu projesi
+11. Pazarlama analitiği proje stüdyosu
 
-On modülün tamamı üretim kalitesinde dörder vakadan oluşur. Modül 1–3 temel sorgu akıcılığını; modül 4–7 aggregation, join, alt sorgu/CTE ve analitik SQL derinliğini; Modül 8–10 güvenli veri değişikliği, modelleme/veri güveni ve yönetici karar teslimlerini kurar.
+İlk on modül üretim kalitesinde dörder vakadan oluşur. Modül 1–3 temel sorgu akıcılığını; modül 4–7 aggregation, join, alt sorgu/CTE ve analitik SQL derinliğini; Modül 8–10 güvenli veri değişikliği, modelleme/veri güveni ve yönetici karar teslimlerini kurar. Son modül, edinimden büyüme kararına uzanan 12 pazarlama analitiği projesiyle portföy teslimi yaptırır.
 
-Bu 10 modül kariyer rotasında **Temeli kur**, **İş sorusunu çöz**, **Örüntüyü keşfet** ve **Karara dönüştür** adlı dört bölüm altında sunulur. Bölümler mevcut görevlerin mesleki sonucunu açıklayan sunum katmanıdır; ayrı ilerleme üretmez ve kilitli/atlanan modülleri gizlemez.
+Bu 11 modül kariyer rotasında **Temeli kur**, **İş sorusunu çöz**, **Örüntüyü keşfet** ve **Karara dönüştür** adlı dört bölüm altında sunulur. Bölümler ayrı ilerleme üretmez. İlk modül açıktır; her sonraki modül yalnız önceki bütün modüllerin çalışmaları tamamlandığında açılır. Kilitli modüller gizlenmez, açılma koşulunu gösterir; mevcut ileri ilerleme ve kanıtlar silinmez.
 
 ## İlerleme sinyalleri
 

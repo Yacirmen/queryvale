@@ -1524,7 +1524,7 @@ const operationsEarlyWarningTask = createTask({
     "Olayları join öncesinde branch-date tanesine indirmek günlük satırın çoğalmasını engeller. Aynı PARTITION BY ve tarih sırası running backlog ile LAG karşılaştırmasını şubeye izole eder; dış CASE ise ölçüleri açık öncelikli bir operasyon kararına dönüştürür.",
   completionMessage:
     "Kontrol kulesi hazır: günlük hareket, biriken yük, gecikme yönü ve olay etkisi tek güvenilir şube-gün karar setinde birleşti.",
-  nextTaskId: null,
+  nextTaskId: "m11-t1",
 });
 
 export const module10ExpansionTasks: LessonTask[] = [

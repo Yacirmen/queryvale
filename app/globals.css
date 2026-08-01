@@ -1817,6 +1817,22 @@ button {
   border-color: color-mix(in srgb, var(--success) 30%, var(--line));
 }
 
+.module-card.locked {
+  border-color: color-mix(in srgb, var(--text-faint) 36%, var(--line));
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--surface-muted) 35%, transparent),
+      transparent 58%
+    ),
+    color-mix(in srgb, var(--surface) 88%, var(--bg));
+  box-shadow: none;
+}
+
+.module-card.locked .module-summary:hover {
+  background: transparent;
+}
+
 .module-summary {
   position: relative;
   width: 100%;
@@ -1850,6 +1866,10 @@ button {
 .module-summary-toggle:focus-visible,
 .task-row:focus-visible {
   outline-offset: -4px;
+}
+
+.module-summary-toggle[aria-disabled="true"] {
+  cursor: not-allowed;
 }
 
 .module-summary > :not(.module-summary-toggle) {
@@ -1887,6 +1907,12 @@ button {
   border-color: color-mix(in srgb, var(--success) 42%, var(--line));
   color: var(--success);
   background: color-mix(in srgb, var(--success) 10%, var(--surface));
+}
+
+.module-card.locked .module-index {
+  border-color: var(--line-strong);
+  color: var(--text-faint);
+  background: color-mix(in srgb, var(--surface-muted) 76%, var(--surface));
 }
 
 .module-title {
@@ -1946,6 +1972,22 @@ button {
   border-color: color-mix(in srgb, var(--success) 35%, var(--line));
   color: var(--success);
   background: color-mix(in srgb, var(--success) 8%, var(--surface));
+}
+
+.module-state-badge.locked {
+  border-color: var(--line-strong);
+  color: var(--text-soft);
+  background: color-mix(in srgb, var(--surface-muted) 82%, var(--surface));
+}
+
+.module-card.locked .module-concepts,
+.module-card.locked .module-score-note,
+.module-card.locked .progress-track {
+  opacity: 0.66;
+}
+
+.module-card.locked .module-toggle-icon {
+  color: var(--text-soft);
 }
 
 .module-concepts {
@@ -4836,6 +4878,14 @@ button {
   background: color-mix(in srgb, var(--surface) 72%, transparent);
 }
 
+.module-progress-row.locked {
+  background: color-mix(in srgb, var(--surface-muted) 48%, transparent);
+}
+
+.module-progress-row.locked:hover {
+  background: color-mix(in srgb, var(--surface-muted) 48%, transparent);
+}
+
 .module-progress-index {
   color: var(--text-faint);
   font-family: var(--font-geist-mono), monospace;
@@ -4895,6 +4945,12 @@ button {
   background: color-mix(in srgb, var(--accent) 7%, transparent);
 }
 
+.module-progress-state.locked {
+  border-color: color-mix(in srgb, var(--text-faint) 34%, var(--line));
+  color: var(--text-soft);
+  background: color-mix(in srgb, var(--surface-muted) 76%, transparent);
+}
+
 .module-progress-meter {
   display: grid;
   grid-template-columns: minmax(80px, 1fr) auto;
@@ -4934,6 +4990,18 @@ button {
   display: grid;
   place-items: center;
   color: var(--success);
+}
+
+.module-progress-locked {
+  max-width: 190px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  color: var(--text-faint);
+  font-size: var(--font-size-micro);
+  line-height: 1.35;
+  text-align: right;
 }
 
 .recent-progress-row {
@@ -6743,9 +6811,16 @@ button {
   }
 
   .module-progress-action,
-  .module-progress-done {
+  .module-progress-done,
+  .module-progress-locked {
     grid-column: 2;
     justify-self: start;
+  }
+
+  .module-progress-locked {
+    max-width: none;
+    justify-content: flex-start;
+    text-align: left;
   }
 
   .recent-progress-row {
