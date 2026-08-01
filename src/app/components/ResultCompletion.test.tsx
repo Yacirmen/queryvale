@@ -17,6 +17,7 @@ describe("ResultCompletion", () => {
         task={task}
         attempts={2}
         rowCount={6}
+        scoreAwarded={7}
         nextTaskTitle="Kategori listesini tekilleştir"
         onSaveNote={vi.fn()}
         onNext={vi.fn()}
@@ -33,6 +34,13 @@ describe("ResultCompletion", () => {
     expect(within(panel).getByText("2 kolon doğru")).toBeVisible();
     expect(within(panel).getByText("6 satır doğru")).toBeVisible();
     expect(within(panel).getByText("İş kuralı karşılandı")).toBeVisible();
+    expect(within(panel).getByText("+7 analiz puanı")).toBeVisible();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Bu vakadan 7 analiz puanı kazandın",
+    );
+    expect(
+      within(panel).getByText(/10 başlangıç − 1 ipucu × 3 = 7/i),
+    ).toBeVisible();
     expect(within(panel).getByText("Kanıt hazırlanıyor")).toBeVisible();
     expect(
       within(panel).getByText(/yorumun otomatik puanlanmaz/i),
@@ -52,6 +60,24 @@ describe("ResultCompletion", () => {
     expect(within(panel).getByText(task.debrief.transfer.reveal)).toBeVisible();
   });
 
+  it("announces full-solution completion without framing zero as earned points", () => {
+    render(
+      <ResultCompletion
+        task={task}
+        attempts={1}
+        rowCount={6}
+        scoreAwarded={0}
+        onSaveNote={vi.fn()}
+        onNext={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Tam çözüm kullanıldığı için bu vakadan analiz puanı kazanılmadı",
+    );
+    expect(screen.getByText("0 analiz puanı")).toBeVisible();
+  });
+
   it("advances only after the explicit next action", async () => {
     const user = userEvent.setup();
     const onNext = vi.fn();
@@ -61,6 +87,7 @@ describe("ResultCompletion", () => {
         task={task}
         attempts={1}
         rowCount={6}
+        scoreAwarded={10}
         nextTaskTitle="Kategori listesini tekilleştir"
         onSaveNote={vi.fn()}
         onNext={onNext}
@@ -85,6 +112,7 @@ describe("ResultCompletion", () => {
         task={task}
         attempts={1}
         rowCount={6}
+        scoreAwarded={10}
         evidence={{
           verifiedRun: {
             columns: ["product_name", "category"],

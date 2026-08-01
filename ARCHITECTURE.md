@@ -11,7 +11,7 @@ Vinext/React UI
   ├─ SQL runtime ────── lazy PGlite + disposable task database
   ├─ Evaluator ──────── normalization + result/concept checks
   ├─ Evidence ───────── bounded JSON-safe verified-run snapshots
-  └─ Local data ─────── ProgressState v4 + IndexedDB migrations
+  └─ Local data ─────── ProgressState v5 + IndexedDB migrations
 ```
 
 ## Katmanlar ve bağımlılık yönü
@@ -30,6 +30,7 @@ Framework bağımsız tip ve saf fonksiyonlar:
 - temel SQL kavramı sinyalleri,
 - doğrulanmış çalışma snapshot’ı normalizasyonu ve boyut sınırları,
 - ilerleme istatistikleri,
+- bağımsız çözüm puanı ve rota/SQL konusu toplamları,
 - import/export şema doğrulaması.
 
 Domain katmanı React, Monaco, IndexedDB veya PGlite bilmez.
@@ -39,7 +40,7 @@ Domain katmanı React, Monaco, IndexedDB veya PGlite bilmez.
 - `sql-engine`: PGlite yükleme, görev ortamı hazırlama, çalıştırma, iptal ve reset
 - `validation`: yürütme çıktısını görev politikasına göre değerlendirme
 - `evidence`: doğru yürütmeyi sınırlı, JSON-güvenli bir görüntüleme kaydına dönüştürme
-- `progress`: IndexedDB repository, v4 sürümleme, devam konumu, kanıt/not kalıcılığı ve import/export
+- `progress`: IndexedDB repository, v5 sürümleme, devam konumu, kilitli puan, kanıt/not kalıcılığı ve import/export
 - `settings`: tema ve editör tercihleri
 
 Servis sonuçları ayrıştırılmış hata türleri döndürür; UI ham bağımlılık hatalarına bağlanmaz.
@@ -72,10 +73,11 @@ Varsayılan motor **PGlite**’tır.
 6. Çıktı satır limiti ve güvenli serileştirme üzerinden ana thread’e döner.
 7. Evaluator kolon → satır → sıra → kavram sırasıyla değerlendirme yapar.
 8. UI sonuç ve açıklanabilir geri bildirimi gösterir.
-9. Deneme, başarı ve son sorgu görev ilerlemesine kaydedilir.
-10. Yalnız değerlendirme `correct` ise sınırlı bir `VerifiedRunSnapshot` oluşturulur ve tamamlanan görevin kanıt kaydına eklenir.
-11. Kullanıcı isterse bu kayda bulgu, öneri ve isteğe bağlı çekince içeren bir karar notu ekler; not evaluator tarafından puanlanmaz.
-12. `ProgressState` v4 tek transaction ile IndexedDB’ye yazılır. SQL taslağı 700 ms debounce ile ve görevden ayrılırken kaydedilir; sonuç paneli açık kalır, sonraki göreve geçiş ayrı kullanıcı eylemidir.
+9. Deneme, başarı, son sorgu, benzersiz ipuçları ve tam çözüm kullanımı görev ilerlemesine kaydedilir.
+10. İlk `correct` değerlendirmede sorgu gönderim anındaki yardım snapshot’ı 10/7/4/1 veya tam çözümde 0 puana çevrilip bir kez kilitlenir; sonradan gelen yardım veya tekrar çözme bu değeri değiştirmez.
+11. Yalnız değerlendirme `correct` ise sınırlı bir `VerifiedRunSnapshot` oluşturulur ve tamamlanan görevin kanıt kaydına eklenir.
+12. Kullanıcı isterse bu kayda bulgu, öneri ve isteğe bağlı çekince içeren bir karar notu ekler; not evaluator tarafından puanlanmaz.
+13. `ProgressState` v5 tek transaction ile IndexedDB’ye yazılır. SQL taslağı 700 ms debounce ile ve görevden ayrılırken kaydedilir; sonuç paneli açık kalır, sonraki göreve geçiş ayrı kullanıcı eylemidir.
 
 Görev değişimi, reset ve timeout eski oturumun çıktısını geçersiz kılan bir generation/run kimliği kullanır; geç gelen sonuç yeni göreve yazılamaz.
 
@@ -110,11 +112,11 @@ Değerlendirici örnek SQL ile string equality yapmaz. Kavram denetimi yalnızca
 
 ## Kalıcılık
 
-Fiziksel şema `queryvale` veritabanındaki `workspace` object store’unda, `progress` anahtarı altında tek bir doğrulanmış çalışma alanı kaydı tutar. Veritabanı şema sürümü ile uygulama veri modeli ayrı kavramlardır; güncel uygulama modeli `ProgressState` **v4**’tür:
+Fiziksel şema `queryvale` veritabanındaki `workspace` object store’unda, `progress` anahtarı altında tek bir doğrulanmış çalışma alanı kaydı tutar. Veritabanı şema sürümü ile uygulama veri modeli ayrı kavramlardır; güncel uygulama modeli `ProgressState` **v5**’tir:
 
 - `profile`: kararlı yerel profil kimliği ve düzenlenebilir sunum adı
 - `startedAt`, `lastOpenedTaskId`, `lastOpenedTaskIdTrusted`, `activityDates`: çalışma alanı ve bir kezlik devam-konumu migrasyonu metası
-- `tasks`: deneme, tarihler, süre, son sorgu, ipucu ve tamamlanma
+- `tasks`: deneme, tarihler, süre, son sorgu, ipucu, tam çözüm kullanımı, ilk başarıda kilitlenen puan ve tamamlanma
 - `settings`: tema, font, satır yüksekliği, autocomplete ve reduced motion
 - `evidenceByTaskId`: doğrulanmış çalışma snapshot’ı ile isteğe bağlı karar notu
 
@@ -133,11 +135,12 @@ Hücreler saklanmadan önce string gösterimine çevrilir; snapshot doğrulamas�
 
 ### Migrasyon ve içe aktarma
 
-- Geçerli v1 kayıtları görev/ayar verisini koruyarak v4’e taşınır, yeni bir yerel profil kazanır ve boş Kanıt Defteri ile başlar.
-- Geçerli v2 kayıtları profili dahil mevcut veriyi koruyarak v4’e taşınır ve boş Kanıt Defteri ile başlar.
+- Geçerli v1 kayıtları görev/ayar verisini koruyarak v5’e taşınır, yeni bir yerel profil kazanır ve boş Kanıt Defteri ile başlar.
+- Geçerli v2 kayıtları profili dahil mevcut veriyi koruyarak v5’e taşınır ve boş Kanıt Defteri ile başlar.
 - Eski tamamlanma kayıtlarından kanıt uydurulmaz; kanıt ancak yeni bir doğru değerlendirmeden doğar.
-- Geçerli v3 kaydı v4’e taşınırken tüm kanıt/not sözleşmesi doğrulanır ve eski landing hatasının ezmiş olabileceği `lastOpenedTaskId` yalnız bir kez daha ileri anlamlı etkinlikten kurtarılır. Sonraki kullanıcı navigasyonları güvenilir konum olarak işaretlenir.
-- Geçerli v4 kaydı iç içe dizileri kopyalanarak ve tüm sözleşme doğrulanarak yüklenir.
+- Geçerli v3 kaydı v5’e taşınırken tüm kanıt/not sözleşmesi doğrulanır ve eski landing hatasının ezmiş olabileceği `lastOpenedTaskId` yalnız bir kez daha ileri anlamlı etkinlikten kurtarılır. Sonraki kullanıcı navigasyonları güvenilir konum olarak işaretlenir.
+- Geçerli v4 kaydı v5’e taşınırken tamamlanmış vakaların puanı kayıtlı benzersiz ipuçlarından hesaplanır; eski sürüm tam çözüm görünümünü saklamadığı için çözüm kullanımı uydurulmaz ve `solutionRevealed` false başlar.
+- Geçerli v5 kaydı iç içe dizileri kopyalanarak ve tüm sözleşme doğrulanarak yüklenir.
 - İçe aktarma dosyası en fazla 2 MB olabilir; tüm model doğrulanır ve mevcut çalışma alanı değiştirilmeden önce kullanıcıdan açık onay alınır.
 - Uyumsuz bir mevcut kayıt otomatik yazmayla ezilmez. Uygulama durumu bildirir ve kullanıcı açıkça değiştirmedikçe kaydı korur.
 

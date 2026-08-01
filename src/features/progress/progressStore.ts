@@ -2,6 +2,7 @@ import {
   isVerifiedRunSnapshot,
   type VerifiedRunSnapshot,
 } from "../evidence/evidenceSnapshot";
+import { calculateCaseScore, isValidCaseScore } from "./scoring";
 
 export type ThemePreference = "light" | "dark";
 
@@ -21,9 +22,17 @@ export interface TaskProgress {
   lastCompletedAt?: string;
   lastQuery: string;
   hintsUsed: number[];
+  solutionRevealed: boolean;
+  scoreAwarded?: number;
   solveTimeSeconds: number;
   firstTry: boolean;
 }
+
+type LegacyTaskProgress = Omit<
+  TaskProgress,
+  "solutionRevealed" | "scoreAwarded"
+> &
+  Partial<Pick<TaskProgress, "solutionRevealed" | "scoreAwarded">>;
 
 export interface ProgressProfile {
   id: string;
@@ -50,7 +59,7 @@ export interface EvidenceNotebookEntry {
 }
 
 export interface ProgressState {
-  version: 4;
+  version: 5;
   profile: ProgressProfile;
   startedAt: string;
   lastOpenedTaskId: string;
@@ -66,18 +75,29 @@ type ProgressData = Pick<
   "startedAt" | "lastOpenedTaskId" | "activityDates" | "tasks" | "settings"
 >;
 
-interface ProgressStateV2 extends ProgressData {
+type LegacyProgressData = Omit<ProgressData, "tasks"> & {
+  tasks: Record<string, LegacyTaskProgress>;
+};
+
+interface ProgressStateV2 extends LegacyProgressData {
   version: 2;
   profile: ProgressProfile;
 }
 
-interface ProgressStateV3 extends ProgressData {
+interface ProgressStateV3 extends LegacyProgressData {
   version: 3;
   profile: ProgressProfile;
   evidenceByTaskId: Record<string, EvidenceNotebookEntry>;
 }
 
-interface ProgressStateV1 extends ProgressData {
+interface ProgressStateV4 extends LegacyProgressData {
+  version: 4;
+  profile: ProgressProfile;
+  lastOpenedTaskIdTrusted: boolean;
+  evidenceByTaskId: Record<string, EvidenceNotebookEntry>;
+}
+
+interface ProgressStateV1 extends LegacyProgressData {
   version: 1;
 }
 
@@ -85,6 +105,11 @@ export interface ProfileNameValidation {
   valid: boolean;
   normalizedName: string;
   error?: string;
+}
+
+export interface AttemptAssistanceSnapshot {
+  hintsUsed: readonly number[];
+  solutionRevealed: boolean;
 }
 
 const DATABASE_NAME = "queryvale";
@@ -179,7 +204,7 @@ export function updateProfileName(
 
 export function createDefaultProgress(): ProgressState {
   return {
-    version: 4,
+    version: 5,
     profile: {
       id: globalThis.crypto.randomUUID(),
       displayName: DEFAULT_PROFILE_DISPLAY_NAME,
@@ -267,9 +292,12 @@ function isEditorSettings(value: unknown): value is EditorSettings {
   );
 }
 
-function isTaskProgress(value: unknown, key: string): value is TaskProgress {
+function hasValidTaskProgressBase(
+  value: unknown,
+  key: string,
+): value is LegacyTaskProgress {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const task = value as Partial<TaskProgress>;
+  const task = value as Partial<LegacyTaskProgress>;
   return (
     task.taskId === key &&
     isFiniteNumberInRange(task.attempts, 0, 1_000_000) &&
@@ -285,6 +313,24 @@ function isTaskProgress(value: unknown, key: string): value is TaskProgress {
     ) &&
     isFiniteNumberInRange(task.solveTimeSeconds, 0, 100_000_000) &&
     typeof task.firstTry === "boolean"
+  );
+}
+
+function isLegacyTaskProgress(
+  value: unknown,
+  key: string,
+): value is LegacyTaskProgress {
+  return hasValidTaskProgressBase(value, key);
+}
+
+function isTaskProgress(value: unknown, key: string): value is TaskProgress {
+  if (!hasValidTaskProgressBase(value, key)) return false;
+  const task = value as Partial<TaskProgress>;
+  return (
+    typeof task.solutionRevealed === "boolean" &&
+    (task.completed
+      ? isValidCaseScore(task.scoreAwarded)
+      : task.scoreAwarded === undefined)
   );
 }
 
@@ -317,7 +363,7 @@ function isDecisionNote(value: unknown): value is DecisionNote {
 function isEvidenceNotebookEntry(
   value: unknown,
   key: string,
-  tasks: Record<string, TaskProgress>,
+  tasks: Record<string, { completed: boolean }>,
 ): value is EvidenceNotebookEntry {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const entry = value as Partial<EvidenceNotebookEntry>;
@@ -332,7 +378,7 @@ function isEvidenceNotebookEntry(
 
 function isEvidenceNotebook(
   value: unknown,
-  tasks: Record<string, TaskProgress>,
+  tasks: Record<string, { completed: boolean }>,
 ): value is Record<string, EvidenceNotebookEntry> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const entries = Object.entries(value);
@@ -365,11 +411,36 @@ function hasValidProgressData(value: unknown): value is ProgressData {
   );
 }
 
+function hasValidLegacyProgressData(
+  value: unknown,
+): value is LegacyProgressData {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<LegacyProgressData>;
+  return (
+    typeof candidate.startedAt === "string" &&
+    Number.isFinite(Date.parse(candidate.startedAt)) &&
+    typeof candidate.lastOpenedTaskId === "string" &&
+    Array.isArray(candidate.activityDates) &&
+    candidate.activityDates.every(
+      (date) => typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date),
+    ) &&
+    Boolean(
+      candidate.tasks &&
+      typeof candidate.tasks === "object" &&
+      !Array.isArray(candidate.tasks) &&
+      Object.entries(candidate.tasks).every(([key, task]) =>
+        isLegacyTaskProgress(task, key),
+      ),
+    ) &&
+    isEditorSettings(candidate.settings)
+  );
+}
+
 function isProgressStateV1(value: unknown): value is ProgressStateV1 {
   return (
     Boolean(value && typeof value === "object") &&
     (value as { version?: unknown }).version === 1 &&
-    hasValidProgressData(value)
+    hasValidLegacyProgressData(value)
   );
 }
 
@@ -377,7 +448,7 @@ function isProgressStateV2(value: unknown): value is ProgressStateV2 {
   return (
     Boolean(value && typeof value === "object") &&
     (value as { version?: unknown }).version === 2 &&
-    hasValidProgressData(value) &&
+    hasValidLegacyProgressData(value) &&
     isProgressProfile((value as { profile?: unknown }).profile)
   );
 }
@@ -397,7 +468,7 @@ function isProgressState(value: unknown): value is ProgressState {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const candidate = value as Partial<ProgressState>;
   return (
-    candidate.version === 4 &&
+    candidate.version === 5 &&
     hasValidProgressData(value) &&
     typeof candidate.lastOpenedTaskIdTrusted === "boolean" &&
     isProgressProfile(candidate.profile) &&
@@ -410,7 +481,19 @@ function isProgressStateV3(value: unknown): value is ProgressStateV3 {
   const candidate = value as Partial<ProgressStateV3>;
   return (
     candidate.version === 3 &&
-    hasValidProgressData(value) &&
+    hasValidLegacyProgressData(value) &&
+    isProgressProfile(candidate.profile) &&
+    isEvidenceNotebook(candidate.evidenceByTaskId, candidate.tasks ?? {})
+  );
+}
+
+function isProgressStateV4(value: unknown): value is ProgressStateV4 {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const candidate = value as Partial<ProgressStateV4>;
+  return (
+    candidate.version === 4 &&
+    hasValidLegacyProgressData(value) &&
+    typeof candidate.lastOpenedTaskIdTrusted === "boolean" &&
     isProgressProfile(candidate.profile) &&
     isEvidenceNotebook(candidate.evidenceByTaskId, candidate.tasks ?? {})
   );
@@ -435,6 +518,43 @@ function cloneEvidenceNotebook(
   );
 }
 
+function migrateTaskProgress(task: LegacyTaskProgress): TaskProgress {
+  // v1-v4 never persisted full-solution use or awarded score. Ignore any
+  // unexpected injected fields and derive the only knowable value from hints.
+  const solutionRevealed = false;
+  const migratedScore = calculateCaseScore(task.hintsUsed, solutionRevealed);
+  return {
+    taskId: task.taskId,
+    attempts: task.attempts,
+    completed: task.completed,
+    ...(task.firstCompletedAt
+      ? { firstCompletedAt: task.firstCompletedAt }
+      : {}),
+    ...(task.lastCompletedAt ? { lastCompletedAt: task.lastCompletedAt } : {}),
+    lastQuery: task.lastQuery,
+    hintsUsed: [...task.hintsUsed],
+    solutionRevealed,
+    ...(task.completed
+      ? {
+          scoreAwarded: migratedScore,
+        }
+      : {}),
+    solveTimeSeconds: task.solveTimeSeconds,
+    firstTry: task.firstTry,
+  };
+}
+
+function migrateTasks(
+  tasks: Record<string, LegacyTaskProgress>,
+): Record<string, TaskProgress> {
+  return Object.fromEntries(
+    Object.entries(tasks).map(([taskId, task]) => [
+      taskId,
+      migrateTaskProgress(task),
+    ]),
+  );
+}
+
 /**
  * Converts validated legacy/local records into the current local-only model.
  * Existing learning data is copied verbatim. V1 gains a local profile, while
@@ -451,6 +571,30 @@ export function migrateProgressState(
         id: value.profile.id,
         displayName: profileName.normalizedName,
       },
+      tasks: Object.fromEntries(
+        Object.entries(value.tasks).map(([taskId, task]) => [
+          taskId,
+          { ...task, hintsUsed: [...task.hintsUsed] },
+        ]),
+      ),
+      settings: { ...defaultSettings, ...value.settings },
+      evidenceByTaskId: cloneEvidenceNotebook(value.evidenceByTaskId),
+    };
+  }
+
+  if (isProgressStateV4(value)) {
+    return {
+      version: 5,
+      profile: {
+        id: value.profile.id,
+        displayName: validateProfileName(value.profile.displayName)
+          .normalizedName,
+      },
+      startedAt: value.startedAt,
+      lastOpenedTaskId: value.lastOpenedTaskId,
+      lastOpenedTaskIdTrusted: value.lastOpenedTaskIdTrusted,
+      activityDates: [...value.activityDates],
+      tasks: migrateTasks(value.tasks),
       settings: { ...defaultSettings, ...value.settings },
       evidenceByTaskId: cloneEvidenceNotebook(value.evidenceByTaskId),
     };
@@ -458,7 +602,7 @@ export function migrateProgressState(
 
   if (isProgressStateV3(value)) {
     return {
-      version: 4,
+      version: 5,
       profile: {
         id: value.profile.id,
         displayName: validateProfileName(value.profile.displayName)
@@ -468,7 +612,7 @@ export function migrateProgressState(
       lastOpenedTaskId: value.lastOpenedTaskId,
       lastOpenedTaskIdTrusted: false,
       activityDates: [...value.activityDates],
-      tasks: { ...value.tasks },
+      tasks: migrateTasks(value.tasks),
       settings: { ...defaultSettings, ...value.settings },
       evidenceByTaskId: cloneEvidenceNotebook(value.evidenceByTaskId),
     };
@@ -476,7 +620,7 @@ export function migrateProgressState(
 
   if (isProgressStateV2(value)) {
     return {
-      version: 4,
+      version: 5,
       profile: {
         id: value.profile.id,
         displayName: validateProfileName(value.profile.displayName)
@@ -486,7 +630,7 @@ export function migrateProgressState(
       lastOpenedTaskId: value.lastOpenedTaskId,
       lastOpenedTaskIdTrusted: false,
       activityDates: [...value.activityDates],
-      tasks: { ...value.tasks },
+      tasks: migrateTasks(value.tasks),
       settings: { ...defaultSettings, ...value.settings },
       evidenceByTaskId: {},
     };
@@ -494,7 +638,7 @@ export function migrateProgressState(
 
   if (isProgressStateV1(value)) {
     return {
-      version: 4,
+      version: 5,
       profile: {
         id: globalThis.crypto.randomUUID(),
         displayName: DEFAULT_PROFILE_DISPLAY_NAME,
@@ -503,7 +647,7 @@ export function migrateProgressState(
       lastOpenedTaskId: value.lastOpenedTaskId,
       lastOpenedTaskIdTrusted: false,
       activityDates: [...value.activityDates],
-      tasks: { ...value.tasks },
+      tasks: migrateTasks(value.tasks),
       settings: { ...defaultSettings, ...value.settings },
       evidenceByTaskId: {},
     };
@@ -533,7 +677,8 @@ export async function loadProgress(): Promise<ProgressState> {
     if (
       isProgressStateV1(stored) ||
       isProgressStateV2(stored) ||
-      isProgressStateV3(stored)
+      isProgressStateV3(stored) ||
+      isProgressStateV4(stored)
     ) {
       try {
         await writeStoredState(migrated);
@@ -748,10 +893,18 @@ export function recordAttempt(
   completed: boolean,
   solveTimeSeconds: number,
   now = new Date(),
+  assistanceAtRunStart?: AttemptAssistanceSnapshot,
 ): ProgressState {
   const previous = state.tasks[taskId];
   const attempts = (previous?.attempts ?? 0) + 1;
   const firstCompletion = completed && !previous?.completed;
+  const solutionRevealed = previous?.solutionRevealed ?? false;
+  const scoreAwarded = firstCompletion
+    ? calculateCaseScore(
+        assistanceAtRunStart?.hintsUsed ?? previous?.hintsUsed ?? [],
+        assistanceAtRunStart?.solutionRevealed ?? solutionRevealed,
+      )
+    : previous?.scoreAwarded;
   const task: TaskProgress = {
     taskId,
     attempts,
@@ -762,6 +915,8 @@ export function recordAttempt(
     lastCompletedAt: completed ? now.toISOString() : previous?.lastCompletedAt,
     lastQuery: query,
     hintsUsed: previous?.hintsUsed ?? [],
+    solutionRevealed,
+    ...(scoreAwarded !== undefined ? { scoreAwarded } : {}),
     solveTimeSeconds: completed
       ? solveTimeSeconds
       : (previous?.solveTimeSeconds ?? 0),
@@ -789,6 +944,7 @@ export function recordHint(
     completed: false,
     lastQuery: "",
     hintsUsed: [],
+    solutionRevealed: false,
     solveTimeSeconds: 0,
     firstTry: false,
   };
@@ -803,6 +959,35 @@ export function recordHint(
             new Set([...previous.hintsUsed, hintIndex]),
           ).sort(),
         },
+      },
+    },
+    now,
+  );
+}
+
+export function recordSolutionReveal(
+  state: ProgressState,
+  taskId: string,
+  now = new Date(),
+): ProgressState {
+  const previous = state.tasks[taskId] ?? {
+    taskId,
+    attempts: 0,
+    completed: false,
+    lastQuery: "",
+    hintsUsed: [],
+    solutionRevealed: false,
+    solveTimeSeconds: 0,
+    firstTry: false,
+  };
+  if (previous.completed || previous.solutionRevealed) return state;
+
+  return recordPracticeActivity(
+    {
+      ...state,
+      tasks: {
+        ...state.tasks,
+        [taskId]: { ...previous, solutionRevealed: true },
       },
     },
     now,

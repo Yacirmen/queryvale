@@ -15,6 +15,7 @@ import {
   recordAttempt,
   recordHint,
   recordPracticeActivity,
+  recordSolutionReveal,
   recordVerifiedRun,
   saveProgress,
   saveDecisionNote,
@@ -73,7 +74,7 @@ function createLegacyV1Progress() {
     startedAt: current.startedAt,
     lastOpenedTaskId: current.lastOpenedTaskId,
     activityDates: current.activityDates,
-    tasks: current.tasks,
+    tasks: withoutV5ScoreFields(current.tasks),
     settings: current.settings,
   };
 }
@@ -95,7 +96,7 @@ function createLegacyV2Progress() {
     startedAt: current.startedAt,
     lastOpenedTaskId: current.lastOpenedTaskId,
     activityDates: current.activityDates,
-    tasks: current.tasks,
+    tasks: withoutV5ScoreFields(current.tasks),
     settings: current.settings,
   };
 }
@@ -114,10 +115,58 @@ function createLegacyV3Progress() {
     startedAt: current.startedAt,
     lastOpenedTaskId: "m1-t1",
     activityDates: current.activityDates,
-    tasks: current.tasks,
+    tasks: withoutV5ScoreFields(current.tasks),
     settings: current.settings,
     evidenceByTaskId: current.evidenceByTaskId,
   };
+}
+
+function createLegacyV4Progress() {
+  const withHint = recordHint(createDefaultProgress(), "m1-t1", 0);
+  const current = recordAttempt(
+    withHint,
+    "m1-t1",
+    "SELECT product_name, category FROM products",
+    true,
+    37,
+  );
+  const legacyTasks = withoutV5ScoreFields(current.tasks);
+  return {
+    version: 4 as const,
+    profile: current.profile,
+    startedAt: current.startedAt,
+    lastOpenedTaskId: current.lastOpenedTaskId,
+    lastOpenedTaskIdTrusted: true,
+    activityDates: current.activityDates,
+    tasks: legacyTasks,
+    settings: current.settings,
+    evidenceByTaskId: current.evidenceByTaskId,
+  };
+}
+
+function withoutV5ScoreFields(
+  tasks: ReturnType<typeof createDefaultProgress>["tasks"],
+) {
+  return Object.fromEntries(
+    Object.entries(tasks).map(([taskId, task]) => [
+      taskId,
+      {
+        taskId: task.taskId,
+        attempts: task.attempts,
+        completed: task.completed,
+        ...(task.firstCompletedAt
+          ? { firstCompletedAt: task.firstCompletedAt }
+          : {}),
+        ...(task.lastCompletedAt
+          ? { lastCompletedAt: task.lastCompletedAt }
+          : {}),
+        lastQuery: task.lastQuery,
+        hintsUsed: [...task.hintsUsed],
+        solveTimeSeconds: task.solveTimeSeconds,
+        firstTry: task.firstTry,
+      },
+    ]),
+  );
 }
 
 function createFirstTaskSnapshot(query = "SELECT product_name FROM products") {
@@ -154,7 +203,7 @@ describe("progressStore", () => {
     );
     await saveProgress(state);
     const restored = await loadProgress();
-    expect(restored.version).toBe(4);
+    expect(restored.version).toBe(5);
     expect(restored.lastOpenedTaskIdTrusted).toBe(true);
     expect(restored.profile.id).toBe(state.profile.id);
     expect(restored.profile.displayName).toBe(DEFAULT_PROFILE_DISPLAY_NAME);
@@ -169,7 +218,7 @@ describe("progressStore", () => {
     expect(importProgress(exportProgress(state)).profile.id).toBe(
       state.profile.id,
     );
-    expect(() => importProgress('{"version":4}')).toThrow(/geçerli/);
+    expect(() => importProgress('{"version":5}')).toThrow(/geçerli/);
     expect(() =>
       importProgress(
         JSON.stringify({
@@ -178,6 +227,7 @@ describe("progressStore", () => {
         }),
       ),
     ).toThrow(/geçerli/);
+
     expect(() =>
       importProgress(
         JSON.stringify({
@@ -200,7 +250,7 @@ describe("progressStore", () => {
     const legacy = createLegacyV1Progress();
     const migrated = importProgress(JSON.stringify(legacy));
 
-    expect(migrated.version).toBe(4);
+    expect(migrated.version).toBe(5);
     expect(migrated.lastOpenedTaskIdTrusted).toBe(false);
     expect(migrated.profile.id).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu,
@@ -209,13 +259,17 @@ describe("progressStore", () => {
     expect(migrated.startedAt).toBe(legacy.startedAt);
     expect(migrated.lastOpenedTaskId).toBe(legacy.lastOpenedTaskId);
     expect(migrated.activityDates).toEqual(legacy.activityDates);
-    expect(migrated.tasks).toEqual(legacy.tasks);
+    expect(migrated.tasks["m1-t1"]).toMatchObject({
+      completed: true,
+      solutionRevealed: false,
+      scoreAwarded: 10,
+    });
     expect(migrated.settings).toEqual(legacy.settings);
     expect(migrated.evidenceByTaskId).toEqual({});
-    expect(JSON.parse(exportProgress(migrated))).toMatchObject({ version: 4 });
+    expect(JSON.parse(exportProgress(migrated))).toMatchObject({ version: 5 });
   });
 
-  it("loads and persists an IndexedDB v1 record as v4", async () => {
+  it("loads and persists an IndexedDB v1 record as v5", async () => {
     const legacy = createLegacyV1Progress();
     await putRawProgress(legacy);
 
@@ -226,14 +280,18 @@ describe("progressStore", () => {
       tasks?: unknown;
     };
 
-    expect(loaded.version).toBe(4);
+    expect(loaded.version).toBe(5);
     expect(loaded.lastOpenedTaskIdTrusted).toBe(false);
-    expect(loaded.tasks).toEqual(legacy.tasks);
+    expect(loaded.tasks["m1-t1"]).toMatchObject({
+      completed: true,
+      solutionRevealed: false,
+      scoreAwarded: 10,
+    });
     expect(loaded.evidenceByTaskId).toEqual({});
-    expect(persisted.version).toBe(4);
+    expect(persisted.version).toBe(5);
     expect(persisted.profile?.id).toBe(loaded.profile.id);
     expect(persisted.profile?.displayName).toBe(DEFAULT_PROFILE_DISPLAY_NAME);
-    expect(persisted.tasks).toEqual(legacy.tasks);
+    expect(persisted.tasks).toEqual(loaded.tasks);
     expect((await loadProgress()).profile.id).toBe(loaded.profile.id);
   });
 
@@ -249,14 +307,18 @@ describe("progressStore", () => {
       evidenceByTaskId?: unknown;
     };
 
-    expect(loaded.version).toBe(4);
+    expect(loaded.version).toBe(5);
     expect(loaded.lastOpenedTaskIdTrusted).toBe(false);
     expect(loaded.profile).toEqual(legacy.profile);
-    expect(loaded.tasks).toEqual(legacy.tasks);
+    expect(loaded.tasks["m1-t1"]).toMatchObject({
+      completed: true,
+      solutionRevealed: false,
+      scoreAwarded: 10,
+    });
     expect(loaded.evidenceByTaskId).toEqual({});
-    expect(persisted.version).toBe(4);
+    expect(persisted.version).toBe(5);
     expect(persisted.profile).toEqual(legacy.profile);
-    expect(persisted.tasks).toEqual(legacy.tasks);
+    expect(persisted.tasks).toEqual(loaded.tasks);
     expect(persisted.evidenceByTaskId).toEqual({});
   });
 
@@ -272,24 +334,73 @@ describe("progressStore", () => {
     };
 
     expect(loaded).toMatchObject({
-      version: 4,
+      version: 5,
       lastOpenedTaskId: "m1-t1",
       lastOpenedTaskIdTrusted: false,
     });
-    expect(loaded.tasks).toEqual(legacy.tasks);
+    expect(loaded.tasks["m1-t3"]).toMatchObject({
+      completed: false,
+      solutionRevealed: false,
+    });
+    expect(loaded.tasks["m1-t3"].scoreAwarded).toBeUndefined();
     expect(persisted).toMatchObject({
-      version: 4,
+      version: 5,
       lastOpenedTaskIdTrusted: false,
-      tasks: legacy.tasks,
+      tasks: {
+        "m1-t3": {
+          taskId: "m1-t3",
+          attempts: 1,
+          completed: false,
+          solutionRevealed: false,
+        },
+      },
+    });
+  });
+
+  it("migrates v4 cases to locked scores without inventing solution use", async () => {
+    const legacy = createLegacyV4Progress();
+    const legacyWithInjectedV5Fields = {
+      ...legacy,
+      tasks: {
+        ...legacy.tasks,
+        "m1-t1": {
+          ...legacy.tasks["m1-t1"],
+          solutionRevealed: true,
+          scoreAwarded: 10,
+        },
+      },
+    };
+    await putRawProgress(legacyWithInjectedV5Fields);
+
+    const loaded = await loadProgress();
+    const persisted = (await readRawProgress()) as {
+      version?: number;
+      tasks?: Record<
+        string,
+        { solutionRevealed?: boolean; scoreAwarded?: number }
+      >;
+    };
+
+    expect(loaded.version).toBe(5);
+    expect(loaded.tasks["m1-t1"]).toMatchObject({
+      completed: true,
+      hintsUsed: [0],
+      solutionRevealed: false,
+      scoreAwarded: 7,
+    });
+    expect(persisted.version).toBe(5);
+    expect(persisted.tasks?.["m1-t1"]).toMatchObject({
+      solutionRevealed: false,
+      scoreAwarded: 7,
     });
   });
 
   it("preserves an incompatible stored record instead of overwriting it", async () => {
-    const futureRecord = { version: 5, marker: "future-progress" };
+    const futureRecord = { version: 6, marker: "future-progress" };
     await putRawProgress(futureRecord);
 
     const fallback = await loadProgress();
-    expect(fallback.version).toBe(4);
+    expect(fallback.version).toBe(5);
     expect(getProgressPersistenceIssue()).toBe("incompatible");
     await expect(saveProgress(fallback)).rejects.toThrow(/korunuyor/);
     expect(await readRawProgress()).toEqual(futureRecord);
@@ -519,6 +630,126 @@ describe("progressStore", () => {
       hintsUsed: [0, 1],
     });
     expect(calculateStreak(nextDay.activityDates, secondDay)).toBe(2);
+  });
+
+  it("locks the analysis score on the first correct run", () => {
+    const firstHint = recordHint(createDefaultProgress(), "m1-t1", 0);
+    const completed = recordAttempt(
+      firstHint,
+      "m1-t1",
+      "SELECT product_name FROM products",
+      true,
+      18,
+    );
+    expect(completed.tasks["m1-t1"].scoreAwarded).toBe(7);
+
+    const reviewedHint = recordHint(completed, "m1-t1", 1);
+    const reviewedSolution = recordSolutionReveal(reviewedHint, "m1-t1");
+    const repeated = recordAttempt(
+      reviewedSolution,
+      "m1-t1",
+      "SELECT product_name FROM products ORDER BY product_name",
+      true,
+      8,
+    );
+
+    expect(repeated.tasks["m1-t1"]).toMatchObject({
+      completed: true,
+      hintsUsed: [0, 1],
+      solutionRevealed: false,
+      scoreAwarded: 7,
+    });
+  });
+
+  it("awards zero after a requested full solution", () => {
+    const solutionAssisted = recordSolutionReveal(
+      createDefaultProgress(),
+      "m1-t1",
+    );
+    const completed = recordAttempt(
+      solutionAssisted,
+      "m1-t1",
+      "SELECT product_name FROM products",
+      true,
+      18,
+    );
+
+    expect(completed.tasks["m1-t1"]).toMatchObject({
+      solutionRevealed: true,
+      scoreAwarded: 0,
+    });
+  });
+
+  it("uses the assistance snapshot from query submission time", () => {
+    const hintOpenedWhileRunning = recordHint(
+      createDefaultProgress(),
+      "m1-t1",
+      0,
+    );
+    const completed = recordAttempt(
+      hintOpenedWhileRunning,
+      "m1-t1",
+      "SELECT product_name FROM products",
+      true,
+      18,
+      new Date("2026-08-01T10:00:00.000Z"),
+      { hintsUsed: [], solutionRevealed: false },
+    );
+
+    expect(completed.tasks["m1-t1"]).toMatchObject({
+      hintsUsed: [0],
+      scoreAwarded: 10,
+    });
+  });
+
+  it("rejects invalid v5 score fields on import", () => {
+    const completed = recordAttempt(
+      createDefaultProgress(),
+      "m1-t1",
+      "SELECT product_name FROM products",
+      true,
+      18,
+    );
+    expect(() =>
+      importProgress(
+        JSON.stringify({
+          ...completed,
+          tasks: {
+            ...completed.tasks,
+            "m1-t1": { ...completed.tasks["m1-t1"], scoreAwarded: 11 },
+          },
+        }),
+      ),
+    ).toThrow(/geçerli/);
+
+    expect(() =>
+      importProgress(
+        JSON.stringify({
+          ...completed,
+          tasks: {
+            ...completed.tasks,
+            "m1-t1": { ...completed.tasks["m1-t1"], scoreAwarded: 9 },
+          },
+        }),
+      ),
+    ).toThrow(/geçerli/);
+
+    expect(() =>
+      importProgress(
+        JSON.stringify({
+          ...completed,
+          tasks: {
+            ...completed.tasks,
+            "m1-t1": {
+              ...completed.tasks["m1-t1"],
+              completed: false,
+              scoreAwarded: 10,
+            },
+          },
+          evidenceByTaskId: {},
+        }),
+      ),
+    ).toThrow(/geçerli/);
   });
 
   it("calculates a continuous activity streak", () => {

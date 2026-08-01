@@ -69,7 +69,7 @@ Zengin içerik uzun bir ders metni olarak aynı anda gösterilmez:
 5. **Başarıdan sonra:** çözüm adımları, neden çalıştığı, edge case'ler ve iş etkisi.
 6. **Transfer kontrolü:** kullanıcı açtığında görünen yeni durum sorusu ve düşünme yönü.
 
-Tam çözüm ilk üç ipucunun, hata koçluğunun veya başarı debrief'inin içine saklanmaz; ayrı ve açıkça adlandırılmış son yardım adımıdır. Açılması için başarısız deneme şartı veya ceza yoktur, editörü otomatik değiştirmez ve görevi tamamlamaz. “Geçerli çözümlerden biri” dili, sonuç odaklı değerlendirmenin alternatif doğru sorguları kabul ettiğini korur.
+Tam çözüm ilk üç ipucunun, hata koçluğunun veya başarı debrief'inin içine saklanmaz; ayrı ve açıkça adlandırılmış son yardım adımıdır. Açılması için başarısız deneme şartı yoktur, editörü otomatik değiştirmez ve görevi tamamlamaz. İlk doğru değerlendirmeden önce açıldığında vaka puanını 0 yapacağı ikinci bir açık onayla anlatılır; tamamlanma, kanıt ve rota erişimi etkilenmez. “Geçerli çözümlerden biri” dili, sonuç odaklı değerlendirmenin alternatif doğru sorguları kabul ettiğini korur.
 
 ## Senaryo standardı
 

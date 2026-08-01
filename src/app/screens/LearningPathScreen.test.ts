@@ -21,6 +21,7 @@ function taskProgress(
     completed: false,
     lastQuery: "",
     hintsUsed: [],
+    solutionRevealed: false,
     solveTimeSeconds: 0,
     firstTry: false,
     ...overrides,
@@ -100,6 +101,7 @@ describe("LearningPathScreen career chapters", () => {
     )!;
     const progress = {
       ...createDefaultProgress(),
+      lastOpenedTaskId: completedBusinessTask.id,
       tasks: {
         [attemptedFoundationTask.id]: taskProgress(attemptedFoundationTask.id, {
           attempts: 3,
@@ -108,6 +110,8 @@ describe("LearningPathScreen career chapters", () => {
         [completedBusinessTask.id]: taskProgress(completedBusinessTask.id, {
           attempts: 1,
           completed: true,
+          hintsUsed: [0],
+          scoreAwarded: 7,
         }),
       },
     };
@@ -151,5 +155,8 @@ describe("LearningPathScreen career chapters", () => {
     expect(
       screen.getAllByText("İstediğinde açık", { exact: true }),
     ).toHaveLength(2);
+    expect(screen.getByText("7/400")).toBeVisible();
+    expect(screen.getByText("7/40 analiz puanı")).toBeVisible();
+    expect(screen.getByText("7/10 puan")).toBeVisible();
   });
 });

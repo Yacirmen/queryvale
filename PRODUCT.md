@@ -31,7 +31,8 @@
 8. Başarısız denemede değerlendirme katmanına özel kontrol adımları ve sırayla açılan ipuçları sunulur.
 9. Doğru değerlendirmede sınırlı bir yerel kanıt snapshot’ı oluşturulur; kullanıcı çıktıyı görmeden otomatik olarak sonraki vakaya geçirilmez.
 10. Kullanıcı isterse bulgu, öneri ve çekincesini karar notu olarak yazar; not otomatik puanlanmaz.
-11. Sorgu, deneme, ilerleme ve kanıt kaydı v4 yerel çalışma alanına yazılır.
+11. İlk doğru sorguda bağımsız çözüm düzeyini gösteren Analiz puanı kilitlenir: 10 başlangıç, benzersiz ipucu başına −3, ilk doğrulamadan önce tam çözüm açıldıysa 0.
+12. Sorgu, deneme, ilerleme, puan ve kanıt kaydı v5 yerel çalışma alanına yazılır.
 
 ## Çalışma alanı gereksinimleri
 
@@ -58,7 +59,7 @@
 5. `required-concept-missing`: sonuç doğru, hedeflenen SQL kavramı yok.
 6. `correct`: sonuç ve öğrenme hedefi doğru.
 
-Geri bildirim kullanıcıya sonraki kontrol edilebilir eylemi söylemelidir. Tam çözüm varsayılan olarak editöre yerleştirilmez; üç hazırlık adımından sonra açık bir eylemle ve puan/ilerleme cezası olmadan gösterilir.
+Geri bildirim kullanıcıya sonraki kontrol edilebilir eylemi söylemelidir. Tam çözüm varsayılan olarak editöre yerleştirilmez; üç hazırlık adımından sonra açık bir eylem ve puan etkisini anlatan ikinci onayla gösterilir. Çözüm ilk doğru değerlendirmeden önce açılırsa vaka puanı 0 olur; vaka tamamlanması, kanıt ve rota erişimi etkilenmez. Tamamlanmış bir vakada sonradan yardım incelemek kilitli puanı değiştirmez.
 
 ## Öğrenme yolu
 
@@ -87,7 +88,7 @@ Bu 10 modül kariyer rotasında **Temeli kur**, **İş sorusunu çöz**, **Örü
 - takvim günü bazlı ölçülü çalışma serisi
 - düzenlenebilir cihaz profili adı ve son tamamlanan vakalar
 
-Bu metrikler cezalandırıcı skor değildir; kullanıcının sonraki çalışmasını seçmesine yardım eder. İlk deneme, hız, ipucu sayısı, seri veya tamamlanma tek başına mesleki ustalık ya da işe hazır olma kanıtı değildir. Kanıt Defteri de sertifika değil, doğrulanmış çalışmayı ve kullanıcının kendi yorumunu geri çağıran yerel çalışma kaydıdır.
+Bu metrikler cezalandırıcı sıralama değildir; kullanıcının sonraki çalışmasını seçmesine yardım eder. Analiz puanı ilk doğru sonuçtaki yardım düzeyini görünür kılar fakat ilerleme yüzdesi veya ustalık yerine geçmez. İlk deneme, hız, ipucu sayısı, seri, puan veya tamamlanma tek başına mesleki ustalık ya da işe hazır olma kanıtı değildir. Kanıt Defteri de sertifika değil, doğrulanmış çalışmayı ve kullanıcının kendi yorumunu geri çağıran yerel çalışma kaydıdır.
 Profil adı hesap veya kimlik doğrulama değildir; yalnızca o tarayıcıdaki ilerlemeyi kişiselleştirir.
 
 ## Kanıt sözleşmesi
@@ -95,7 +96,7 @@ Profil adı hesap veya kimlik doğrulama değildir; yalnızca o tarayıcıdaki i
 - Kanıt kaydı yalnız evaluator `correct` sonucunu verdiğinde oluşturulur.
 - Snapshot sorguyu, sınırlı kolon listesini, en fazla 10 önizleme satırını ve toplam satır sayısı/kesilme bilgisini taşır; veritabanı dökümü değildir.
 - Karar notu bulgu ve öneriyi, isteğe bağlı olarak da çekinceyi saklar. Not kullanıcının düşünme alanıdır; doğruluk veya ustalık puanı üretmez.
-- Kanıtlar v4 yerel çalışma alanının parçasıdır ve doğrulanmış içe/dışa aktarma akışına dahildir.
+- Kanıtlar ve ilk başarıda kilitlenen puanlar v5 yerel çalışma alanının parçasıdır ve doğrulanmış içe/dışa aktarma akışına dahildir.
 - Tek bir doğru çalıştırma ya da yazılmış not, kavramın kalıcı öğrenildiğini veya bir mesleki yeterliliği kanıtladığı iddiasıyla sunulmaz.
 
 ## Tasarım sistemi

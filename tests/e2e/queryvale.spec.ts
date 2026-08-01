@@ -247,6 +247,22 @@ test("landing, onboarding and first real SQL task", async ({
   });
   await expect(solutionTrigger).toHaveAttribute("aria-expanded", "false");
   await solutionTrigger.click();
+  const solutionConfirmation = page.getByRole("group", {
+    name: "Tam çözümü açmak istiyor musun?",
+  });
+  await expect(
+    solutionConfirmation.getByRole("button", { name: "Kendim deneyeyim" }),
+  ).toBeFocused();
+  await expect(solutionConfirmation).toContainText(
+    "Bu vaka 0 analiz puanı olur",
+  );
+  await solutionConfirmation
+    .getByRole("button", { name: "0 puanla çözümü göster" })
+    .click();
+  const hideSolutionTrigger = page.getByRole("button", {
+    name: /Çalışan çözümü gizle/i,
+  });
+  await expect(hideSolutionTrigger).toHaveAttribute("aria-expanded", "true");
   const solutionRegion = page.getByRole("region", {
     name: "Çalışan çözüm örneği",
   });
@@ -343,6 +359,7 @@ test("landing, onboarding and first real SQL task", async ({
   });
   await expect(completionPanel).toBeVisible();
   await expect(completionPanel.getByText("Kanıt doğrulandı")).toBeVisible();
+  await expect(completionPanel.getByText("0 analiz puanı")).toBeVisible();
   const finding =
     "Katalog çıktısında altı ürünün dört kategoriye dağıldığı görülüyor.";
   const recommendation =
@@ -381,6 +398,17 @@ test("landing, onboarding and first real SQL task", async ({
   await expect(page).toHaveURL(/#\/lab\/m1-t2$/);
 
   await page.getByRole("button", { name: "Profilim", exact: true }).click();
+  const scoreCard = page
+    .getByText("Analiz puanı", { exact: true })
+    .locator("..");
+  await expect(scoreCard.locator("strong")).toHaveText("0");
+  await expect(scoreCard).toContainText("1 çözümle");
+  await page.reload();
+  const restoredScoreCard = page
+    .getByText("Analiz puanı", { exact: true })
+    .locator("..");
+  await expect(restoredScoreCard.locator("strong")).toHaveText("0");
+  await expect(restoredScoreCard).toContainText("1 çözümle");
   const evidenceNotebook = page.getByRole("region", {
     name: "Kanıt Defteri",
   });

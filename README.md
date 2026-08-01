@@ -21,6 +21,7 @@ Queryvale, SQL sözdizimini ezberleten bir kurs değil; gerçek iş sorularını
 - İlk vaka içinde kapatılabilir 90 saniyelik başlangıç rehberi
 - Yalnız doğru değerlendirilen çalışmadan üretilen sınırlı, yerel kanıt snapshot’ı
 - Bulgu, öneri ve isteğe bağlı çekinceyi saklayan karar notu ile Kanıt Defteri
+- İlk doğru sorguda kilitlenen 10/7/4/1 Analiz puanı; tam çözüm desteğinde 0, tamamlanma ve rota erişimi yine açık
 - Şema, örnek veri, SQL editörü ve sonuçları bir araya getiren çalışma alanı
 - Hesapsız ve backend’siz, IndexedDB tabanlı yerel ilerleme
 - Yazarken otomatik kaydedilen SQL taslakları; `⌘/Ctrl+S` ile anında kayıt
@@ -121,7 +122,7 @@ Alanların tam sözleşmesi, örnek görev ve editoryal standartlar [CONTENT_GUI
 
 - Her tarayıcı kendi adlandırılabilir öğrenen profilini ve ilerlemesini saklar; cihazlar arası canlı senkronizasyon yoktur.
 - Çalışan rota bugün SQL ağırlıklı 10 iç modül ve 40 vakadır; her modül dörder doğrulanmış vaka taşır. Kullanıcı arayüzünde bu ara katman “SQL konusu” olarak görünür. Python, elektronik tablo ve BI araçları henüz ürün içinde çalıştırılmaz; ileride aynı kanıt döngüsüne bağlanan köprüler olarak değerlendirilecektir.
-- Tamamlanma, deneme, süre, ipucu ve çalışma serisi pratik bağlamıdır; tek başına mesleki ustalık veya işe hazır olma iddiası değildir.
+- Tamamlanma, Analiz puanı, deneme, süre, ipucu ve çalışma serisi pratik bağlamıdır; tek başına mesleki ustalık veya işe hazır olma iddiası değildir. Puan rekabet veya sertifika değil, ilk doğru sonuçtaki yardım düzeyinin yerel kaydıdır.
 - Taşınabilir Mac paketi macOS 11 veya yenisinde, Intel ve Apple Silicon işlemcilerde çalışır. Sabit `127.0.0.1:41739` origin'ini kullanır; Node veya internet gerektirmez ve ilerlemeyi aynı tarayıcı origin'inde korur.
 - Canlı web sürümünün tek kanonik adresi `https://yacirmen.github.io/queryvale/` ve tek yayın hattı GitHub Pages'tir.
 - Gizli bir backend bulunmadığı için görev tanımları ve beklenen sonuçlar istemci paketinde incelenebilir.

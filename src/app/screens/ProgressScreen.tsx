@@ -5,7 +5,6 @@ import {
   CalendarDays,
   Check,
   CheckCircle2,
-  Clock3,
   Edit3,
   Flame,
   Lightbulb,
@@ -24,6 +23,10 @@ import {
   type ProgressState,
   validateProfileName,
 } from "../../features/progress/progressStore";
+import {
+  getAwardedCaseScore,
+  summarizeScores,
+} from "../../features/progress/scoring";
 import type { Navigate } from "../appTypes";
 
 interface ProgressScreenProps {
@@ -33,12 +36,6 @@ interface ProgressScreenProps {
   profileName: string;
   onProfileNameChange: (name: string) => void;
   onNavigate: Navigate;
-}
-
-function formatDuration(seconds: number): string {
-  if (!seconds) return "—";
-  if (seconds < 60) return `${seconds} sn`;
-  return `${Math.round(seconds / 60)} dk`;
 }
 
 function formatDate(value: string): string {
@@ -173,15 +170,9 @@ export function ProgressScreen({
       (total, task) => total + task.attempts,
       0,
     );
-    const averageTime = completed.length
-      ? Math.round(
-          completed.reduce((total, task) => total + task.solveTimeSeconds, 0) /
-            completed.length,
-        )
-      : 0;
-    const hintsUsed = taskProgress.reduce(
-      (total, task) => total + task.hintsUsed.length,
-      0,
+    const score = summarizeScores(
+      tasks.map((task) => task.id),
+      progress.tasks,
     );
     const verifiedEvidence = Object.values(evidenceByTaskId);
     const decisionNotes = verifiedEvidence.filter((evidence) =>
@@ -191,8 +182,7 @@ export function ProgressScreen({
     return {
       completed: completed.length,
       attempts,
-      averageTime,
-      hintsUsed,
+      score,
       verifiedEvidence: verifiedEvidence.length,
       decisionNotes,
       streak: calculateStreak(progress.activityDates),
@@ -251,6 +241,10 @@ export function ProgressScreen({
       const rate = module.tasks.length
         ? Math.round((completed / module.tasks.length) * 100)
         : 0;
+      const score = summarizeScores(
+        module.tasks.map((task) => task.id),
+        progress.tasks,
+      );
       const isComplete = rate === 100;
       const state = isComplete
         ? "Tamamlandı"
@@ -269,6 +263,7 @@ export function ProgressScreen({
         completed,
         total: module.tasks.length,
         rate,
+        score,
         next: isComplete ? module.tasks[0] : suggested,
         state,
         action:
@@ -300,6 +295,7 @@ export function ProgressScreen({
               moduleTitle: curriculumModule?.title ?? "Rota",
               completedAt: taskState.lastCompletedAt,
               attempts: taskState.attempts,
+              score: getAwardedCaseScore(taskState),
             },
           ];
         })
@@ -580,10 +576,14 @@ export function ProgressScreen({
             <small>{metrics.verifiedEvidence} doğrulanmış kanıtta</small>
           </article>
           <article>
-            <Clock3 size={16} />
-            <span>Ortalama çözüm</span>
-            <strong>{formatDuration(metrics.averageTime)}</strong>
-            <small>vaka başına</small>
+            <Sparkles size={16} />
+            <span>Analiz puanı</span>
+            <strong>{metrics.score.earned}</strong>
+            <small>
+              {metrics.score.possible} mümkün · {metrics.score.independent}
+              yardımsız · {metrics.score.hintAssisted} ipucuyla ·{" "}
+              {metrics.score.solutionAssisted} çözümle
+            </small>
           </article>
           <article>
             <Flame size={16} />
@@ -814,7 +814,8 @@ export function ProgressScreen({
                           />
                         </div>
                         <span>
-                          {module.completed}/{module.total} vaka
+                          {module.completed}/{module.total} vaka ·{" "}
+                          {module.score.earned}/{module.score.possible} puan
                         </span>
                       </div>
                     </div>
@@ -879,6 +880,10 @@ export function ProgressScreen({
                       </span>
                       <span className="recent-progress-meta">
                         {formatDate(item.completedAt)} · {item.attempts} deneme
+                        ·{" "}
+                        {item.score > 0
+                          ? "+" + item.score + " puan"
+                          : "0 puan · tam çözümle"}
                       </span>
                       <ArrowRight size={14} aria-hidden="true" />
                     </button>
@@ -1054,11 +1059,10 @@ export function ProgressScreen({
               >
                 Yedekleme ayarları <ArrowRight size={14} />
               </button>
-              {metrics.hintsUsed > 0 && (
-                <small>
-                  {metrics.hintsUsed} ipucu açıldı; bu bir ceza puanı değil.
-                </small>
-              )}
+              <small>
+                Analiz puanı ilk doğru çalıştırmada kilitlenir; yardım düzeyini
+                gösterir, vaka tamamlanmasını veya rota erişimini engellemez.
+              </small>
             </section>
           </aside>
         </div>

@@ -440,6 +440,7 @@ describe("QueryvaleApp", () => {
     const completion = await screen.findByRole("region", {
       name: /Katalog görünümü hazır/i,
     });
+    expect(within(completion).getByText("+7 analiz puanı")).toBeVisible();
     expect(
       within(completion).getByText(tasks[0].explanation),
     ).not.toBeVisible();
@@ -594,6 +595,7 @@ describe("QueryvaleApp", () => {
       name: /Katalog görünümü hazır/i,
     });
     expect(within(completion).getByText("Kanıt doğrulandı")).toBeVisible();
+    expect(within(completion).getByText("+10 analiz puanı")).toBeVisible();
     await waitFor(async () => {
       const restored = await loadProgress();
       expect(restored.evidenceByTaskId["m1-t1"]).toMatchObject({
@@ -610,6 +612,7 @@ describe("QueryvaleApp", () => {
         restored.evidenceByTaskId["m1-t1"].verifiedRun.previewRows[0],
       ).toEqual(["Desk Lamp", "Home"]);
       expect(restored.evidenceByTaskId["m1-t1"].note).toBeUndefined();
+      expect(restored.tasks["m1-t1"].scoreAwarded).toBe(10);
     });
 
     await user.click(within(completion).getByText("Karar notu ekle"));
@@ -651,6 +654,17 @@ describe("QueryvaleApp", () => {
         screen.getByRole("navigation", { name: "Çalışma alanları" }),
       ).getByRole("button", { name: /^Profilim$/ }),
     );
+    const scoreCard = screen.getByText("Analiz puanı").closest("article");
+    expect(scoreCard).not.toBeNull();
+    expect(scoreCard).toHaveTextContent(
+      new RegExp(`10.*${tasks.length * 10} mümkün.*1.*yardımsız`),
+    );
+    const firstModuleRow = screen
+      .getByRole("heading", { name: modules[0].title })
+      .closest("article");
+    expect(firstModuleRow).not.toBeNull();
+    expect(firstModuleRow).toHaveTextContent("10/40 puan");
+    expect(screen.getByText(/\+10 puan/)).toBeVisible();
     const notebook = await screen.findByRole("region", {
       name: "Kanıt Defteri",
     });
@@ -967,6 +981,7 @@ describe("QueryvaleApp", () => {
         attempts: 1,
         completed: true,
         hintsUsed: [0],
+        scoreAwarded: 10,
         lastQuery: "",
       });
     });
@@ -1100,7 +1115,7 @@ describe("QueryvaleApp", () => {
     expect(resultsView).toHaveAttribute("aria-selected", "true");
   });
 
-  it("reveals a working solution only on request without changing the editor or completion", async () => {
+  it("confirms a full solution, preserves the editor and locks completion at zero points", async () => {
     window.location.hash = "#/lab/m1-t1";
     const user = userEvent.setup();
     const writeClipboard = vi.spyOn(navigator.clipboard, "writeText");
@@ -1128,10 +1143,50 @@ describe("QueryvaleApp", () => {
     expect(editor).toHaveValue("");
 
     await user.click(showSolution);
-    expect(showSolution).toHaveFocus();
+    const solutionConfirmation = screen.getByRole("group", {
+      name: "Tam çözümü açmak istiyor musun?",
+    });
+    await waitFor(() =>
+      expect(
+        within(solutionConfirmation).getByRole("button", {
+          name: "Kendim deneyeyim",
+        }),
+      ).toHaveFocus(),
+    );
+    expect(solutionConfirmation).toHaveTextContent(
+      "Bu vaka 0 analiz puanı olur",
+    );
+    expect(showSolution).toHaveAttribute("aria-expanded", "false");
+
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(showSolution).toHaveFocus());
+    expect(
+      screen.queryByRole("group", {
+        name: "Tam çözümü açmak istiyor musun?",
+      }),
+    ).not.toBeInTheDocument();
+    await waitFor(async () => {
+      const restored = await loadProgress();
+      expect(restored.tasks["m1-t1"]).toMatchObject({
+        completed: false,
+        solutionRevealed: false,
+      });
+      expect(restored.tasks["m1-t1"].scoreAwarded).toBeUndefined();
+    });
+
+    await user.click(showSolution);
+    const confirmedSolution = screen.getByRole("group", {
+      name: "Tam çözümü açmak istiyor musun?",
+    });
+    await user.click(
+      within(confirmedSolution).getByRole("button", {
+        name: "0 puanla çözümü göster",
+      }),
+    );
+    await waitFor(() => expect(showSolution).toHaveFocus());
     expect(showSolution).toHaveAttribute("aria-expanded", "true");
     expect(
-      screen.getByText("Tam çözüm açıldı; editördeki sorgun değiştirilmedi."),
+      screen.getByText(/Tam çözüm açıldı.*0 analiz puanı/i),
     ).toBeInTheDocument();
     const solutionRegion = screen.getByRole("region", {
       name: "Çalışan çözüm örneği",
@@ -1163,12 +1218,23 @@ describe("QueryvaleApp", () => {
     await waitFor(() => expect(editor).toHaveFocus());
     expect(editor).toHaveValue("");
 
+    fireEvent.change(editor, { target: { value: tasks[0].solutionSql } });
+    await user.click(screen.getByRole("button", { name: "Çalıştır" }));
+    const assistedCompletion = await screen.findByRole("region", {
+      name: /Katalog görünümü hazır/i,
+    });
+    expect(
+      within(assistedCompletion).getByText("0 analiz puanı"),
+    ).toBeVisible();
+
     await waitFor(async () => {
       const restored = await loadProgress();
       expect(restored.tasks["m1-t1"]).toMatchObject({
-        attempts: 0,
-        completed: false,
+        attempts: 1,
+        completed: true,
         hintsUsed: [0, 1, 2],
+        solutionRevealed: true,
+        scoreAwarded: 0,
       });
     });
   });
@@ -1600,6 +1666,8 @@ describe("QueryvaleApp", () => {
           lastCompletedAt: new Date().toISOString(),
           lastQuery: "SELECT 1",
           hintsUsed: [],
+          solutionRevealed: false,
+          scoreAwarded: 10,
           solveTimeSeconds: 1,
           firstTry: true,
         },

@@ -10,6 +10,7 @@ import {
   Play,
   RotateCcw,
   Route,
+  Target,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
@@ -18,6 +19,10 @@ import {
 } from "../../content";
 import type { CurriculumModule, LessonTask } from "../../types/lesson";
 import type { ProgressState } from "../../features/progress/progressStore";
+import {
+  getAwardedCaseScore,
+  summarizeScores,
+} from "../../features/progress/scoring";
 import type { Navigate } from "../appTypes";
 
 interface LearningPathScreenProps {
@@ -196,6 +201,14 @@ export function LearningPathScreen({
       total + (progress.tasks[task.id]?.completed ? 0 : task.estimatedMinutes),
     0,
   );
+  const routeScore = useMemo(
+    () =>
+      summarizeScores(
+        tasks.map((task) => task.id),
+        progress.tasks,
+      ),
+    [progress.tasks, tasks],
+  );
   const allExpanded = modules.every((module) => expandedModules.has(module.id));
   const focusReason =
     focusItem?.status === "retry"
@@ -272,6 +285,13 @@ export function LearningPathScreen({
                 vaka tamamlandı
                 <span>{remainingMinutes} dk kaldı</span>
               </p>
+              <div className="path-score-line">
+                <Target size={13} aria-hidden="true" />
+                <strong>
+                  {routeScore.earned}/{routeScore.possible}
+                </strong>
+                <span>analiz puanı</span>
+              </div>
             </article>
 
             <article className="path-focus-card">
@@ -497,6 +517,10 @@ export function LearningPathScreen({
                     const moduleRate = module.tasks.length
                       ? Math.round((completedTasks / module.tasks.length) * 100)
                       : 0;
+                    const moduleScore = summarizeScores(
+                      module.tasks.map((task) => task.id),
+                      progress.tasks,
+                    );
                     const isExpanded = expandedModules.has(module.id);
                     const isComplete = completedTasks === module.tasks.length;
                     const isCurrent = moduleItems.some(
@@ -584,6 +608,10 @@ export function LearningPathScreen({
                                   ? "Tüm adımlar hazır"
                                   : `${module.tasks.length - completedTasks} vaka kaldı`)}
                             </small>
+                            <small className="module-score-note">
+                              {moduleScore.earned}/{moduleScore.possible} analiz
+                              puanı
+                            </small>
                             <span className="progress-track">
                               <span
                                 className="progress-fill"
@@ -615,6 +643,8 @@ export function LearningPathScreen({
                             {moduleItems.map(
                               ({ task, status, isCurrent: taskIsCurrent }) => {
                                 const taskProgress = progress.tasks[task.id];
+                                const taskScore =
+                                  getAwardedCaseScore(taskProgress);
                                 const unmetPrerequisite = task.prerequisites
                                   .map((id) =>
                                     tasks.find(
@@ -627,13 +657,15 @@ export function LearningPathScreen({
                                       !progress.tasks[prerequisite.id]
                                         ?.completed,
                                   );
-                                const progressNote = taskProgress?.attempts
-                                  ? `${taskProgress.attempts} deneme`
-                                  : taskProgress?.lastQuery.trim()
-                                    ? "Taslak kayıtlı"
-                                    : taskProgress?.hintsUsed.length
-                                      ? `${taskProgress.hintsUsed.length} ipucu kullanıldı`
-                                      : undefined;
+                                const progressNote = taskProgress?.completed
+                                  ? `${taskScore}/10 puan`
+                                  : taskProgress?.attempts
+                                    ? `${taskProgress.attempts} deneme`
+                                    : taskProgress?.lastQuery.trim()
+                                      ? "Taslak kayıtlı"
+                                      : taskProgress?.hintsUsed.length
+                                        ? `${taskProgress.hintsUsed.length} ipucu kullanıldı`
+                                        : undefined;
                                 const copy = taskStatusCopy[status];
 
                                 return (

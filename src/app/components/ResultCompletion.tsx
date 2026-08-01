@@ -8,9 +8,14 @@ import {
   NotebookPen,
   Save,
   ShieldCheck,
+  Target,
 } from "lucide-react";
 import { type FormEvent, useMemo, useState } from "react";
 import type { LessonTask } from "../../types/lesson";
+import {
+  HINT_SCORE_PENALTY,
+  MAX_CASE_SCORE,
+} from "../../features/progress/scoring";
 
 interface EvidenceNote {
   finding: string;
@@ -38,6 +43,7 @@ interface ResultCompletionProps {
   task: LessonTask;
   attempts: number;
   rowCount: number;
+  scoreAwarded: number;
   evidence?: CompletionEvidence;
   nextTaskTitle?: string;
   onSaveNote: (note: ResultCompletionNoteInput) => void;
@@ -48,6 +54,7 @@ export function ResultCompletion({
   task,
   attempts,
   rowCount,
+  scoreAwarded,
   evidence,
   nextTaskTitle,
   onSaveNote,
@@ -61,6 +68,16 @@ export function ResultCompletion({
   const [noteError, setNoteError] = useState<string>();
   const [noteStatus, setNoteStatus] = useState<string>();
   const attemptLabel = attempts <= 1 ? "ilk deneme" : `${attempts} deneme`;
+  const scoreHintCount =
+    scoreAwarded > 0
+      ? Math.round((MAX_CASE_SCORE - scoreAwarded) / HINT_SCORE_PENALTY)
+      : 0;
+  const scoreExplanation =
+    scoreAwarded === 0
+      ? "Tam çözüm ilk doğrulamadan önce açıldı · puan kilitlendi"
+      : scoreHintCount === 0
+        ? "Yardım almadan tamamlandı · ilk doğrulamada kilitlendi"
+        : `${MAX_CASE_SCORE} başlangıç − ${scoreHintCount} ipucu × ${HINT_SCORE_PENALTY} = ${scoreAwarded} · ilk doğrulamada kilitlendi`;
   const nextLabel = nextTaskTitle
     ? `Sonraki vaka: ${nextTaskTitle}`
     : "İlerlemeyi görüntüle";
@@ -120,8 +137,11 @@ export function ResultCompletion({
       data-testid="completion-panel"
     >
       <span className="sr-only" role="status">
-        Vaka doğrulandı. {rowCount} satır döndü. Sonuç ekranda kalır; devam
-        etmek senin seçimin.
+        Vaka doğrulandı. {rowCount} satır döndü.{" "}
+        {scoreAwarded > 0
+          ? "Bu vakadan " + scoreAwarded + " analiz puanı kazandın."
+          : "Tam çözüm kullanıldığı için bu vakadan analiz puanı kazanılmadı."}{" "}
+        Sonuç ekranda kalır; devam etmek senin seçimin.
       </span>
 
       <div className="result-completion-head">
@@ -133,6 +153,18 @@ export function ResultCompletion({
             Vaka doğrulandı · {rowCount} satır · {attemptLabel}
           </span>
           <h3 id={`${task.id}-completion-title`}>{task.completionMessage}</h3>
+        </div>
+        <div
+          className={`result-score-badge ${scoreAwarded === 0 ? "assisted" : ""}`}
+          aria-label={`Vaka puanı ${scoreAwarded}/${MAX_CASE_SCORE}`}
+        >
+          <Target size={15} aria-hidden="true" />
+          <span>
+            <strong>
+              {scoreAwarded > 0 ? `+${scoreAwarded}` : "0"} analiz puanı
+            </strong>
+            <small>{scoreExplanation}</small>
+          </span>
         </div>
       </div>
 

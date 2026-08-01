@@ -18,6 +18,7 @@ import {
   RotateCcw,
   Save,
   Table2,
+  Target,
   TerminalSquare,
 } from "lucide-react";
 import {
@@ -45,12 +46,19 @@ import {
   recordAttempt,
   recordHint,
   recordPracticeActivity,
+  recordSolutionReveal,
   recordVerifiedRun,
   saveDecisionNote,
   type EditorSettings,
   type ProgressState,
   type TaskProgress,
 } from "../../features/progress/progressStore";
+import {
+  calculateCaseScore,
+  getAwardedCaseScore,
+  getCurrentCaseScore,
+  MAX_CASE_SCORE,
+} from "../../features/progress/scoring";
 import type { Navigate } from "../appTypes";
 import { CommandDialog } from "../components/Dialogs";
 import { FirstCaseGuide } from "../components/FirstCaseGuide";
@@ -77,6 +85,7 @@ function createDraftProgress(taskId: string, query: string): TaskProgress {
     completed: false,
     lastQuery: query,
     hintsUsed: [],
+    solutionRevealed: false,
     solveTimeSeconds: 0,
     firstTry: false,
   };
@@ -161,7 +170,12 @@ export function WorkspaceScreen({
     () => (progress.tasks[task.id]?.hintsUsed.length ?? 0) > 0,
   );
   const [solutionVisible, setSolutionVisible] = useState(false);
+  const [solutionConfirmVisible, setSolutionConfirmVisible] = useState(false);
+  const [solutionUsed, setSolutionUsed] = useState(
+    () => progress.tasks[task.id]?.solutionRevealed ?? false,
+  );
   const [solutionAnnouncement, setSolutionAnnouncement] = useState("");
+  const [scoreAnnouncement, setScoreAnnouncement] = useState("");
   const [briefWidth, setBriefWidth] = useState(370);
   const [editorHeight, setEditorHeight] = useState(56);
   const [showCommands, setShowCommands] = useState(false);
@@ -184,6 +198,8 @@ export function WorkspaceScreen({
   const briefTabRef = useRef<HTMLButtonElement>(null);
   const schemaTabRef = useRef<HTMLButtonElement>(null);
   const briefPanelRef = useRef<HTMLDivElement>(null);
+  const solutionTriggerRef = useRef<HTMLButtonElement>(null);
+  const solutionCancelRef = useRef<HTMLButtonElement>(null);
   const mobileViewRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const showResultsAndFocus = useCallback(() => {
@@ -203,6 +219,19 @@ export function WorkspaceScreen({
   const nextHintIndex = task.hints.findIndex(
     (_, index) => !visibleHints.includes(index),
   );
+  const taskProgress = progress.tasks[task.id];
+  const taskCompleted = taskProgress?.completed ?? false;
+  const currentCaseScore = getCurrentCaseScore(taskProgress);
+  const awardedCaseScore = getAwardedCaseScore(taskProgress);
+  const scoreAfterNextHint =
+    nextHintIndex >= 0
+      ? calculateCaseScore([...visibleHints, nextHintIndex], solutionUsed)
+      : currentCaseScore;
+
+  useEffect(() => {
+    if (!solutionConfirmVisible) return;
+    window.setTimeout(() => solutionCancelRef.current?.focus(), 0);
+  }, [solutionConfirmVisible]);
 
   useEffect(() => {
     const updateCompactWorkspace = () =>
@@ -339,6 +368,10 @@ export function WorkspaceScreen({
       return;
     }
     const draftRevisionAtRunStart = draftRevisionRef.current;
+    const assistanceAtRunStart = {
+      hintsUsed: [...visibleHints],
+      solutionRevealed: solutionUsed,
+    };
 
     setIsRunning(true);
     setEvaluation(undefined);
@@ -388,6 +421,8 @@ export function WorkspaceScreen({
           query,
           nextEvaluation.correct,
           elapsed,
+          new Date(),
+          assistanceAtRunStart,
         );
         if (verifiedSnapshot) {
           nextProgress = recordVerifiedRun(nextProgress, verifiedSnapshot);
@@ -455,7 +490,9 @@ export function WorkspaceScreen({
     onProgressChange,
     query,
     showResultsAndFocus,
+    solutionUsed,
     task,
+    visibleHints,
   ]);
 
   useEffect(() => {
@@ -550,6 +587,11 @@ export function WorkspaceScreen({
     if (visibleHints.includes(index)) return;
     setVisibleHints((current) => [...current, index].sort());
     onProgressChange((current) => recordHint(current, task.id, index));
+    setScoreAnnouncement(
+      taskCompleted
+        ? `${index + 1}. ipucu açıldı. Kazanılmış ${awardedCaseScore} puan değişmedi.`
+        : `${index + 1}. ipucu açıldı. Bu vaka için ${calculateCaseScore([...visibleHints, index], solutionUsed)} puan kaldı.`,
+    );
   };
 
   const activatePanelTab = (nextTab: "brief" | "schema", moveFocus = false) => {
@@ -606,14 +648,50 @@ export function WorkspaceScreen({
     }
   };
 
+  const showSolution = () => {
+    setSolutionConfirmVisible(false);
+    setSolutionVisible(true);
+    setSolutionAnnouncement(
+      taskCompleted
+        ? `Çalışan çözüm açıldı. Kazanılmış ${awardedCaseScore} puan değişmedi.`
+        : "Tam çözüm açıldı; editördeki sorgun değiştirilmedi ve bu vaka için 0 puan kaydedildi.",
+    );
+    window.setTimeout(() => solutionTriggerRef.current?.focus(), 0);
+  };
+
+  const confirmSolutionReveal = () => {
+    if (!taskCompleted && !solutionUsed) {
+      setSolutionUsed(true);
+      onProgressChange((current) => recordSolutionReveal(current, task.id));
+      setScoreAnnouncement(
+        "Tam çözüm açıldı. Bu vaka tamamlandığında 0 analiz puanı kazanılacak; rota ilerlemesi etkilenmeyecek.",
+      );
+    }
+    showSolution();
+  };
+
+  const cancelSolutionReveal = () => {
+    setSolutionConfirmVisible(false);
+    setSolutionAnnouncement("Tam çözüm açılmadı.");
+    window.setTimeout(() => solutionTriggerRef.current?.focus(), 0);
+  };
+
   const toggleSolution = (forceVisible?: boolean) => {
     const nextVisible = forceVisible ?? !solutionVisible;
     if (nextVisible) setHelpExpanded(true);
-    setSolutionVisible(nextVisible);
+    if (!nextVisible) {
+      setSolutionVisible(false);
+      setSolutionConfirmVisible(false);
+      setSolutionAnnouncement("Tam çözüm kapatıldı.");
+      return;
+    }
+    if (taskCompleted || solutionUsed) {
+      showSolution();
+      return;
+    }
+    setSolutionConfirmVisible(true);
     setSolutionAnnouncement(
-      nextVisible
-        ? "Tam çözüm açıldı; editördeki sorgun değiştirilmedi."
-        : "Tam çözüm kapatıldı.",
+      "Tam çözümü açmadan önce puan etkisini onaylaman gerekiyor.",
     );
   };
 
@@ -1110,6 +1188,23 @@ export function WorkspaceScreen({
                     Her seferinde yalnız bir sonraki adımı aç. Son adımın
                     ardından çalışan bir sorguyu da görebilirsin.
                   </p>
+                  <div className="task-score-guide">
+                    <span className="task-score-guide-icon" aria-hidden="true">
+                      <Target size={14} />
+                    </span>
+                    <span>
+                      <strong>
+                        {taskCompleted
+                          ? `${awardedCaseScore}/${MAX_CASE_SCORE} vaka puanı · kilitli`
+                          : `${currentCaseScore}/${MAX_CASE_SCORE} puan kullanılabilir`}
+                      </strong>
+                      <small>
+                        {taskCompleted
+                          ? "İnceleme modundasın; şimdi açacağın yardım kazanılmış puanını değiştirmez."
+                          : "Her ipucu −3 puan. Tam çözüm 0 puan; tamamlanman ve rota erişimin etkilenmez."}
+                      </small>
+                    </span>
+                  </div>
                   <div className="hint-stack">
                     {revealedHintCount > 0 && (
                       <ol
@@ -1146,7 +1241,9 @@ export function WorkspaceScreen({
                         <span className="hint-button-copy">
                           <strong>{HINT_ACTION_LABELS[nextHintIndex]}</strong>
                           <small>
-                            {nextHintIndex + 1}. yardım adımı · cevabı vermez
+                            {taskCompleted
+                              ? `${nextHintIndex + 1}. yardım adımı · puanın değişmez`
+                              : `−3 puan · açınca ${scoreAfterNextHint} puan kalır`}
                           </small>
                         </span>
                         <ArrowRight size={13} />
@@ -1155,9 +1252,12 @@ export function WorkspaceScreen({
                       <>
                         <div className="hint-complete">
                           <CheckCircle2 size={13} />
-                          Üç hazırlık adımını gördün
+                          {taskCompleted
+                            ? "Üç hazırlık adımını gördün · puanın kilitli"
+                            : `Üç hazırlık adımını gördün · ${currentCaseScore} puan kaldı`}
                         </div>
                         <button
+                          ref={solutionTriggerRef}
                           className="hint-button solution-trigger"
                           type="button"
                           onClick={() => toggleSolution()}
@@ -1174,7 +1274,11 @@ export function WorkspaceScreen({
                                 : "Bir doğru sorguyu göster"}
                             </strong>
                             <small>
-                              Sorgunun tamamı açılır · editörün değişmez
+                              {taskCompleted
+                                ? "İnceleme modu · kazanılmış puanın değişmez"
+                                : solutionUsed
+                                  ? "0 puan kaydedildi · yeniden görüntüle"
+                                  : "Tam çözüm açılır · bu vaka 0 puan olur"}
                             </small>
                           </span>
                           <ArrowRight
@@ -1182,6 +1286,46 @@ export function WorkspaceScreen({
                             size={13}
                           />
                         </button>
+                        {solutionConfirmVisible && !solutionVisible && (
+                          <div
+                            className="solution-score-confirmation"
+                            role="group"
+                            aria-labelledby={`${task.id}-solution-confirm-title`}
+                            aria-describedby={`${task.id}-solution-confirm-description`}
+                            onKeyDown={(event) => {
+                              if (event.key !== "Escape") return;
+                              event.preventDefault();
+                              cancelSolutionReveal();
+                            }}
+                          >
+                            <div>
+                              <strong id={`${task.id}-solution-confirm-title`}>
+                                Tam çözümü açmak istiyor musun?
+                              </strong>
+                              <p id={`${task.id}-solution-confirm-description`}>
+                                Bu vaka 0 analiz puanı olur. Yine de doğru
+                                tamamlanır, ilerlemen ve sonraki vakalar
+                                etkilenmez.
+                              </p>
+                            </div>
+                            <div className="solution-score-confirmation-actions">
+                              <button
+                                ref={solutionCancelRef}
+                                type="button"
+                                onClick={cancelSolutionReveal}
+                              >
+                                Kendim deneyeyim
+                              </button>
+                              <button
+                                type="button"
+                                className="confirm"
+                                onClick={confirmSolutionReveal}
+                              >
+                                0 puanla çözümü göster
+                              </button>
+                            </div>
+                          </div>
+                        )}
                         {solutionVisible && (
                           <div
                             id={`${task.id}-solution`}
@@ -1212,9 +1356,9 @@ export function WorkspaceScreen({
                               <code>{task.solutionSql}</code>
                             </pre>
                             <p className="solution-reveal-footnote">
-                              Çözümü görmek vakayı tamamlamaz veya ilerlemeni
-                              düşürmez. Sorguyu editörde çalıştırıp sonucu yine
-                              sen doğrularsın.
+                              {taskCompleted
+                                ? "Vaka puanın ilk doğrulamada kilitlendi. Bu inceleme puanını veya ilerlemeni değiştirmez."
+                                : "Tam çözüm kullanımı bu vaka puanını 0 yaptı; tamamlanmanı veya rota erişimini etkilemez. Sorguyu editörde yine sen çalıştırırsın."}
                             </p>
                             <div className="solution-reveal-actions">
                               <button
@@ -1241,6 +1385,9 @@ export function WorkspaceScreen({
                       </>
                     )}
                   </div>
+                  <span className="sr-only" role="status" aria-live="polite">
+                    {scoreAnnouncement}
+                  </span>
                 </div>
               )}
             </section>
@@ -1691,6 +1838,7 @@ export function WorkspaceScreen({
                   task={task}
                   attempts={Math.max(1, taskAttempts)}
                   rowCount={result.rowCount}
+                  scoreAwarded={awardedCaseScore}
                   evidence={progress.evidenceByTaskId[task.id]}
                   nextTaskTitle={nextTask?.title}
                   onSaveNote={(note) => {

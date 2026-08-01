@@ -23,6 +23,7 @@ function taskProgress(
     completed: false,
     lastQuery: "",
     hintsUsed: [],
+    solutionRevealed: false,
     solveTimeSeconds: 0,
     firstTry: false,
     ...overrides,

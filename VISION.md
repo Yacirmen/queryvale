@@ -44,12 +44,12 @@ Birincil kullanıcılar:
 2. **Gerçek çalıştırma.** Sonuçlar önceden hazırlanmış bir illüzyon değildir.
 3. **Yolu değil kanıtı değerlendir.** Eşdeğer doğru sorgular kabul edilir.
 4. **Hata bir öğretim anıdır.** Teknik hata, şemaya ve kavrama dönük eyleme çevrilir.
-5. **Yardımı çıkışsız bırakma.** İpuçları mantık, parçalar ve sorgu iskeletiyle düşünceyi ilerletir; bunlar yetmezse tam çalışan örnek, yalnız açık talepte ve ceza olmadan gösterilir.
+5. **Yardımı çıkışsız bırakma.** İpuçları mantık, parçalar ve sorgu iskeletiyle düşünceyi ilerletir; bunlar yetmezse tam çalışan örnek yalnız açık talepte gösterilir. Yardım vakayı tamamlamayı veya rotayı engellemez; yalnız ilk doğru sonuçta kilitlenen bağımsız çözüm puanına etkisi önceden ve açıkça anlatılır.
 6. **Sakin yoğunluk.** Profesyonel bilgi yoğunluğu, güçlü hiyerarşiyle yönetilir.
 7. **Yerel sahiplik.** Hesap gerekmez; ilerleme kullanıcının tarayıcısındadır.
 8. **Kapsam disiplini.** Kullanıcı değerine hizmet etmeyen sosyal, ticari veya yapay zekâ özellikleri MVP’ye girmez.
 
-Tamamlanma yüzdesi, ilk deneme, süre, ipucu ve çalışma serisi mesleki ustalığın kendisi değildir. Bunlar yalnızca kullanıcının pratiğini düzenlemesine yardım eden yerel sinyallerdir. Kanıt Defteri de bir sertifika değil; doğru değerlendirilen sorguyu ve kullanıcının kendi karar notunu geri çağırılabilir kılan çalışma kaydıdır.
+Tamamlanma yüzdesi, Analiz puanı, ilk deneme, süre, ipucu ve çalışma serisi mesleki ustalığın kendisi değildir. Bunlar yalnızca kullanıcının pratiğini düzenlemesine yardım eden yerel sinyallerdir. Kanıt Defteri de bir sertifika değil; doğru değerlendirilen sorguyu ve kullanıcının kendi karar notunu geri çağırılabilir kılan çalışma kaydıdır.
 
 ## Görsel kimlik
 
