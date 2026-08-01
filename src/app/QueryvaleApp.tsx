@@ -513,6 +513,17 @@ export function QueryvaleApp() {
         settings={progress.settings}
         onNavigate={navigate}
         onSettingsChange={updateSettings}
+        onHomeStart={() =>
+          navigate("workspace", {
+            taskId: resumeSelection.task?.id,
+            onboarding: resumeSelection.shouldShowOnboarding,
+          })
+        }
+        homeStartLabel={
+          resumeSelection.isReturningLearner
+            ? "Kaldığın vakaya devam et"
+            : "İlk vakaya başla"
+        }
       />
 
       {screen === "home" && (
@@ -521,6 +532,7 @@ export function QueryvaleApp() {
           resumeTask={resumeSelection.task}
           isReturningLearner={resumeSelection.isReturningLearner}
           showOnboardingOnStart={resumeSelection.shouldShowOnboarding}
+          reducedMotion={progress.settings.reducedMotion}
         />
       )}
       {screen === "learn" && (

@@ -7,7 +7,7 @@ Bu yol haritası tarih vaadi değil, bağımlılık ve değer sırasıdır. Her 
 ### P0: Temel ürün
 
 - Queryvale kimliği ve responsive uygulama kabuğu
-- Ana sayfa ve birkaç saniyede anlaşılır değer önerisi
+- Kullanıcının koyu/açık prototipinden üretilen iki aşamalı ana sayfa: rol vaadi, üç adımlı çalışan SQL stüdyosu ve birkaç saniyede anlaşılır değer önerisi
 - İlk vaka içinde kapatılabilir 90 saniyelik rehber ve ana filmden doğrudan vaka/devam eylemi
 - On bir çalışan SQL konusunu mesleki sonuçlarına göre gruplayan dört bölüm
 - Her vakada `Sor → İncele → Sorgula → Doğrula → Anlat` döngüsü

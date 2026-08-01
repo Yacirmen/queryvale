@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ArrowRight,
   DatabaseZap,
   Moon,
   Route,
@@ -18,6 +19,8 @@ interface AppHeaderProps {
   settings: EditorSettings;
   onNavigate: Navigate;
   onSettingsChange: (settings: EditorSettings) => void;
+  onHomeStart?: () => void;
+  homeStartLabel?: string;
 }
 
 interface HeaderDestination {
@@ -128,8 +131,12 @@ export function AppHeader({
   settings,
   onNavigate,
   onSettingsChange,
+  onHomeStart,
+  homeStartLabel,
 }: AppHeaderProps) {
   const isDark = settings.theme === "dark";
+  const isHome = screen === "home";
+  const startFromHome = onHomeStart ?? (() => onNavigate("workspace"));
 
   const renderDestinations = (variant: "desktop" | "mobile") =>
     destinations.map((destination) => (
@@ -149,7 +156,7 @@ export function AppHeader({
         İçeriğe geç
       </a>
 
-      <header className="app-header">
+      <header className={`app-header ${isHome ? "app-header-landing" : ""}`}>
         <div className="header-inner">
           <button
             className="brand"
@@ -158,18 +165,58 @@ export function AppHeader({
             aria-label="Queryvale ana sayfa"
             aria-current={screen === "home" ? "page" : undefined}
           >
-            <span className="brand-mark" aria-hidden="true">
-              <DatabaseZap size={19} strokeWidth={1.8} />
-            </span>
+            {!isHome && (
+              <span className="brand-mark" aria-hidden="true">
+                <DatabaseZap size={19} strokeWidth={1.8} />
+              </span>
+            )}
             <span className="brand-copy">
               <strong className="brand-word">Queryvale</strong>
-              <small className="brand-tagline">Sorudan kanıta</small>
+              {!isHome && (
+                <small className="brand-tagline">Sorudan kanıta</small>
+              )}
             </span>
           </button>
 
-          <nav className="primary-nav" aria-label="Çalışma alanları">
-            {renderDestinations("desktop")}
-          </nav>
+          {isHome ? (
+            <nav
+              className="primary-nav landing-primary-nav"
+              aria-label="Çalışma alanları"
+            >
+              <button type="button" onClick={() => onNavigate("learn")}>
+                Rota
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  document.getElementById("queryvale-studio")?.scrollIntoView({
+                    behavior:
+                      settings.reducedMotion ||
+                      window.matchMedia?.("(prefers-reduced-motion: reduce)")
+                        .matches
+                        ? "auto"
+                        : "smooth",
+                  })
+                }
+              >
+                Studio
+              </button>
+              <button type="button" onClick={startFromHome}>
+                Veri Motoru
+              </button>
+              <a
+                href="https://github.com/Yacirmen/queryvale#readme"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Dokümanlar
+              </a>
+            </nav>
+          ) : (
+            <nav className="primary-nav" aria-label="Çalışma alanları">
+              {renderDestinations("desktop")}
+            </nav>
+          )}
 
           <div
             className="header-actions"
@@ -212,6 +259,17 @@ export function AppHeader({
                 <small>Tercihler ve yedek</small>
               </span>
             </button>
+            {isHome && (
+              <button
+                className="landing-header-cta"
+                type="button"
+                onClick={startFromHome}
+                aria-label={homeStartLabel ?? "İlk vakaya başla"}
+              >
+                Hemen Başla
+                <ArrowRight size={15} aria-hidden="true" />
+              </button>
+            )}
           </div>
         </div>
       </header>

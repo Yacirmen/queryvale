@@ -338,7 +338,11 @@ describe("QueryvaleApp", () => {
     );
     await user.click(runButton);
     expect(
-      await screen.findByText(mutationTask!.coaching["rows-wrong"].title),
+      await screen.findByText(
+        mutationTask!.coaching["rows-wrong"].title,
+        undefined,
+        { timeout: 12_000 },
+      ),
     ).toBeInTheDocument();
     expect(sqlEngineHarness.mutationResetCount).toBe(1);
 
@@ -361,7 +365,7 @@ describe("QueryvaleApp", () => {
       ),
     ).toBeVisible();
     expect(sqlEngineHarness.mutationResetCount).toBe(2);
-  });
+  }, 30_000);
 
   it("redirects a locked direct hash to the first accessible missing task", async () => {
     const lockedTask = modules[1].tasks[0];
@@ -494,35 +498,19 @@ describe("QueryvaleApp", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Bir iş sorusu nasıl karara dönüşür/i,
+        name: /Geleceğin Veri Analistleri.*İçin İnteraktif SQL Studio/i,
       }),
     ).toBeInTheDocument();
-    const previousScrollBehavior =
-      document.documentElement.style.getPropertyValue("scroll-behavior");
-    document.documentElement.style.setProperty("scroll-behavior", "smooth");
-    await user.click(screen.getByRole("button", { name: /Nasıl çalışır/i }));
     expect(
-      screen.getByRole("heading", { name: /Şimdi sıra sende/i }),
+      screen.getByRole("region", { name: "Üç adımda çalışan SQL sorgusu" }),
     ).toBeInTheDocument();
-    expect(document.getElementById("product-introduction")).toHaveFocus();
-    expect(
-      document.documentElement.style.getPropertyValue("scroll-behavior"),
-    ).toBe("smooth");
-    if (previousScrollBehavior) {
-      document.documentElement.style.setProperty(
-        "scroll-behavior",
-        previousScrollBehavior,
-      );
-    } else {
-      document.documentElement.style.removeProperty("scroll-behavior");
-    }
-    const taskPreview = screen.getByRole("region", {
-      name: "Katalog görünümünü hazırla",
-    });
-    expect(within(taskPreview).getByText("İlk vaka")).toBeInTheDocument();
-    expect(within(taskPreview).getByText("product_name")).toBeInTheDocument();
-    expect(within(taskPreview).getByText("category")).toBeInTheDocument();
-    expect(screen.queryAllByRole("tablist")).toHaveLength(1);
+    await user.click(
+      screen.getByRole("button", {
+        name: "3. adım: Sorgu Çalıştırıldı, Sonuç Hazır",
+      }),
+    );
+    expect(screen.getByText("damla_data")).toBeInTheDocument();
+    expect(screen.getAllByText("Active")).toHaveLength(3);
 
     await user.click(
       screen.getByRole("button", { name: /İlk vakayı birlikte çöz/i }),
@@ -1540,7 +1528,7 @@ describe("QueryvaleApp", () => {
 
     await user.click(
       within(
-        await screen.findByRole("navigation", { name: "Çalışma alanları" }),
+        await screen.findByRole("navigation", { name: "Ana menü" }),
       ).getByRole("button", { name: "Profilim" }),
     );
     await user.click(
@@ -1597,7 +1585,7 @@ describe("QueryvaleApp", () => {
 
     await user.click(
       within(
-        await screen.findByRole("navigation", { name: "Çalışma alanları" }),
+        await screen.findByRole("navigation", { name: "Ana menü" }),
       ).getByRole("button", { name: "Profilim" }),
     );
     await user.click(

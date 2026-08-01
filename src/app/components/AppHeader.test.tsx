@@ -54,6 +54,7 @@ describe("AppHeader", () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
     const onSettingsChange = vi.fn();
+    const onHomeStart = vi.fn();
     const settings = createDefaultProgress().settings;
     const { rerender } = render(
       <AppHeader
@@ -62,6 +63,8 @@ describe("AppHeader", () => {
         settings={settings}
         onNavigate={onNavigate}
         onSettingsChange={onSettingsChange}
+        onHomeStart={onHomeStart}
+        homeStartLabel="İlk vakaya başla"
       />,
     );
 
@@ -70,16 +73,17 @@ describe("AppHeader", () => {
     });
     expect(brand).toHaveAttribute("aria-current", "page");
 
-    await user.click(
+    expect(
       within(
         screen.getByRole("navigation", { name: "Çalışma alanları" }),
-      ).getByRole("button", { name: "SQL Laboratuvarı" }),
-    );
+      ).getByRole("button", { name: "Studio" }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "İlk vakaya başla" }));
     await user.click(screen.getByRole("button", { name: "Ayarları aç" }));
     await user.click(screen.getByRole("button", { name: "Açık temaya geç" }));
 
-    expect(onNavigate).toHaveBeenNthCalledWith(1, "workspace");
-    expect(onNavigate).toHaveBeenNthCalledWith(2, "settings");
+    expect(onHomeStart).toHaveBeenCalledOnce();
+    expect(onNavigate).toHaveBeenNthCalledWith(1, "settings");
     expect(onSettingsChange).toHaveBeenCalledWith({
       ...settings,
       theme: "light",
@@ -92,6 +96,8 @@ describe("AppHeader", () => {
         settings={settings}
         onNavigate={onNavigate}
         onSettingsChange={onSettingsChange}
+        onHomeStart={onHomeStart}
+        homeStartLabel="İlk vakaya başla"
       />,
     );
 

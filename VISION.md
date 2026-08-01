@@ -53,13 +53,14 @@ Tamamlanma yüzdesi, Analiz puanı, ilk deneme, süre, ipucu ve çalışma seris
 
 ## Görsel kimlik
 
-“Queryvale” bir vadide ilerleyerek örüntü ve kanıt keşfetme fikrini taşır. Kimlik; terminal klişelerinden uzak, koyu mürekkep tonlarını mineral turkuazı ve sıcak amber vurgularıyla birleştiren modern bir veri laboratuvarıdır.
+"Queryvale" bir vadide ilerleyerek örüntü ve kanıt keşfetme fikrini taşır. Kimlik; terminal klişelerinden uzak, gece laciverti ve açık slate yüzeylerini elektrik mavisi, mor, pembe ve doğrulama yeşiliyle birleştiren modern bir veri stüdyosudur.
 
-- Yüzeyler düz siyah değil, katmanlı gece laciverti veya sıcak açık nötrlerdir.
+- Yüzeyler düz siyah değil, katmanlı gece laciverti; açık temada ise temiz beyaz ve soğuk slate tonlarıdır.
 - Izgara ve ince veri çizgileri yön duygusu verir; dekorasyon içerikle yarışmaz.
 - Başarı yalnızca yeşille değil ikon, metin ve şekille anlatılır.
 - Başlıklar kararlı, veri metni okunaklı ve editör alanı sakin olmalıdır.
-- Hareket, neden-sonuç ilişkisini açıklar; sürekli dikkat istemez.
+- Mavi-mor geçişler ana eylemi ve ürün enerjisini taşır; pembe SQL anahtar sözcükleri ve yeşil doğrulama sonucu birbirinden ayırır.
+- Hareket, tek sahne içinde neden-sonuç ilişkisini açıklar; sürekli dikkat istemez ve reduced-motion tercihinde doğrudan kontrole dönüşür.
 
 ## Uzun vadeli kuzey yıldızı
 
