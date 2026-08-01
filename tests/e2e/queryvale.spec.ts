@@ -1,4 +1,24 @@
 import { expect, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+async function scrollLandingStory(page: Page, progress: number) {
+  await page.evaluate((nextProgress) => {
+    const storyTrack = document.querySelector<HTMLElement>(".landing-sql-film");
+    if (!storyTrack) throw new Error("Landing SQL film track bulunamadı.");
+    const headerHeight =
+      Number.parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue(
+          "--header-h",
+        ),
+      ) || 0;
+    const trackTop = window.scrollY + storyTrack.getBoundingClientRect().top;
+    const travelDistance = Math.min(window.innerHeight * 1.6, 1280);
+    window.scrollTo({
+      behavior: "auto",
+      top: trackTop - headerHeight + travelDistance * nextProgress,
+    });
+  }, progress);
+}
 
 test("header keeps one clear active destination without horizontal overflow", async ({
   page,
@@ -31,64 +51,76 @@ test("header keeps one clear active destination without horizontal overflow", as
   ).toBe(true);
 });
 
-test("desktop landing keeps one SQL canvas while native scroll grows the query", async ({
+test("desktop landing pins one compact SQL canvas for three scroll steps", async ({
   page,
   isMobile,
 }) => {
   test.skip(isMobile, "Mobil görünüm erişilebilir tab deck kullanır.");
   await page.goto("/");
 
-  const film = page.locator(".landing-sql-film-shell");
-  const stickyStage = page.locator(".landing-sql-film-sticky");
-  await expect(film).toHaveAttribute("data-scroll-mode", "cinematic");
-  const initialTop = await stickyStage.evaluate(
+  const story = page.getByRole("tablist", {
+    name: "SQL hikâyesinin üç adımı",
+  });
+  const track = page.locator(".landing-sql-film");
+  const stage = page.locator(".landing-sql-film-shell");
+  const editor = page.getByRole("article", { name: "SQL editörü" });
+  const result = page.getByRole("complementary", {
+    name: "Görsel sonuç paneli",
+  });
+
+  await expect(stage).toHaveAttribute("data-scroll-mode", "cinematic");
+  await expect(story.getByRole("tab")).toHaveCount(3);
+  await expect(editor).toHaveCount(1);
+  await expect(result).toHaveCount(1);
+  await expect(result.getByRole("table")).toHaveCount(1);
+
+  const initialTop = await stage.evaluate(
     (element) => element.getBoundingClientRect().top,
   );
 
-  const scrollToStoryProgress = (progress: number) =>
-    page.evaluate((nextProgress) => {
-      const track = document.querySelector<HTMLElement>(".landing-sql-film");
-      if (!track) throw new Error("Landing SQL film track bulunamadı.");
-      const headerHeight =
-        Number.parseFloat(
-          getComputedStyle(document.documentElement).getPropertyValue(
-            "--header-h",
-          ),
-        ) || 0;
-      const trackTop = window.scrollY + track.getBoundingClientRect().top;
-      const stageHeight = Math.max(1, window.innerHeight - headerHeight);
-      const travelDistance = Math.max(1, track.offsetHeight - stageHeight);
-      window.scrollTo({
-        behavior: "auto",
-        top: trackTop - headerHeight + travelDistance * nextProgress,
-      });
-    }, progress);
-
-  await scrollToStoryProgress(0.376);
+  await scrollLandingStory(page, 0.5);
   await expect(
-    page.getByRole("tab", { name: /3\. adım: Gerçekleşen/i }),
+    story.getByRole("tab", { name: "2. adım: Karşılaştır" }),
   ).toHaveAttribute("aria-selected", "true");
   await expect
     .poll(() =>
-      stickyStage.evaluate((element) => element.getBoundingClientRect().top),
+      stage.evaluate((element) => element.getBoundingClientRect().top),
     )
-    .toBeCloseTo(initialTop, 0);
+    .toBeCloseTo(initialTop, 1);
+  await expect(editor).toContainText("LEFT JOIN sales_ledger");
+  await expect(result.getByRole("table")).toContainText("Izmir Hub");
 
-  await scrollToStoryProgress(0.9);
+  await scrollLandingStory(page, 0.88);
   await expect(
-    page.getByRole("tab", { name: /6\. adım: Karar/i }),
+    story.getByRole("tab", { name: "3. adım: Karara dönüştür" }),
   ).toHaveAttribute("aria-selected", "true");
+  await expect(editor).toContainText("DENSE_RANK");
+  await expect(result).toContainText("Sorgu doğrulandı");
   await expect(
-    page.locator(
-      '.landing-sql-film-frame[aria-hidden="false"] .landing-sql-code',
-    ),
-  ).toContainText("DENSE_RANK");
+    page.getByRole("button", { name: "İlk vakaya başla" }),
+  ).toHaveAttribute("data-emphasis", "true");
   await expect(page).toHaveURL(/\/$/);
 
-  await scrollToStoryProgress(0.208);
-  await expect(
-    page.getByRole("tab", { name: /2\. adım: Hedef/i }),
-  ).toHaveAttribute("aria-selected", "true");
+  const compactHeight = await page.evaluate(() => ({
+    page: document.documentElement.scrollHeight,
+    viewport: window.innerHeight,
+  }));
+  expect(compactHeight.page).toBeLessThan(compactHeight.viewport * 3.25);
+
+  await page.evaluate(() =>
+    window.scrollTo({ top: document.body.scrollHeight }),
+  );
+  const siteFooter = page.getByRole("contentinfo");
+  await expect(siteFooter).toBeVisible();
+  await expect(siteFooter).toContainText(
+    "Verin ve ilerlemen bu cihazda kalır.",
+  );
+  await expect
+    .poll(() =>
+      stage.evaluate((element) => element.getBoundingClientRect().top),
+    )
+    .toBeLessThan(initialTop - 20);
+  await expect(track).toBeVisible();
 });
 
 test("landing, onboarding and first real SQL task", async ({
@@ -99,24 +131,26 @@ test("landing, onboarding and first real SQL task", async ({
   await page.goto("/");
   await expect(
     page.getByRole("heading", {
-      name: /Bir iş sorusu nasıl karara dönüşür/i,
+      name: /Sorgu büyüdükçe karar netleşir/i,
     }),
   ).toBeVisible();
-  await page.getByRole("button", { name: /Nasıl çalışır/i }).click();
-  await expect(
-    page.getByRole("heading", { name: /Şimdi sıra sende/i }),
-  ).toBeVisible();
-  await expect(page.locator("#product-introduction")).toBeFocused();
-  const taskPreview = page.getByRole("region", {
-    name: "Katalog görünümünü hazırla",
+  const landingStory = page.getByRole("tablist", {
+    name: "SQL hikâyesinin üç adımı",
   });
-  await expect(taskPreview).toBeVisible();
-  await expect(taskPreview.getByText("product_name")).toBeVisible();
-  await expect(taskPreview.getByText("category")).toBeVisible();
+  await expect(landingStory.getByRole("tab")).toHaveCount(3);
+  const landingStage = page.locator(".landing-sql-film-shell");
+  await expect(landingStage).toHaveAttribute(
+    "data-scroll-mode",
+    isMobile ? "manual" : "cinematic",
+  );
+  await landingStory
+    .getByRole("tab", { name: "3. adım: Karara dönüştür" })
+    .click();
   await expect(
-    taskPreview.getByRole("list", {
-      name: "Vakada izleyeceğin üç adım",
-    }),
+    landingStory.getByRole("tab", { name: "3. adım: Karara dönüştür" }),
+  ).toHaveAttribute("aria-selected", "true");
+  await expect(
+    page.getByRole("complementary", { name: "Görsel sonuç paneli" }),
   ).toBeVisible();
   await expect(page.getByRole("tablist")).toHaveCount(1);
   await expect(page.locator(".app-shell")).toHaveAttribute(
@@ -124,7 +158,7 @@ test("landing, onboarding and first real SQL task", async ({
     "false",
   );
 
-  await page.getByRole("button", { name: /İlk vakayı birlikte çöz/i }).click();
+  await page.getByRole("button", { name: "İlk vakaya başla" }).click();
   await expect(
     page.getByRole("heading", {
       name: "Bu vakada yalnız üç adımın var.",
@@ -419,18 +453,24 @@ test("learning path and settings remain usable on a narrow viewport", async ({
     "aria-busy",
     "false",
   );
-  await page.getByRole("button", { name: /Nasıl çalışır/i }).click();
-  const taskPreview = page.getByRole("region", {
-    name: "Katalog görünümünü hazırla",
+  const stage = page.locator(".landing-sql-film-shell");
+  const story = page.getByRole("tablist", {
+    name: "SQL hikâyesinin üç adımı",
   });
-  await expect(taskPreview).toBeVisible();
+  await expect(stage).toHaveAttribute("data-scroll-mode", "manual");
+  await expect(story.getByRole("tab")).toHaveCount(3);
+  await story.getByRole("tab", { name: "3. adım: Karara dönüştür" }).click();
   await expect(
-    taskPreview.getByRole("list", {
-      name: "Vakada izleyeceğin üç adım",
-    }),
-  ).toBeVisible();
+    story.getByRole("tab", { name: "3. adım: Karara dönüştür" }),
+  ).toHaveAttribute("aria-selected", "true");
   await expect(
-    page.getByRole("button", { name: /İlk vakayı birlikte çöz/i }),
+    page.getByRole("article", { name: "SQL editörü" }),
+  ).toContainText("DENSE_RANK");
+  await expect(
+    page.getByRole("complementary", { name: "Görsel sonuç paneli" }),
+  ).toContainText("Sorgu doğrulandı");
+  await expect(
+    page.getByRole("button", { name: "İlk vakaya başla" }),
   ).toBeVisible();
   expect(
     await page.evaluate(

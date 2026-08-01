@@ -33,10 +33,14 @@ test("server-renders Queryvale product metadata and shell", async () => {
     html,
     /<title>Queryvale — SQL ezberleme, veri analisti gibi çalış<\/title>/i,
   );
-  assert.match(html, /Bir iş sorusu nasıl karara dönüşür/i);
-  assert.match(html, /Şimdi sıra/i);
-  assert.match(html, /Katalog görünümünü hazırla/i);
+  assert.match(html, /Sorgu büyüdükçe/i);
+  assert.match(html, /karar netleşir/i);
+  assert.match(html, /Önce doğru tabloyu gör/i);
+  assert.match(html, /SQL hikâyesinin üç adımı/i);
+  assert.match(html, /Rotayı incele/i);
+  assert.match(html, /Verin ve ilerlemen bu cihazda kalır/i);
   assert.match(html, /Queryvale/);
+  assert.doesNotMatch(html, /Şimdi sıra sende|product-introduction/i);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
 });
 
@@ -52,9 +56,10 @@ test("portable shell ships the canonical Queryvale sharing metadata", async () =
   );
   assert.match(
     portableHtml,
-    /https:\/\/yacirmen\.github\.io\/queryvale\/og-analyst-loop\.png/i,
+    /https:\/\/yacirmen\.github\.io\/queryvale\/og-compact-hero\.png/i,
   );
   assert.match(portableHtml, /Bir karar notuna dönüştür/i);
+  assert.doesNotMatch(portableHtml, /og-analyst-loop\.png/i);
   assert.doesNotMatch(
     portableHtml,
     /https:\/\/yacirmen\.github\.io\/queryvale\/og\.png/i,

@@ -4,170 +4,152 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { LandingSqlFilm, landingSqlScenes } from "./LandingSqlFilm";
 import {
-  getLandingIntroFrame,
-  getLandingIntroProgressForScene,
+  getLandingStoryProgressForStep,
+  getLandingStoryStep,
 } from "./landingIntroFrame";
 
+vi.mock("./useLandingSqlStory", () => ({
+  useLandingSqlStory: () => ({
+    isCinematic: false,
+    scrollToStep: vi.fn(),
+  }),
+}));
+
+function normalizeRows(
+  rows: readonly Record<string, unknown>[],
+  expectedRows: readonly Record<string, number | string>[],
+) {
+  return rows.map((row, rowIndex) =>
+    Object.fromEntries(
+      Object.entries(row).map(([key, value]) => [
+        key,
+        typeof expectedRows[rowIndex]?.[key] === "number"
+          ? Number(value)
+          : value,
+      ]),
+    ),
+  );
+}
+
 describe("LandingSqlFilm", () => {
-  it("runs every showcase query on its isolated PostgreSQL fixture", async () => {
+  it("runs all three showcase queries and matches every displayed result", async () => {
     const database = await PGlite.create();
     await database.exec(`
-        CREATE TABLE branch_directory (
-          branch_id INTEGER PRIMARY KEY,
-          branch_name TEXT NOT NULL
-        );
-        CREATE TABLE sales_targets (
-          branch_id INTEGER NOT NULL REFERENCES branch_directory(branch_id),
-          target_month TEXT NOT NULL,
-          target_amount NUMERIC(12, 2) NOT NULL,
-          PRIMARY KEY (branch_id, target_month)
-        );
-        CREATE TABLE sales_ledger (
-          sale_id INTEGER PRIMARY KEY,
-          branch_id INTEGER NOT NULL REFERENCES branch_directory(branch_id),
-          sale_month TEXT NOT NULL,
-          amount NUMERIC(12, 2) NOT NULL
-        );
-        INSERT INTO branch_directory VALUES
-          (1, 'Istanbul Hub'), (2, 'Ankara Hub'), (3, 'Izmir Hub');
-        INSERT INTO sales_targets VALUES
-          (1, '2026-05', 10000.00),
-          (2, '2026-05', 8000.00),
-          (3, '2026-05', 6000.00);
-        INSERT INTO sales_ledger VALUES
-          (1001, 1, '2026-05', 4000.00),
-          (1002, 1, '2026-05', 5500.00),
-          (1003, 2, '2026-05', 8200.00),
-          (1004, 3, '2026-04', 5000.00);
-      `);
+      CREATE TABLE branch_directory (
+        branch_id INTEGER PRIMARY KEY,
+        branch_name TEXT NOT NULL
+      );
+      CREATE TABLE sales_targets (
+        branch_id INTEGER NOT NULL REFERENCES branch_directory(branch_id),
+        target_month TEXT NOT NULL,
+        target_amount NUMERIC(12, 2) NOT NULL,
+        PRIMARY KEY (branch_id, target_month)
+      );
+      CREATE TABLE sales_ledger (
+        sale_id INTEGER PRIMARY KEY,
+        branch_id INTEGER NOT NULL REFERENCES branch_directory(branch_id),
+        sale_month TEXT NOT NULL,
+        amount NUMERIC(12, 2) NOT NULL
+      );
+      INSERT INTO branch_directory VALUES
+        (1, 'Istanbul Hub'), (2, 'Ankara Hub'), (3, 'Izmir Hub');
+      INSERT INTO sales_targets VALUES
+        (1, '2026-05', 10000.00),
+        (2, '2026-05', 8000.00),
+        (3, '2026-05', 6000.00);
+      INSERT INTO sales_ledger VALUES
+        (1001, 1, '2026-05', 4000.00),
+        (1002, 1, '2026-05', 5500.00),
+        (1003, 2, '2026-05', 8200.00),
+        (1004, 3, '2026-04', 5000.00);
+    `);
 
     try {
-      let finalRows: Array<Record<string, unknown>> = [];
+      expect(landingSqlScenes).toHaveLength(3);
       for (const scene of landingSqlScenes) {
         const result = await database.query<Record<string, unknown>>(
           scene.query,
         );
-        expect(result.rows).toHaveLength(3);
-        finalRows = result.rows;
+        expect(Object.keys(result.rows[0] ?? {})).toEqual(
+          scene.result.columns.map((column) => column.key),
+        );
+        expect(normalizeRows(result.rows, scene.result.rows)).toEqual(
+          scene.result.rows,
+        );
       }
-
-      expect(finalRows).toMatchObject([
-        { branch_name: "Ankara Hub", decision_signal: "Hedefte" },
-        { branch_name: "Istanbul Hub", decision_signal: "Yakın takip" },
-        { branch_name: "Izmir Hub", decision_signal: "Aksiyon gerekli" },
-      ]);
     } finally {
       await database.close();
     }
   }, 20_000);
 
-  it("maps native scroll progress to six deterministic scenes with end holds", () => {
-    expect(getLandingIntroFrame(-1, landingSqlScenes.length)).toMatchObject({
-      activeIndex: 0,
-      fromIndex: 0,
-      mix: 0,
-      progress: 0,
-      toIndex: 1,
-    });
-
-    for (let index = 0; index < landingSqlScenes.length; index += 1) {
-      const progress = getLandingIntroProgressForScene(
-        index,
-        landingSqlScenes.length,
-      );
-      expect(
-        getLandingIntroFrame(progress, landingSqlScenes.length).activeIndex,
-      ).toBe(index);
-    }
-
-    const finalIndex = landingSqlScenes.length - 1;
-    expect(getLandingIntroFrame(1, landingSqlScenes.length)).toMatchObject({
-      activeIndex: finalIndex,
-      fromIndex: finalIndex,
-      mix: 0,
-      progress: 1,
-      toIndex: finalIndex,
-    });
-    expect(
-      getLandingIntroFrame(Number.NaN, landingSqlScenes.length).progress,
-    ).toBe(0);
-    expect(getLandingIntroFrame(2, landingSqlScenes.length)).toMatchObject({
-      activeIndex: finalIndex,
-      progress: 1,
-    });
+  it("maps scroll progress to three stable story steps", () => {
+    expect(getLandingStoryStep(-1)).toBe(0);
+    expect(getLandingStoryStep(Number.NaN)).toBe(0);
+    expect(getLandingStoryStep(0.33)).toBe(0);
+    expect(getLandingStoryStep(0.34)).toBe(1);
+    expect(getLandingStoryStep(0.71)).toBe(1);
+    expect(getLandingStoryStep(0.72)).toBe(2);
+    expect(getLandingStoryStep(2)).toBe(2);
+    expect(getLandingStoryProgressForStep(-2)).toBe(0);
+    expect(getLandingStoryProgressForStep(1)).toBe(0.5);
+    expect(getLandingStoryProgressForStep(9)).toBe(0.88);
   });
 
-  it("keeps one scene in the manual fallback and reveals the validated final query", async () => {
+  it("keeps one editor and result panel while revealing the final decision query", async () => {
     const user = userEvent.setup();
-    const onContinue = vi.fn();
     const onStart = vi.fn();
     const { container } = render(
-      <LandingSqlFilm
-        isReturningLearner={false}
-        onContinue={onContinue}
-        onStart={onStart}
-      />,
+      <LandingSqlFilm isReturningLearner={false} onStart={onStart} />,
     );
 
     expect(
       screen.getByRole("heading", {
-        name: "Bir iş sorusu nasıl karara dönüşür?",
+        name: "Sorgu büyüdükçe karar netleşir.",
       }),
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /İlk vakaya başla/i }));
-    expect(onStart).toHaveBeenCalledOnce();
-
-    expect(screen.getAllByRole("tab")).toHaveLength(landingSqlScenes.length);
+    expect(screen.getAllByRole("tab")).toHaveLength(3);
+    expect(container.querySelectorAll(".landing-sql-editor")).toHaveLength(1);
+    expect(container.querySelectorAll(".landing-sql-result")).toHaveLength(1);
+    expect(screen.getAllByRole("table")).toHaveLength(1);
     expect(
-      screen.getByRole("heading", {
-        name: "Her iyi analiz, doğru kümeyle başlar.",
-      }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByLabelText("Kapsam sahnesinin SQL örneği"),
+      screen.getByLabelText("Getir adımının SQL sorgusu"),
     ).toHaveTextContent("FROM branch_directory");
     expect(
-      screen.getByLabelText("Kapsam sahnesinin SQL örneği"),
+      screen.getByLabelText("Getir adımının SQL sorgusu"),
     ).not.toHaveTextContent("DENSE_RANK");
-    expect(container.querySelectorAll(".landing-sql-editor")).toHaveLength(1);
 
-    await user.click(screen.getByRole("tab", { name: /6\. adım: Karar/i }));
+    await user.click(
+      screen.getByRole("tab", { name: /3\. adım: Karara dönüştür/i }),
+    );
 
     expect(
-      screen.getByRole("heading", {
-        name: "Ve sorgu, konuşabileceğin bir karara dönüşür.",
-      }),
+      screen.getByRole("heading", { name: "Sonucu karara dönüştür." }),
     ).toBeInTheDocument();
-    const visibleCode = container.querySelector(".landing-sql-code");
-    expect(visibleCode).toHaveTextContent("WITH branch_performance AS");
-    expect(visibleCode).toHaveTextContent("DENSE_RANK");
-    expect(visibleCode).toHaveTextContent("Aksiyon gerekli");
     expect(
-      screen.getByLabelText("Karar sahnesinin SQL örneği"),
+      screen.getByLabelText("Karara dönüştür adımının SQL sorgusu"),
     ).toHaveTextContent("DENSE_RANK");
+    expect(screen.getByText("Sorgu doğrulandı")).toBeInTheDocument();
     expect(container.querySelectorAll(".landing-sql-editor")).toHaveLength(1);
-    expect(container).not.toHaveTextContent("FROM products");
+    expect(container.querySelectorAll(".landing-sql-result")).toHaveLength(1);
 
-    await user.click(screen.getByRole("button", { name: /Nasıl çalışır/i }));
-    expect(onContinue).toHaveBeenCalledOnce();
+    await user.click(screen.getByRole("button", { name: /İlk vakaya başla/i }));
+    expect(onStart).toHaveBeenCalledOnce();
   });
 
-  it("supports roving tab focus with arrows, Home and End", () => {
-    render(
-      <LandingSqlFilm
-        isReturningLearner
-        onContinue={() => undefined}
-        onStart={() => undefined}
-      />,
-    );
+  it("supports roving step focus and the returning learner CTA", () => {
+    render(<LandingSqlFilm isReturningLearner onStart={() => undefined} />);
 
     expect(
       screen.getByRole("button", { name: /Kaldığın vakaya devam et/i }),
     ).toBeInTheDocument();
 
-    const firstTab = screen.getByRole("tab", { name: /1\. adım: Kapsam/i });
-    const secondTab = screen.getByRole("tab", { name: /2\. adım: Hedef/i });
-    const finalTab = screen.getByRole("tab", { name: /6\. adım: Karar/i });
+    const firstTab = screen.getByRole("tab", { name: /1\. adım: Getir/i });
+    const secondTab = screen.getByRole("tab", {
+      name: /2\. adım: Karşılaştır/i,
+    });
+    const finalTab = screen.getByRole("tab", {
+      name: /3\. adım: Karara dönüştür/i,
+    });
 
     firstTab.focus();
     fireEvent.keyDown(firstTab, { key: "ArrowRight" });

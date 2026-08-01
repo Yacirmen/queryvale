@@ -13,7 +13,7 @@
 
 | Ekran                    | Birincil amaç                                                                   | Birincil eylem                   |
 | ------------------------ | ------------------------------------------------------------------------------- | -------------------------------- |
-| Ana sayfa                | Kanıt rotasının değerini ve tarayıcı içi çalışma biçimini açıklamak             | Başla / kaldığın yerden devam et |
+| Ana sayfa                | Kanıt rotasını tek editör/sonuç çiftinde üç kısa adımla göstermek               | Başla / kaldığın yerden devam et |
 | Rota                     | Dört bölümü, SQL konularını ve sıradaki vakayı görünür kılmak                   | Devam et                         |
 | Vaka alanı               | `Sor → İncele → Sorgula → Doğrula → Anlat` döngüsünü tek vaka üzerinde yürütmek | Sorguyu çalıştır                 |
 | İlerleme / Kanıt Defteri | Doğrulanmış çalışmaları, karar notlarını ve pratik sinyallerini geri çağırmak   | Vakayı veya kanıtı aç            |
@@ -21,7 +21,7 @@
 
 ## Birincil akış
 
-1. Ana sayfa ürün vaadini ve tarayıcı içi çalışma modelini açıklar.
+1. Ana sayfa `Getir → Karşılaştır → Karara dönüştür` hikâyesini aynı SQL editörü ve sonuç paneli üzerinde gösterir; üçüncü adımdan sonra doğrudan kısa alt bilgiye geçer.
 2. Yeni kullanıcıda “İlk vakaya başla” ilk vaka içinde kapatılabilir 90 saniyelik rehberi açar; geri dönen kullanıcıda “Kaldığın vakaya devam et” son güvenilir konumu açar.
 3. Rota, çalışan SQL konularını dört mesleki bölüm altında gösterir ve sıradaki vakayı önerir.
 4. Çalışma alanı önce istenen teslimi ve çıktı sözleşmesini gösterir; kavram, kabul kontrolleri, veri notları ve iş bağlamını ihtiyaç anında açar.
@@ -32,6 +32,14 @@
 9. Doğru değerlendirmede sınırlı bir yerel kanıt snapshot’ı oluşturulur; kullanıcı çıktıyı görmeden otomatik olarak sonraki vakaya geçirilmez.
 10. Kullanıcı isterse bulgu, öneri ve çekincesini karar notu olarak yazar; not otomatik puanlanmaz.
 11. Sorgu, deneme, ilerleme ve kanıt kaydı v4 yerel çalışma alanına yazılır.
+
+## Ana sayfa tanıtım gereksinimleri
+
+- Masaüstü, ince işaretçi ve hareket tercihi uygun olduğunda hero tek ekran olarak sabitlenir; kaydırma yalnız üç SQL durumunu ilerletir.
+- Editör ve sonuç paneli adımlar arasında yeniden oluşturulmaz; sorgu, tablo ve açıklama aynı odak noktalarında güncellenir.
+- Üçüncü adım doğrulanmış başarı durumunu ve birincil başla/devam eylemini belirginleştirir; sabitleme hemen ardından çözülür.
+- Dar ekran, dokunmatik kullanım ve `prefers-reduced-motion` için üç adıma elle erişilebilen, pin ve yumuşak kaydırma gerektirmeyen eşdeğer akış sunulur.
+- Animasyon bağımlılıkları yalnız ana sayfada gecikmeli yüklenir; rota ve vaka bağlantıları bunları indirmek zorunda kalmaz.
 
 ## Çalışma alanı gereksinimleri
 
@@ -106,7 +114,7 @@ Profil adı hesap veya kimlik doğrulama değildir; yalnızca o tarayıcıdaki i
 - **Kart/panel:** içerik grubu olduğunda ince sınır ve küçük yükseklik farkı; her metin bloğu kartlaştırılmaz.
 - **Buton:** tek baskın primary; secondary ve ghost hiyerarşisi; tüm durumlarda görünür focus ring.
 - **Editör:** uygulama temasına bağlı, syntax vurgusu erişilebilir; satır yüksekliği ve font boyutu ayarlanabilir.
-- **Animasyon:** 120–240 ms, dönüşümü açıklar; reduced-motion’da ortadan kalkar veya anlık olur.
+- **Animasyon:** Mikro geçişler 120–240 ms sürer. Ana sayfadaki kısa SQL hikâyesi GSAP ScrollTrigger ve Lenis ile neden-sonuç ilişkisini açıklar; reduced-motion’da pin ve yumuşak kaydırma kalkar, adımlar elle seçilir.
 - **İkon:** tek aile, anlamı metinle destekler; dekoratif ikonlar `aria-hidden`.
 
 ## Erişilebilirlik kabulü

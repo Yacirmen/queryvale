@@ -349,45 +349,28 @@ describe("QueryvaleApp", () => {
     expect(sqlEngineHarness.mutationResetCount).toBe(2);
   });
 
-  it("starts blank, reveals a hint and advances after a correct query", async () => {
+  it("starts from the compact SQL story and advances after a correct query", async () => {
     const user = userEvent.setup();
     render(<QueryvaleApp />);
 
     expect(
       screen.getByRole("heading", {
-        name: /Bir iş sorusu nasıl karara dönüşür/i,
+        name: /Sorgu büyüdükçe karar netleşir/i,
       }),
     ).toBeInTheDocument();
-    const previousScrollBehavior =
-      document.documentElement.style.getPropertyValue("scroll-behavior");
-    document.documentElement.style.setProperty("scroll-behavior", "smooth");
-    await user.click(screen.getByRole("button", { name: /Nasıl çalışır/i }));
-    expect(
-      screen.getByRole("heading", { name: /Şimdi sıra sende/i }),
-    ).toBeInTheDocument();
-    expect(document.getElementById("product-introduction")).toHaveFocus();
-    expect(
-      document.documentElement.style.getPropertyValue("scroll-behavior"),
-    ).toBe("smooth");
-    if (previousScrollBehavior) {
-      document.documentElement.style.setProperty(
-        "scroll-behavior",
-        previousScrollBehavior,
-      );
-    } else {
-      document.documentElement.style.removeProperty("scroll-behavior");
-    }
-    const taskPreview = screen.getByRole("region", {
-      name: "Katalog görünümünü hazırla",
-    });
-    expect(within(taskPreview).getByText("İlk vaka")).toBeInTheDocument();
-    expect(within(taskPreview).getByText("product_name")).toBeInTheDocument();
-    expect(within(taskPreview).getByText("category")).toBeInTheDocument();
+    expect(screen.getAllByRole("tab")).toHaveLength(3);
     expect(screen.queryAllByRole("tablist")).toHaveLength(1);
+    expect(screen.getAllByRole("table")).toHaveLength(1);
+    expect(screen.getByRole("contentinfo")).toHaveTextContent(
+      "Verin ve ilerlemen bu cihazda kalır.",
+    );
 
     await user.click(
-      screen.getByRole("button", { name: /İlk vakayı birlikte çöz/i }),
+      screen.getByRole("tab", { name: /3\. adım: Karara dönüştür/i }),
     );
+    expect(screen.getByText("Sorgu doğrulandı")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /İlk vakaya başla/i }));
     expect(
       screen.getByRole("heading", {
         name: "Bu vakada yalnız üç adımın var.",
@@ -507,7 +490,7 @@ describe("QueryvaleApp", () => {
     const resumeButtons = await screen.findAllByRole("button", {
       name: "Kaldığın vakaya devam et",
     });
-    expect(resumeButtons).toHaveLength(2);
+    expect(resumeButtons).toHaveLength(1);
     expect(
       screen.getByTitle(`Son konumun: ${tasks[1].title}`),
     ).toBeInTheDocument();
@@ -551,7 +534,7 @@ describe("QueryvaleApp", () => {
     const resumeButtons = await screen.findAllByRole("button", {
       name: "Kaldığın vakaya devam et",
     });
-    expect(resumeButtons).toHaveLength(2);
+    expect(resumeButtons).toHaveLength(1);
     expect(
       screen.getByTitle(`Son konumun: ${tasks[2].title}`),
     ).toBeInTheDocument();

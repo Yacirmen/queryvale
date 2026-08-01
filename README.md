@@ -9,6 +9,7 @@ Queryvale, SQL sözdizimini ezberleten bir kurs değil; gerçek iş sorularını
 ## Neler sunar?
 
 - Satış, müşteri, şube, sipariş ve veri kalitesi gibi gerçekçi iş vakaları
+- Ana sayfada `Getir → Karşılaştır → Karara dönüştür` akışını tek SQL editörü ve sonuç panelinde gösteren kısa, üç adımlı tanıtım
 - Kullanıcı arayüzünde tek sözlük: Rota → Bölüm → Vaka
 - Temeli kur → İş sorusunu çöz → Örüntüyü keşfet → Karara dönüştür biçiminde dört bölüm
 - Tarayıcı içinde çalışan PGlite tabanlı SQL motoru
@@ -34,6 +35,7 @@ Queryvale, SQL sözdizimini ezberleten bir kurs değil; gerçek iş sorularını
 | --------- | ----------------------------------------------------- |
 | Uygulama  | React 19, TypeScript, Vinext ve Vite                  |
 | Stil      | Tailwind CSS 4 ve ürün tasarım token’ları             |
+| Hareket   | GSAP ScrollTrigger ve Lenis, ana sayfada lazy-load    |
 | Editör    | Monaco Editor                                         |
 | SQL       | PGlite, tarayıcı içinde ve gerektiğinde lazy-load     |
 | State     | Sade React state, reducer/context ve saf selector’lar |
