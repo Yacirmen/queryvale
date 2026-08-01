@@ -326,6 +326,13 @@ describe("QueryvaleApp", () => {
     expect(mutationTask).toBeDefined();
     render(<QueryvaleApp />);
 
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: mutationTask!.title },
+        { timeout: 10_000 },
+      ),
+    ).toBeInTheDocument();
     const editor = await screen.findByRole("textbox", {
       name: "SQL sorgu editörü",
     });
@@ -341,7 +348,7 @@ describe("QueryvaleApp", () => {
       await screen.findByText(
         mutationTask!.coaching["rows-wrong"].title,
         undefined,
-        { timeout: 12_000 },
+        { timeout: 5_000 },
       ),
     ).toBeInTheDocument();
     expect(sqlEngineHarness.mutationResetCount).toBe(1);
@@ -365,7 +372,7 @@ describe("QueryvaleApp", () => {
       ),
     ).toBeVisible();
     expect(sqlEngineHarness.mutationResetCount).toBe(2);
-  }, 30_000);
+  }, 20_000);
 
   it("redirects a locked direct hash to the first accessible missing task", async () => {
     const lockedTask = modules[1].tasks[0];
