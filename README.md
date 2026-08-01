@@ -37,7 +37,7 @@ Queryvale, SQL sözdizimini ezberleten bir kurs değil; kullanıcıyı gerçek b
 | Kalıcılık | IndexedDB                                             |
 | Test      | Vitest, React Testing Library, Playwright             |
 | Kalite    | ESLint, Prettier, TypeScript                          |
-| Dağıtım   | GitHub Pages, Cloudflare Sites veya Hostinger statik  |
+| Dağıtım   | GitHub Pages                                          |
 
 ## Gereksinimler
 
@@ -118,7 +118,7 @@ Alanların tam sözleşmesi, örnek görev ve editoryal standartlar [CONTENT_GUI
 - Çalışan rota bugün SQL ağırlıklı 10 modül ve 31 vakadır. Python, elektronik tablo ve BI araçları henüz ürün içinde çalıştırılmaz; ileride aynı kanıt döngüsüne bağlanan köprüler olarak değerlendirilecektir.
 - Tamamlanma, deneme, süre, ipucu ve çalışma serisi pratik bağlamıdır; tek başına mesleki ustalık veya işe hazır olma iddiası değildir.
 - Taşınabilir Mac paketi macOS 11 veya yenisinde, Intel ve Apple Silicon işlemcilerde çalışır. Sabit `127.0.0.1:41739` origin'ini kullanır; Node veya internet gerektirmez ve ilerlemeyi aynı tarayıcı origin'inde korur.
-- Hostinger paylaşımı, Web/Cloud Hosting içindeki ayrı bir Custom HTML sitesinde statik istemci olarak çalışır; Website Builder tek başına yeterli değildir. Yayın paketi ve kurallar [Hostinger rehberinde](./hosting/hostinger/README.md) tutulur.
+- Canlı web sürümünün tek kanonik adresi `https://yacirmen.github.io/queryvale/` ve tek yayın hattı GitHub Pages'tir.
 - Gizli bir backend bulunmadığı için görev tanımları ve beklenen sonuçlar istemci paketinde incelenebilir.
 - Büyük veri setleri amaçlanmaz; sonuçlar ve çalışma süresi güvenli sınırlarla kısıtlanır.
 - PGlite WebAssembly başlangıç maliyeti düşük donanımlarda hissedilebilir; yükleme gecikmeli yapılır.

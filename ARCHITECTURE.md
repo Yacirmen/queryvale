@@ -2,7 +2,7 @@
 
 ## Mimari hedef
 
-Queryvale, statik olarak dağıtılabilen bir uygulama kabuğu içinde tamamen tarayıcıda çalışan SQL, değerlendirme ve ilerleme katmanları kullanır. Cloudflare Sites dosyaları sunar; uygulamanın doğruluğu veya kullanıcı verisi için bir backend’e ihtiyaç yoktur.
+Queryvale, statik olarak dağıtılabilen bir uygulama kabuğu içinde tamamen tarayıcıda çalışan SQL, değerlendirme ve ilerleme katmanları kullanır. GitHub Pages taşınabilir istemci dosyalarını sunar; uygulamanın doğruluğu veya kullanıcı verisi için bir backend’e ihtiyaç yoktur.
 
 ```text
 Vinext/React UI
@@ -153,7 +153,7 @@ Yazmalar tek object-store transaction’ında yapılır. IndexedDB kullanılamaz
 
 ## Dağıtım
 
-Vinext/Vite üretim çıktısı Cloudflare Sites’a dağıtılır. `.openai/hosting.json` mevcut Sites projesinin kimliğini taşır ve yeniden kullanılmalıdır. D1/R2 bağları `null` kalır; kullanıcı ilerlemesi veya SQL yürütme sunucuya taşınmaz.
+`main` dalına yapılan push, GitHub Actions kalite kapılarından sonra `dist-portable` çıktısını GitHub Pages'e dağıtır. Uygulama göreli asset yolları ve hash routing kullanır; kullanıcı ilerlemesi veya SQL yürütme sunucuya taşınmaz. Başka bir canlı yayın hedefi tutulmaz.
 
 ## Gözlemlenebilirlik
 

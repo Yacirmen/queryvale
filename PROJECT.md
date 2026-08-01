@@ -33,7 +33,7 @@ Queryvale, başlangıçtan analitik SQL’e uzanan öğrenme yolunu gerçek iş 
 - IndexedDB ilerleme ve tercih depolaması
 - JSON içe/dışa aktarma
 - Vitest/RTL/Playwright kalite kapıları
-- Cloudflare Sites üretim derlemesi
+- GitHub Actions doğrulamalı GitHub Pages üretim yayını
 
 ### Dokümantasyon
 
@@ -81,4 +81,3 @@ Bir özellik yalnızca şu koşullar birlikte sağlanınca tamamlanır:
 | Aşırı esnek cevap değerlendirme | Yanlış pozitif | Kolon/satır/sıra/kavram katmanları ve fixture testleri |
 | İçerik hatası | Öğrenme güveninin kaybı | Build-time doğrulama ve referans sorgu testleri |
 | Yerel verinin silinmesi | İlerleme kaybı | Açık uyarı, dışa/içe aktarma, şema migrasyonu |
-
