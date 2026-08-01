@@ -14,6 +14,7 @@ import {
   createDefaultProgress,
   exportProgress,
   loadProgress,
+  localDateKey,
   recordAttempt,
   saveProgress,
   updateProfileName,
@@ -699,9 +700,24 @@ describe("QueryvaleApp", () => {
           completed: false,
           lastQuery: draft,
         });
+        expect(restored.activityDates).toContain(localDateKey(new Date()));
       },
       { timeout: 2_500 },
     );
+
+    await user.click(
+      within(
+        screen.getByRole("navigation", { name: "Çalışma bölümleri" }),
+      ).getByRole("button", { name: /^Profilim$/ }),
+    );
+    const conceptSection = screen
+      .getByRole("heading", { name: "Hangi SQL konularını çalıştın?" })
+      .closest("section");
+    expect(conceptSection).not.toBeNull();
+    expect(
+      within(conceptSection!).getByText("Üzerinde çalışılıyor"),
+    ).toBeInTheDocument();
+    expect(within(conceptSection!).getByText("SELECT")).toBeInTheDocument();
   });
 
   it("labels draft storage as session-only when IndexedDB is unavailable", async () => {

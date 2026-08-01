@@ -710,7 +710,7 @@ export function saveDecisionNote(
     updatedAt: new Date().toISOString(),
   };
 
-  return {
+  return recordPracticeActivity({
     ...state,
     evidenceByTaskId: {
       ...state.evidenceByTaskId,
@@ -719,6 +719,25 @@ export function saveDecisionNote(
         note,
       },
     },
+  });
+}
+
+export function localDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function recordPracticeActivity(
+  state: ProgressState,
+  date = new Date(),
+): ProgressState {
+  const dateKey = localDateKey(date);
+  if (state.activityDates.includes(dateKey)) return state;
+  return {
+    ...state,
+    activityDates: [...state.activityDates, dateKey].sort(),
   };
 }
 
@@ -728,11 +747,10 @@ export function recordAttempt(
   query: string,
   completed: boolean,
   solveTimeSeconds: number,
+  now = new Date(),
 ): ProgressState {
   const previous = state.tasks[taskId];
   const attempts = (previous?.attempts ?? 0) + 1;
-  const now = new Date();
-  const today = now.toISOString().slice(0, 10);
   const firstCompletion = completed && !previous?.completed;
   const task: TaskProgress = {
     taskId,
@@ -750,17 +768,20 @@ export function recordAttempt(
     firstTry: firstCompletion ? attempts === 1 : (previous?.firstTry ?? false),
   };
 
-  return {
-    ...state,
-    activityDates: Array.from(new Set([...state.activityDates, today])).sort(),
-    tasks: { ...state.tasks, [taskId]: task },
-  };
+  return recordPracticeActivity(
+    {
+      ...state,
+      tasks: { ...state.tasks, [taskId]: task },
+    },
+    now,
+  );
 }
 
 export function recordHint(
   state: ProgressState,
   taskId: string,
   hintIndex: number,
+  now = new Date(),
 ): ProgressState {
   const previous = state.tasks[taskId] ?? {
     taskId,
@@ -771,31 +792,37 @@ export function recordHint(
     solveTimeSeconds: 0,
     firstTry: false,
   };
-  return {
-    ...state,
-    tasks: {
-      ...state.tasks,
-      [taskId]: {
-        ...previous,
-        hintsUsed: Array.from(
-          new Set([...previous.hintsUsed, hintIndex]),
-        ).sort(),
+  return recordPracticeActivity(
+    {
+      ...state,
+      tasks: {
+        ...state.tasks,
+        [taskId]: {
+          ...previous,
+          hintsUsed: Array.from(
+            new Set([...previous.hintsUsed, hintIndex]),
+          ).sort(),
+        },
       },
     },
-  };
+    now,
+  );
 }
 
-export function calculateStreak(activityDates: string[]): number {
+export function calculateStreak(
+  activityDates: string[],
+  now = new Date(),
+): number {
   if (!activityDates.length) return 0;
   const dates = new Set(activityDates);
-  const cursor = new Date();
-  const today = cursor.toISOString().slice(0, 10);
-  if (!dates.has(today)) cursor.setUTCDate(cursor.getUTCDate() - 1);
+  const cursor = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12);
+  const today = localDateKey(cursor);
+  if (!dates.has(today)) cursor.setDate(cursor.getDate() - 1);
 
   let streak = 0;
-  while (dates.has(cursor.toISOString().slice(0, 10))) {
+  while (dates.has(localDateKey(cursor))) {
     streak += 1;
-    cursor.setUTCDate(cursor.getUTCDate() - 1);
+    cursor.setDate(cursor.getDate() - 1);
   }
   return streak;
 }

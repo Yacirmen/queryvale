@@ -20,6 +20,7 @@ import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { CurriculumModule, LessonTask } from "../../types/lesson";
 import {
   calculateStreak,
+  localDateKey,
   type ProgressState,
   validateProfileName,
 } from "../../features/progress/progressStore";
@@ -70,6 +71,71 @@ function hasTaskActivity(taskId: string, progress: ProgressState): boolean {
       taskState.hintsUsed.length > 0 ||
       taskState.lastQuery.trim().length > 0),
   );
+}
+
+interface ConceptSignal {
+  concept: string;
+  verified: number;
+  inProgress: number;
+  attempts: number;
+  hints: number;
+}
+
+export function buildProfileConceptSignals(
+  tasks: LessonTask[],
+  progress: ProgressState,
+): { verified: ConceptSignal[]; inProgress: ConceptSignal[] } {
+  const conceptMap = new Map<string, Omit<ConceptSignal, "concept">>();
+
+  tasks.forEach((task) => {
+    const taskState = progress.tasks[task.id];
+    if (!hasTaskActivity(task.id, progress)) return;
+    const concepts = taskState?.completed
+      ? task.concepts
+      : task.requiredConcepts;
+
+    concepts.forEach((concept) => {
+      const current = conceptMap.get(concept) ?? {
+        verified: 0,
+        inProgress: 0,
+        attempts: 0,
+        hints: 0,
+      };
+      conceptMap.set(concept, {
+        verified: current.verified + (taskState?.completed ? 1 : 0),
+        inProgress: current.inProgress + (taskState?.completed ? 0 : 1),
+        attempts: current.attempts + (taskState?.attempts ?? 0),
+        hints: current.hints + (taskState?.hintsUsed.length ?? 0),
+      });
+    });
+  });
+
+  const signals = Array.from(conceptMap.entries()).map(([concept, values]) => ({
+    concept,
+    ...values,
+  }));
+
+  return {
+    verified: signals
+      .filter((signal) => signal.verified > 0)
+      .sort(
+        (left, right) =>
+          right.verified - left.verified ||
+          right.inProgress - left.inProgress ||
+          left.concept.localeCompare(right.concept),
+      )
+      .slice(0, 3),
+    inProgress: signals
+      .filter((signal) => signal.inProgress > 0)
+      .sort(
+        (left, right) =>
+          right.attempts - left.attempts ||
+          right.hints - left.hints ||
+          right.inProgress - left.inProgress ||
+          left.concept.localeCompare(right.concept),
+      )
+      .slice(0, 3),
+  };
 }
 
 export function ProgressScreen({
@@ -278,80 +344,32 @@ export function ProgressScreen({
     [evidenceByTaskId, modules, tasks],
   );
 
-  const conceptSignals = useMemo(() => {
-    const conceptMap = new Map<
-      string,
-      { total: number; completed: number; attempts: number; hints: number }
-    >();
-
-    tasks.forEach((task) => {
-      const taskState = progress.tasks[task.id];
-      if (!hasTaskActivity(task.id, progress)) return;
-      task.concepts.forEach((concept) => {
-        const current = conceptMap.get(concept) ?? {
-          total: 0,
-          completed: 0,
-          attempts: 0,
-          hints: 0,
-        };
-        conceptMap.set(concept, {
-          total: current.total + 1,
-          completed: current.completed + (taskState?.completed ? 1 : 0),
-          attempts: current.attempts + (taskState?.attempts ?? 0),
-          hints: current.hints + (taskState?.hintsUsed.length ?? 0),
-        });
-      });
-    });
-
-    const signals = Array.from(conceptMap.entries()).map(
-      ([concept, values]) => ({
-        concept,
-        ...values,
-        rate: Math.round((values.completed / values.total) * 100),
-      }),
-    );
-
-    const strengths = signals
-      .filter((signal) => signal.completed > 0 && signal.rate >= 60)
-      .sort(
-        (left, right) =>
-          right.rate - left.rate || right.completed - left.completed,
-      )
-      .slice(0, 3);
-
-    const strengthConcepts = new Set(
-      signals
-        .filter((signal) => signal.completed > 0 && signal.rate >= 60)
-        .map((signal) => signal.concept),
-    );
-
-    const focus = signals
-      .filter(
-        (signal) =>
-          !strengthConcepts.has(signal.concept) &&
-          (signal.rate < 100 ||
-            signal.attempts > signal.completed ||
-            signal.hints > 0),
-      )
-      .sort(
-        (left, right) =>
-          left.rate - right.rate || right.attempts - left.attempts,
-      )
-      .slice(0, 3);
-
-    return { strengths, focus };
-  }, [progress, tasks]);
-
-  const activityCells = useMemo(
-    () =>
-      Array.from({ length: 35 }, (_, index) => {
-        const date = new Date();
-        date.setUTCDate(date.getUTCDate() - (34 - index));
-        const key = date.toISOString().slice(0, 10);
-        return { key, active: progress.activityDates.includes(key) };
-      }),
-    [progress.activityDates],
+  const conceptSignals = useMemo(
+    () => buildProfileConceptSignals(tasks, progress),
+    [progress, tasks],
   );
+
+  const activityCells = useMemo(() => {
+    const activityDates = new Set(progress.activityDates);
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    return Array.from({ length: 35 }, (_, index) => {
+      const date = new Date(today);
+      date.setDate(today.getDate() - (34 - index));
+      const key = localDateKey(date);
+      return {
+        key,
+        active: activityDates.has(key),
+        dateLabel: new Intl.DateTimeFormat("tr-TR", {
+          day: "numeric",
+          month: "short",
+        }).format(date),
+        weekdayLabel: new Intl.DateTimeFormat("tr-TR", {
+          weekday: "short",
+        }).format(date),
+      };
+    });
+  }, [progress.activityDates]);
 
   const handleNameSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -379,6 +397,12 @@ export function ProgressScreen({
   };
 
   const activeDaysInWindow = activityCells.filter((cell) => cell.active).length;
+  const hasConceptSignals = Boolean(
+    conceptSignals.verified.length || conceptSignals.inProgress.length,
+  );
+  const activityRange = `${activityCells[0]?.dateLabel ?? ""} – ${
+    activityCells.at(-1)?.dateLabel ?? ""
+  }`;
 
   return (
     <main
@@ -396,7 +420,7 @@ export function ProgressScreen({
               {profileInitials(profileName)}
             </div>
             <div className="profile-identity-copy">
-              <span className="profile-kicker">Bu cihazdaki profil</span>
+              <span className="profile-kicker">Bu site adresindeki profil</span>
               {isEditingName ? (
                 <>
                   <h1 id="panel-title" className="sr-only">
@@ -888,22 +912,43 @@ export function ProgressScreen({
                 </div>
               </div>
               <div className="activity-summary">
-                <strong>{activeDaysInWindow} aktif gün</strong>
-                <span>{metrics.streak} günlük güncel seri</span>
+                <strong>
+                  {activeDaysInWindow
+                    ? `${activeDaysInWindow} aktif gün`
+                    : "Henüz kayıt yok"}
+                </strong>
+                <span>{metrics.streak} günlük seri</span>
+              </div>
+              <div className="profile-activity-weekdays" aria-hidden="true">
+                {activityCells.slice(0, 7).map((cell) => (
+                  <span key={`weekday-${cell.key}`}>{cell.weekdayLabel}</span>
+                ))}
               </div>
               <div
                 className="profile-activity-grid"
                 role="img"
-                aria-label={`Son 35 günde ${activeDaysInWindow} gün çalışıldı.`}
+                aria-label={`${activityRange} arasında ${activeDaysInWindow} gün çalışıldı.`}
               >
                 {activityCells.map((cell) => (
-                  <span
+                  <time
                     className={`profile-activity-cell ${cell.active ? "active" : ""}`}
                     key={cell.key}
+                    dateTime={cell.key}
+                    title={`${cell.dateLabel}: ${cell.active ? "çalışma kaydedildi" : "kayıt yok"}`}
                     aria-hidden="true"
                   />
                 ))}
               </div>
+              <div className="profile-activity-range" aria-hidden="true">
+                <span>{activityCells[0]?.dateLabel}</span>
+                <span>{activityCells.at(-1)?.dateLabel}</span>
+              </div>
+              {!activeDaysInWindow && (
+                <p className="profile-widget-note">
+                  Bu web adresinde henüz çalışma kaydı yok. Sorgu yazdığında,
+                  ipucu açtığında veya çalıştırdığında bugün işaretlenir.
+                </p>
+              )}
             </section>
 
             <section
@@ -918,47 +963,70 @@ export function ProgressScreen({
                 </div>
               </div>
 
-              {conceptSignals.strengths.length ? (
+              {conceptSignals.verified.length > 0 && (
                 <div className="concept-signal-group">
                   <span className="concept-signal-label">
-                    <TrendingUp size={13} /> Doğrulanan pratikler
+                    <CheckCircle2 size={13} /> Doğrulanan konular
                   </span>
                   <div className="concept-chip-list">
-                    {conceptSignals.strengths.map((signal) => (
+                    {conceptSignals.verified.map((signal) => (
                       <span
                         className="concept-chip strong"
                         key={signal.concept}
                       >
                         {formatConcept(signal.concept)}
                         <small>
-                          {signal.completed}/{signal.total} tamamlanan görev
+                          {signal.verified} görevde doğrulandı
+                          {signal.inProgress
+                            ? ` · ${signal.inProgress} çalışma sürüyor`
+                            : ""}
                         </small>
                       </span>
                     ))}
                   </div>
                 </div>
-              ) : (
-                <p className="concept-empty-copy">
-                  SQL görevlerini tamamladıkça çalıştığın kavramlar burada
-                  görünür olacak.
-                </p>
               )}
 
-              {conceptSignals.focus.length > 0 && (
+              {conceptSignals.inProgress.length > 0 && (
                 <div className="concept-signal-group">
                   <span className="concept-signal-label focus">
-                    <Lightbulb size={13} /> Sıradaki pratik alanı
+                    <Lightbulb size={13} /> Üzerinde çalışılıyor
                   </span>
                   <div className="concept-chip-list">
-                    {conceptSignals.focus.map((signal) => (
+                    {conceptSignals.inProgress.map((signal) => (
                       <span className="concept-chip focus" key={signal.concept}>
                         {formatConcept(signal.concept)}
                         <small>
-                          {signal.total - signal.completed} görev kaldı
+                          {signal.attempts
+                            ? `${signal.attempts} deneme`
+                            : signal.hints
+                              ? `${signal.hints} ipucu açıldı`
+                              : "Taslak kaydedildi"}
                         </small>
                       </span>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {!hasConceptSignals && (
+                <div className="profile-widget-empty">
+                  <strong>Henüz kavram sinyali yok</strong>
+                  <p>
+                    Bir SQL taslağı yazınca konu “çalışılıyor”, doğru sonucu
+                    alınca “doğrulandı” olarak burada görünür.
+                  </p>
+                  {recommendedTask && (
+                    <button
+                      className="profile-widget-action"
+                      type="button"
+                      onClick={() =>
+                        onNavigate("workspace", { taskId: recommendedTask.id })
+                      }
+                    >
+                      İlk vakayı aç <ArrowRight size={14} aria-hidden="true" />
+                    </button>
+                  )}
                 </div>
               )}
             </section>
@@ -972,8 +1040,9 @@ export function ProgressScreen({
                 </div>
               </div>
               <p>
-                Adın, sorguların ve ilerlemen bu cihazda tutulur. Diğer cihaza
-                geçirmek için JSON yedeğini kullanabilirsin.
+                Adın, sorguların ve ilerlemen bu tarayıcıda ve bu web adresinde
+                tutulur. Localhost’taki kayıt GitHub adresine otomatik gelmez;
+                taşımak için JSON yedeğini kullanabilirsin.
               </p>
               <button
                 className="ghost-button"

@@ -5042,23 +5042,55 @@ button {
   font-size: var(--font-size-micro);
 }
 
+.profile-activity-weekdays,
 .profile-activity-grid {
-  margin-top: 16px;
+  width: min(100%, 232px);
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 6px;
 }
 
+.profile-activity-weekdays {
+  margin-top: 18px;
+  color: var(--text-faint);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 9px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.profile-activity-grid {
+  margin-top: 6px;
+}
+
 .profile-activity-cell {
-  aspect-ratio: 1;
+  height: 20px;
   border: 1px solid color-mix(in srgb, var(--line) 65%, transparent);
-  border-radius: 5px;
+  border-radius: 4px;
   background: var(--surface-muted);
 }
 
 .profile-activity-cell.active {
   border-color: color-mix(in srgb, var(--accent) 72%, var(--line));
   background: color-mix(in srgb, var(--accent) 65%, var(--signal));
+}
+
+.profile-activity-range {
+  width: min(100%, 232px);
+  margin-top: 7px;
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-faint);
+  font-size: var(--font-size-micro);
+}
+
+.profile-widget-note {
+  margin: 15px 0 0;
+  border-top: 1px solid var(--line);
+  padding-top: 13px;
+  color: var(--text-soft);
+  font-size: var(--font-size-caption);
+  line-height: 1.55;
 }
 
 .concept-signal-group {
@@ -5111,15 +5143,54 @@ button {
   font-size: var(--font-size-micro);
 }
 
-.concept-empty-copy,
 .local-profile-note > p {
   color: var(--text-soft);
   font-size: var(--font-size-small);
   line-height: 1.6;
 }
 
-.concept-empty-copy {
-  margin: 20px 0 0;
+.profile-widget-empty {
+  margin-top: 20px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+
+.profile-widget-empty strong {
+  color: var(--text);
+  font-size: var(--font-size-caption);
+}
+
+.profile-widget-empty p {
+  margin: 6px 0 0;
+  color: var(--text-soft);
+  font-size: var(--font-size-caption);
+  line-height: 1.55;
+}
+
+.profile-widget-action {
+  min-height: 36px;
+  margin-top: 12px;
+  border: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--accent);
+  background: transparent;
+  font: inherit;
+  font-size: var(--font-size-caption);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profile-widget-action:hover {
+  color: var(--text);
+}
+
+.profile-widget-action:focus-visible {
+  border-radius: 5px;
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 4px;
 }
 
 .local-profile-note {

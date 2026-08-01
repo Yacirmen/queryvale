@@ -9,9 +9,12 @@ import {
   getProgressPersistenceIssue,
   importProgress,
   loadProgress,
+  localDateKey,
   MAX_DECISION_NOTE_FIELD_CHARS,
   normalizeProfileName,
   recordAttempt,
+  recordHint,
+  recordPracticeActivity,
   recordVerifiedRun,
   saveProgress,
   saveDecisionNote,
@@ -494,15 +497,36 @@ describe("progressStore", () => {
     );
   });
 
+  it("records meaningful practice once per local calendar day", () => {
+    const firstDay = new Date(2026, 7, 1, 0, 30);
+    const secondDay = new Date(2026, 7, 2, 0, 15);
+    const drafted = recordPracticeActivity(createDefaultProgress(), firstDay);
+    const withHint = recordHint(drafted, "m1-t1", 0, firstDay);
+    const attempted = recordAttempt(
+      withHint,
+      "m1-t1",
+      "SELECT product_name FROM products",
+      false,
+      0,
+      firstDay,
+    );
+    const nextDay = recordHint(attempted, "m1-t1", 1, secondDay);
+
+    expect(localDateKey(firstDay)).toBe("2026-08-01");
+    expect(nextDay.activityDates).toEqual(["2026-08-01", "2026-08-02"]);
+    expect(nextDay.tasks["m1-t1"]).toMatchObject({
+      attempts: 1,
+      hintsUsed: [0, 1],
+    });
+    expect(calculateStreak(nextDay.activityDates, secondDay)).toBe(2);
+  });
+
   it("calculates a continuous activity streak", () => {
-    const today = new Date();
+    const today = new Date(2026, 7, 1, 12);
     const yesterday = new Date(today);
-    yesterday.setUTCDate(today.getUTCDate() - 1);
+    yesterday.setDate(today.getDate() - 1);
     expect(
-      calculateStreak([
-        yesterday.toISOString().slice(0, 10),
-        today.toISOString().slice(0, 10),
-      ]),
+      calculateStreak([localDateKey(yesterday), localDateKey(today)], today),
     ).toBe(2);
   });
 });

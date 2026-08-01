@@ -63,9 +63,9 @@ içeriğini GitHub Pages'e yollar. Repo ayarlarında **Settings → Pages → So
 alanı bir kez **GitHub Actions** olarak seçilmelidir. Hash tabanlı yönlendirme ve
 göreli asset yolları nedeniyle proje alt yolu için ek rewrite gerekmez.
 
-Yayın herkese açıktır. Kullanıcı adı, ilerleme ve Kanıt Defteri her tarayıcının
-IndexedDB alanında bağımsız kalır; cihazlar arası canlı eşitleme yapılmaz. Repo
-veya alan adı değişirse ilerleme önce JSON olarak dışa aktarılmalıdır. Görev
+Yayın herkese açıktır. Kullanıcı adı, ilerleme ve Kanıt Defteri her tarayıcı +
+web adresinin IndexedDB alanında bağımsız kalır; cihazlar ve origin'ler arası
+canlı eşitleme yapılmaz. Repo veya alan adı değişirse ilerleme önce JSON olarak dışa aktarılmalıdır. Görev
 konumu, denemeler, ipuçları, tamamlanmalar, kanıtlar ve SQL taslakları aynı
 origin içinde otomatik kaydedilir; normal kullanımda `⌘/Ctrl+S` gerekmez.
 

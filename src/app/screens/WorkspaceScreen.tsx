@@ -44,6 +44,7 @@ import { createVerifiedRunSnapshot } from "../../features/evidence/evidenceSnaps
 import {
   recordAttempt,
   recordHint,
+  recordPracticeActivity,
   recordVerifiedRun,
   saveDecisionNote,
   type EditorSettings,
@@ -239,7 +240,7 @@ export function WorkspaceScreen({
         onProgressChange((current) => {
           const previous =
             current.tasks[task.id] ?? createDraftProgress(task.id, nextQuery);
-          return {
+          const nextProgress = {
             ...current,
             lastOpenedTaskId: options.preserveLocation
               ? current.lastOpenedTaskId
@@ -252,6 +253,9 @@ export function WorkspaceScreen({
               [task.id]: { ...previous, lastQuery: nextQuery },
             },
           };
+          return nextQuery.trim()
+            ? recordPracticeActivity(nextProgress)
+            : nextProgress;
         });
         lastPersistedQueryRef.current = nextQuery;
         draftDirtyRef.current = false;
