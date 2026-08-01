@@ -37,6 +37,7 @@ type LegacyTaskProgress = Omit<
 export interface ProgressProfile {
   id: string;
   displayName: string;
+  localAccountCreatedAt?: string;
 }
 
 export interface DecisionNote {
@@ -191,13 +192,53 @@ export function updateProfileName(
   if (!validation.valid) {
     throw new Error(validation.error);
   }
-  if (validation.normalizedName === state.profile.displayName) return state;
+  const shouldMarkLocalAccount =
+    state.profile.localAccountCreatedAt !== undefined ||
+    state.profile.displayName !== DEFAULT_PROFILE_DISPLAY_NAME ||
+    validation.normalizedName !== DEFAULT_PROFILE_DISPLAY_NAME;
+  const localAccountCreatedAt = shouldMarkLocalAccount
+    ? (state.profile.localAccountCreatedAt ?? new Date().toISOString())
+    : undefined;
+  if (
+    validation.normalizedName === state.profile.displayName &&
+    localAccountCreatedAt === state.profile.localAccountCreatedAt
+  ) {
+    return state;
+  }
 
   return {
     ...state,
     profile: {
       ...state.profile,
       displayName: validation.normalizedName,
+      ...(localAccountCreatedAt ? { localAccountCreatedAt } : {}),
+    },
+  };
+}
+
+export function hasLocalAccount(state: ProgressState): boolean {
+  return (
+    state.profile.localAccountCreatedAt !== undefined ||
+    state.profile.displayName !== DEFAULT_PROFILE_DISPLAY_NAME
+  );
+}
+
+export function createLocalAccount(
+  state: ProgressState,
+  name: string,
+): ProgressState {
+  const validation = validateProfileName(name);
+  if (!validation.valid) {
+    throw new Error(validation.error);
+  }
+
+  return {
+    ...state,
+    profile: {
+      ...state.profile,
+      displayName: validation.normalizedName,
+      localAccountCreatedAt:
+        state.profile.localAccountCreatedAt ?? new Date().toISOString(),
     },
   };
 }
@@ -473,7 +514,10 @@ function isProgressProfile(value: unknown): value is ProgressProfile {
     typeof profile.id === "string" &&
     PROFILE_ID_PATTERN.test(profile.id) &&
     typeof profile.displayName === "string" &&
-    validateProfileName(profile.displayName).valid
+    validateProfileName(profile.displayName).valid &&
+    (profile.localAccountCreatedAt === undefined ||
+      (typeof profile.localAccountCreatedAt === "string" &&
+        Number.isFinite(Date.parse(profile.localAccountCreatedAt))))
   );
 }
 
@@ -583,6 +627,9 @@ export function migrateProgressState(
       profile: {
         id: value.profile.id,
         displayName: profileName.normalizedName,
+        ...(value.profile.localAccountCreatedAt
+          ? { localAccountCreatedAt: value.profile.localAccountCreatedAt }
+          : {}),
       },
       tasks: Object.fromEntries(
         Object.entries(value.tasks).map(([taskId, task]) => [
@@ -602,6 +649,9 @@ export function migrateProgressState(
         id: value.profile.id,
         displayName: validateProfileName(value.profile.displayName)
           .normalizedName,
+        ...(value.profile.localAccountCreatedAt
+          ? { localAccountCreatedAt: value.profile.localAccountCreatedAt }
+          : {}),
       },
       startedAt: value.startedAt,
       lastOpenedTaskId: value.lastOpenedTaskId,
@@ -620,6 +670,9 @@ export function migrateProgressState(
         id: value.profile.id,
         displayName: validateProfileName(value.profile.displayName)
           .normalizedName,
+        ...(value.profile.localAccountCreatedAt
+          ? { localAccountCreatedAt: value.profile.localAccountCreatedAt }
+          : {}),
       },
       startedAt: value.startedAt,
       lastOpenedTaskId: value.lastOpenedTaskId,
@@ -638,6 +691,9 @@ export function migrateProgressState(
         id: value.profile.id,
         displayName: validateProfileName(value.profile.displayName)
           .normalizedName,
+        ...(value.profile.localAccountCreatedAt
+          ? { localAccountCreatedAt: value.profile.localAccountCreatedAt }
+          : {}),
       },
       startedAt: value.startedAt,
       lastOpenedTaskId: value.lastOpenedTaskId,

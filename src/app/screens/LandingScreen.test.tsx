@@ -8,13 +8,13 @@ import { LandingScreen, landingShowcaseQuery } from "./LandingScreen";
 describe("LandingScreen", () => {
   it("keeps the authored role, SQL story and first-case action in one surface", async () => {
     const user = userEvent.setup();
-    const onNavigate = vi.fn();
+    const onStart = vi.fn();
     render(
       <LandingScreen
-        onNavigate={onNavigate}
+        onStart={onStart}
         resumeTask={tasks[0]}
         isReturningLearner={false}
-        showOnboardingOnStart
+        hasLocalAccount={false}
         reducedMotion
       />,
     );
@@ -56,36 +56,49 @@ describe("LandingScreen", () => {
     expect(screen.queryByText("Idle")).not.toBeInTheDocument();
 
     await user.click(
-      screen.getByRole("button", { name: "İlk vakayı birlikte çöz" }),
+      screen.getByRole("button", { name: /Hesabını Aç & Vaka Çöz/i }),
     );
-    expect(onNavigate).toHaveBeenCalledWith("workspace", {
-      taskId: tasks[0].id,
-      onboarding: true,
-    });
+    expect(onStart).toHaveBeenCalledOnce();
   });
 
   it("resumes the saved case without turning onboarding back on", async () => {
     const user = userEvent.setup();
-    const onNavigate = vi.fn();
+    const onStart = vi.fn();
     render(
       <LandingScreen
-        onNavigate={onNavigate}
+        onStart={onStart}
         resumeTask={tasks[1]}
         isReturningLearner
-        showOnboardingOnStart={false}
+        hasLocalAccount
         reducedMotion
       />,
     );
 
     const resume = screen.getByRole("button", {
-      name: "Kaldığın vakaya devam et",
+      name: /Profiline Gir & Devam Et/i,
     });
     expect(resume).toHaveAttribute("title", `Son konumun: ${tasks[1].title}`);
     await user.click(resume);
-    expect(onNavigate).toHaveBeenCalledWith("workspace", {
-      taskId: tasks[1].id,
-      onboarding: false,
-    });
+    expect(onStart).toHaveBeenCalledOnce();
+  });
+
+  it("labels saved guest progress without pretending that a profile exists", () => {
+    render(
+      <LandingScreen
+        onStart={vi.fn()}
+        resumeTask={tasks[1]}
+        isReturningLearner
+        hasLocalAccount={false}
+        reducedMotion
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /Kaldığın Vaka ile Devam Et/i }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: /Profiline Gir/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows only active rows in descending query-count order", async () => {

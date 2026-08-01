@@ -12,6 +12,7 @@ import { useEffect, useRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { modules, tasks } from "../content";
 import {
+  createLocalAccount,
   createDefaultProgress,
   exportProgress,
   loadProgress,
@@ -49,6 +50,7 @@ const sqlEngineHarness = vi.hoisted(() => ({
 
 const progressPersistenceHarness = vi.hoisted(() => ({
   loadGate: undefined as Promise<void> | undefined,
+  loadOverride: undefined as unknown,
   saveDelays: [] as number[],
   pendingSaves: new Set<Promise<void>>(),
 }));
@@ -87,6 +89,11 @@ vi.mock("../features/progress/progressStore", async (importOriginal) => {
     loadProgress: async () => {
       const gate = progressPersistenceHarness.loadGate;
       if (gate) await gate;
+      if (progressPersistenceHarness.loadOverride) {
+        return progressPersistenceHarness.loadOverride as Awaited<
+          ReturnType<typeof actual.loadProgress>
+        >;
+      }
       return actual.loadProgress();
     },
     saveProgress: (
@@ -271,6 +278,7 @@ describe("QueryvaleApp", () => {
     sqlEngineHarness.mutationResetCount = 0;
     sqlEngineHarness.runDelayMs = 0;
     progressPersistenceHarness.loadGate = undefined;
+    progressPersistenceHarness.loadOverride = undefined;
     progressPersistenceHarness.saveDelays = [];
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
@@ -452,6 +460,7 @@ describe("QueryvaleApp", () => {
         -1,
       ),
     ).toMatchObject({ isUnlocked: true });
+    progressPersistenceHarness.loadOverride = unlockedProgress;
     window.history.replaceState(null, "", `#/lab/${projectTask.id}`);
 
     render(<QueryvaleApp />);
@@ -559,6 +568,13 @@ describe("QueryvaleApp", () => {
     await user.click(
       screen.getByRole("button", { name: /İlk vakayı birlikte çöz/i }),
     );
+    expect(window.location.hash).toBe("#/giris");
+    expect(
+      screen.getByRole("heading", { name: "Analiz rotanı kaydet." }),
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Bu cihazda hesapsız devam et" }),
+    );
     expect(
       screen.getByRole("heading", {
         name: "Bu vakada yalnız üç adımın var.",
@@ -638,13 +654,28 @@ describe("QueryvaleApp", () => {
     render(<QueryvaleApp />);
 
     await user.click(
-      await screen.findByRole("button", { name: "İlk vakaya başla" }),
+      await screen.findByRole("button", {
+        name: "Hemen Başla — Hesap oluştur ve ilk vakaya başla",
+      }),
+    );
+    expect(window.location.hash).toBe("#/giris");
+    await user.type(screen.getByLabelText("Adın"), "Ada Analist");
+    await user.click(
+      screen.getByRole("button", {
+        name: "Yerel hesabımı oluştur ve başla",
+      }),
     );
     expect(
       await screen.findByRole("heading", {
         name: "Bu vakada yalnız üç adımın var.",
       }),
     ).toBeInTheDocument();
+    await waitFor(async () =>
+      expect((await loadProgress()).profile).toMatchObject({
+        displayName: "Ada Analist",
+        localAccountCreatedAt: expect.any(String),
+      }),
+    );
 
     await user.click(screen.getByRole("button", { name: "Sonraki vaka" }));
     expect(
@@ -659,6 +690,45 @@ describe("QueryvaleApp", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("locks global exits until a new local profile is durably stored", async () => {
+    progressPersistenceHarness.saveDelays = [80];
+    const user = userEvent.setup();
+    render(<QueryvaleApp />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Hemen Başla — Hesap oluştur ve ilk vakaya başla",
+      }),
+    );
+    await user.type(screen.getByLabelText("Adın"), "Ada Analist");
+    await user.click(
+      screen.getByRole("button", {
+        name: "Yerel hesabımı oluştur ve başla",
+      }),
+    );
+
+    const header = screen.getByRole("banner");
+    expect(header).toHaveAttribute("aria-busy", "true");
+    expect(document.querySelector(".app-shell")).toHaveAttribute("inert");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Yerel profil hazırlanıyor ve güvenle kaydediliyor.",
+    );
+    for (const control of within(header).getAllByRole("button")) {
+      expect(control).toBeDisabled();
+    }
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Bu vakada yalnız üç adımın var.",
+      }),
+    ).toBeInTheDocument();
+    await waitFor(async () =>
+      expect((await loadProgress()).profile.localAccountCreatedAt).toEqual(
+        expect.any(String),
+      ),
+    );
+  });
+
   it("resumes the stored case from the landing page without resetting progress", async () => {
     const firstQuery = "SELECT product_name, category FROM products;";
     const resumeQuery = "SELECT DISTINCT category FROM products;";
@@ -670,6 +740,7 @@ describe("QueryvaleApp", () => {
       24,
     );
     stored = recordAttempt(stored, "m1-t2", resumeQuery, false, 12);
+    stored = createLocalAccount(stored, "Ada Analist");
     stored = { ...stored, lastOpenedTaskId: "m1-t2" };
     await saveProgress(stored);
     const user = userEvent.setup();
@@ -677,14 +748,16 @@ describe("QueryvaleApp", () => {
     render(<QueryvaleApp />);
 
     const resumeButtons = await screen.findAllByRole("button", {
-      name: "Kaldığın vakaya devam et",
+      name: /Profiline Gir & Devam Et/i,
     });
-    expect(resumeButtons).toHaveLength(2);
+    expect(resumeButtons).toHaveLength(1);
     expect(
       screen.getByTitle(`Son konumun: ${tasks[1].title}`),
     ).toBeInTheDocument();
     const resumeButton = resumeButtons[0];
     await user.click(resumeButton);
+    expect(window.location.hash).toBe("#/giris");
+    await user.click(screen.getByRole("button", { name: "Rotama dön" }));
 
     expect(
       await screen.findByRole("heading", { name: tasks[1].title }),
@@ -721,14 +794,18 @@ describe("QueryvaleApp", () => {
     render(<QueryvaleApp />);
 
     const resumeButtons = await screen.findAllByRole("button", {
-      name: "Kaldığın vakaya devam et",
+      name: /Kaldığın Vaka ile Devam Et/i,
     });
-    expect(resumeButtons).toHaveLength(2);
+    expect(resumeButtons).toHaveLength(1);
     expect(
       screen.getByTitle(`Son konumun: ${tasks[2].title}`),
     ).toBeInTheDocument();
     const resumeButton = resumeButtons[0];
     await user.click(resumeButton);
+    expect(window.location.hash).toBe("#/giris");
+    await user.click(
+      screen.getByRole("button", { name: "Bu cihazda hesapsız devam et" }),
+    );
     expect(
       await screen.findByRole("heading", { name: tasks[2].title }),
     ).toBeInTheDocument();
@@ -1031,13 +1108,17 @@ describe("QueryvaleApp", () => {
     );
 
     const resumeButtons = await screen.findAllByRole("button", {
-      name: "Kaldığın vakaya devam et",
+      name: /Kaldığın Vaka ile Devam Et/i,
     });
     const resumeButton = resumeButtons[0];
     await waitFor(async () => {
       expect((await loadProgress()).tasks["m1-t1"].lastQuery).toBe(draft);
     });
     await user.click(resumeButton);
+    expect(window.location.hash).toBe("#/giris");
+    await user.click(
+      screen.getByRole("button", { name: "Bu cihazda hesapsız devam et" }),
+    );
 
     expect(
       await screen.findByRole("textbox", { name: "SQL sorgu editörü" }),

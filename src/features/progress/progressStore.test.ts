@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createVerifiedRunSnapshot } from "../evidence/evidenceSnapshot";
 import {
   calculateStreak,
+  createLocalAccount,
   createDefaultProgress,
   DEFAULT_PROFILE_DISPLAY_NAME,
   exportProgress,
   getProgressPersistenceIssue,
+  hasLocalAccount,
   importProgress,
   loadProgress,
   localDateKey,
@@ -584,10 +586,49 @@ describe("progressStore", () => {
     expect(updated.profile).not.toBe(state.profile);
     expect(updated.profile.id).toBe(state.profile.id);
     expect(updated.profile.displayName).toBe("SQL Ustası");
+    expect(updated.profile.localAccountCreatedAt).toEqual(expect.any(String));
     expect(updated.tasks).toBe(state.tasks);
     expect(updated.settings).toBe(state.settings);
     expect(state.profile.displayName).toBe(DEFAULT_PROFILE_DISPLAY_NAME);
     expect(updateProfileName(updated, "SQL Ustası")).toBe(updated);
+  });
+
+  it("distinguishes an explicitly created local account from guest activity", () => {
+    const guest = recordAttempt(
+      createDefaultProgress(),
+      "m1-t1",
+      "SELECT product_name FROM products",
+      false,
+      8,
+    );
+
+    expect(hasLocalAccount(guest)).toBe(false);
+
+    const account = createLocalAccount(guest, DEFAULT_PROFILE_DISPLAY_NAME);
+    expect(hasLocalAccount(account)).toBe(true);
+    expect(account.profile.displayName).toBe(DEFAULT_PROFILE_DISPLAY_NAME);
+    expect(account.profile.localAccountCreatedAt).toEqual(expect.any(String));
+    expect(guest.profile.localAccountCreatedAt).toBeUndefined();
+
+    expect(
+      hasLocalAccount(
+        updateProfileName(createDefaultProgress(), "Ada Analist"),
+      ),
+    ).toBe(true);
+
+    const legacyState = createDefaultProgress();
+    const legacyNamedAccount = {
+      ...legacyState,
+      profile: { ...legacyState.profile, displayName: "Eski Analist" },
+    };
+    const renamedToDefault = updateProfileName(
+      legacyNamedAccount,
+      DEFAULT_PROFILE_DISPLAY_NAME,
+    );
+    expect(hasLocalAccount(renamedToDefault)).toBe(true);
+    expect(renamedToDefault.profile.localAccountCreatedAt).toEqual(
+      expect.any(String),
+    );
   });
 
   it("rejects unsafe or out-of-range profile names", () => {

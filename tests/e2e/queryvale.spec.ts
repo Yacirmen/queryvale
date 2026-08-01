@@ -19,6 +19,7 @@ test("the unified fixed header keeps five controls visible across every route", 
 }) => {
   const routes = [
     { path: "/", active: "home" },
+    { path: "/#/giris", active: "account" },
     { path: "/#/learn", active: "learn" },
     { path: "/#/lab/m1-t1", active: "workspace" },
     { path: "/#/progress", active: undefined },
@@ -43,25 +44,27 @@ test("the unified fixed header keeps five controls visible across every route", 
     const studio = header.getByRole("button", {
       name: "Studio — SQL Laboratuvarı",
     });
-    const dataEngine = header.getByRole("button", { name: "Veri Motoru" });
-    const documentation = header.getByRole("link", { name: "Dokümanlar" });
+    const howItWorks = header.getByRole("button", { name: "Nasıl Çalışır" });
     const start = header.locator(".landing-header-cta");
 
     await expect(header).toHaveCSS("position", "fixed");
-    for (const control of [
-      routeLink,
-      studio,
-      dataEngine,
-      documentation,
-      start,
-    ]) {
+    for (const control of [brand, routeLink, studio, howItWorks, start]) {
       await expect(control).toBeVisible();
     }
-    await expect(documentation).toHaveAttribute(
-      "href",
-      "https://github.com/Yacirmen/queryvale#readme",
-    );
-    await expect(documentation).toHaveAttribute("target", "_blank");
+    await expect(header.getByText("Dokümanlar")).toHaveCount(0);
+
+    const navigationCenter = await header
+      .getByRole("navigation", { name: "Ana bölümler" })
+      .evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        return bounds.left + bounds.width / 2;
+      });
+    expect(
+      Math.abs(
+        navigationCenter -
+          (await page.evaluate(() => document.documentElement.clientWidth / 2)),
+      ),
+    ).toBeLessThanOrEqual(1);
 
     const activeControls = header.locator('[aria-current="page"]');
     if (route.active === "home") {
@@ -73,6 +76,9 @@ test("the unified fixed header keeps five controls visible across every route", 
     } else if (route.active === "workspace") {
       await expect(activeControls).toHaveCount(1);
       await expect(studio).toHaveAttribute("aria-current", "page");
+    } else if (route.active === "account") {
+      await expect(activeControls).toHaveCount(1);
+      await expect(start).toHaveAttribute("aria-current", "page");
     } else {
       await expect(activeControls).toHaveCount(0);
     }
@@ -84,7 +90,7 @@ test("the unified fixed header keeps five controls visible across every route", 
     ).toBe(true);
   }
 
-  await page.getByRole("button", { name: "Veri Motoru" }).click();
+  await page.getByRole("button", { name: "Nasıl Çalışır" }).click();
   await expect(page).toHaveURL(/#\/$/);
   await expect(page.locator("#queryvale-studio")).toBeFocused();
 });
@@ -197,6 +203,13 @@ test("landing, onboarding and first real SQL task", async ({
   );
 
   await page.getByRole("button", { name: /İlk vakayı birlikte çöz/i }).click();
+  await expect(page).toHaveURL(/#\/giris$/);
+  await expect(
+    page.getByRole("heading", { name: "Analiz rotanı kaydet." }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Bu cihazda hesapsız devam et" })
+    .click();
   await expect(
     page.getByRole("heading", {
       name: "Bu vakada yalnız üç adımın var.",
@@ -552,6 +565,35 @@ test("learning path and settings remain usable on a narrow viewport", async ({
       () => document.documentElement.scrollWidth - window.innerWidth,
     ),
   ).toBeLessThanOrEqual(0);
+
+  await page.getByRole("button", { name: /Hesabını Aç & Vaka Çöz/i }).click();
+  await expect(page).toHaveURL(/#\/giris$/);
+  await expect(
+    page.getByRole("heading", { name: "Analiz rotanı kaydet." }),
+  ).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect(page.getByLabel("Adın")).toBeVisible();
+  await expect(page.getByLabel("Adın")).toBeInViewport({ ratio: 1 });
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    ),
+  ).toBeLessThanOrEqual(0);
+
+  await page.goto("/#/settings");
+  await page.getByRole("button", { name: "Açık" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.getByRole("button", { name: /^Hemen Başla/ }).click();
+  await expect(page).toHaveURL(/#\/giris$/);
+  await expect(page.getByLabel("Adın")).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    ),
+  ).toBeLessThanOrEqual(0);
+
   await page.getByRole("button", { name: "Rota", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Rota" })).toBeVisible();
   await expect(

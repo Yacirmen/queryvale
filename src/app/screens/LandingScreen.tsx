@@ -3,13 +3,13 @@
 import { ArrowDown, ArrowRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { LessonTask } from "../../types/lesson";
-import type { Navigate } from "../appTypes";
 
 interface LandingScreenProps {
-  onNavigate: Navigate;
+  onStart: () => void;
   resumeTask: LessonTask | undefined;
   isReturningLearner: boolean;
-  showOnboardingOnStart: boolean;
+  hasLocalAccount: boolean;
+  startDisabled?: boolean;
   reducedMotion: boolean;
 }
 
@@ -69,23 +69,17 @@ function FormattedQuery() {
 }
 
 export function LandingScreen({
-  onNavigate,
+  onStart,
   resumeTask,
   isReturningLearner,
-  showOnboardingOnStart,
+  hasLocalAccount,
+  startDisabled = false,
   reducedMotion,
 }: LandingScreenProps) {
   const heroTrackRef = useRef<HTMLElement>(null);
   const studioTrackRef = useRef<HTMLElement>(null);
   const [roleIndex, setRoleIndex] = useState(0);
   const [studioStep, setStudioStep] = useState(0);
-
-  const startOrResumeCase = () => {
-    onNavigate("workspace", {
-      taskId: resumeTask?.id,
-      onboarding: showOnboardingOnStart,
-    });
-  };
 
   const shouldUseManualControls = () =>
     reducedMotion ||
@@ -146,6 +140,11 @@ export function LandingScreen({
   const startLabel = isReturningLearner
     ? "Kaldığın vakaya devam et"
     : "İlk vakayı birlikte çöz";
+  const visibleStartLabel = hasLocalAccount
+    ? "Profiline Gir & Devam Et"
+    : isReturningLearner
+      ? "Kaldığın Vaka ile Devam Et"
+      : "Hesabını Aç & Vaka Çöz";
 
   return (
     <main id="main-content" className="page landing-reference" tabIndex={-1}>
@@ -342,24 +341,22 @@ export function LandingScreen({
             Teoriyi Bırakın, İlk Vakanızı Çözmeye Başlayın
           </h2>
           <p>
-            Kurulum yok, karmaşık veritabanı ayarları yok. Doğrudan SQL
-            Laboratuvarı&apos;na girin, gerçek senaryolar üzerinden veriyi
-            sorgulamaya başlayın.
+            Kurulum yok, karmaşık veritabanı ayarları yok. Yerel çalışma
+            profilini seç, gerçek senaryolar üzerinden veriyi sorgulamaya başla.
           </p>
           <button
             className="landing-reference-cta-button"
             type="button"
-            onClick={startOrResumeCase}
-            aria-label={startLabel}
+            disabled={startDisabled}
+            onClick={onStart}
+            aria-label={`${visibleStartLabel} — ${startLabel}`}
             title={
               isReturningLearner && resumeTask
                 ? `Son konumun: ${resumeTask.title}`
                 : undefined
             }
           >
-            {isReturningLearner
-              ? "Kaldığın Vaka ile Devam Et"
-              : "Laboratuvarı Aç & Vaka Çöz"}
+            {visibleStartLabel}
             <ArrowRight size={18} aria-hidden="true" />
           </button>
         </div>

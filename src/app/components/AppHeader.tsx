@@ -5,21 +5,26 @@ import type { AppScreen, Navigate } from "../appTypes";
 interface AppHeaderProps {
   screen: AppScreen;
   onNavigate: Navigate;
-  onHomeStart?: () => void;
-  onDataEngine?: () => void;
-  homeStartLabel?: string;
+  onStudio?: () => void;
+  onHowItWorks?: () => void;
+  onStart?: () => void;
+  startLabel?: string;
+  disabled?: boolean;
 }
 
 export function AppHeader({
   screen,
   onNavigate,
-  onHomeStart,
-  onDataEngine,
-  homeStartLabel,
+  onStudio,
+  onHowItWorks,
+  onStart,
+  startLabel,
+  disabled = false,
 }: AppHeaderProps) {
-  const startStudio = onHomeStart ?? (() => onNavigate("workspace"));
-  const openDataEngine =
-    onDataEngine ?? (() => onNavigate("home", { anchor: "queryvale-studio" }));
+  const openStudio = onStudio ?? (() => onNavigate("workspace"));
+  const openHowItWorks =
+    onHowItWorks ?? (() => onNavigate("home", { anchor: "queryvale-studio" }));
+  const start = onStart ?? (() => onNavigate("account"));
 
   return (
     <>
@@ -27,11 +32,12 @@ export function AppHeader({
         İçeriğe geç
       </a>
 
-      <header className="app-header">
+      <header className="app-header" aria-busy={disabled}>
         <div className="header-inner">
           <button
             className="brand"
             type="button"
+            disabled={disabled}
             onClick={() => onNavigate("home")}
             aria-label="Queryvale ana sayfa"
             aria-current={screen === "home" ? "page" : undefined}
@@ -43,6 +49,7 @@ export function AppHeader({
             <button
               className="reference-nav-link"
               type="button"
+              disabled={disabled}
               onClick={() => onNavigate("learn")}
               aria-current={screen === "learn" ? "page" : undefined}
             >
@@ -51,7 +58,8 @@ export function AppHeader({
             <button
               className="reference-nav-link"
               type="button"
-              onClick={startStudio}
+              disabled={disabled}
+              onClick={openStudio}
               aria-label="Studio — SQL Laboratuvarı"
               aria-current={screen === "workspace" ? "page" : undefined}
             >
@@ -60,25 +68,20 @@ export function AppHeader({
             <button
               className="reference-nav-link"
               type="button"
-              onClick={openDataEngine}
+              disabled={disabled}
+              onClick={openHowItWorks}
             >
-              Veri Motoru
+              Nasıl Çalışır
             </button>
-            <a
-              className="reference-nav-link"
-              href="https://github.com/Yacirmen/queryvale#readme"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Dokümanlar
-            </a>
           </nav>
 
           <button
             className="landing-header-cta"
             type="button"
-            onClick={startStudio}
-            aria-label={homeStartLabel ?? "İlk vakaya başla"}
+            disabled={disabled}
+            onClick={start}
+            aria-label={`Hemen Başla — ${startLabel ?? "hesap aç veya giriş yap"}`}
+            aria-current={screen === "account" ? "page" : undefined}
           >
             Hemen Başla
           </button>

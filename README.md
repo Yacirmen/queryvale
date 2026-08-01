@@ -25,7 +25,8 @@ Queryvale, SQL sözdizimini ezberleten bir kurs değil; gerçek iş sorularını
 - Bulgu, öneri ve isteğe bağlı çekinceyi saklayan karar notu ile Kanıt Defteri
 - İlk doğru sorguda kilitlenen 10/7/4/1 Analiz puanı; tam çözüm desteğinde 0, puan rota erişimini etkilemez
 - Şema, örnek veri, SQL editörü ve sonuçları bir araya getiren çalışma alanı
-- Hesapsız ve backend’siz, IndexedDB tabanlı yerel ilerleme
+- `Hemen Başla` ile açılan yerel `Giriş yap / Hesap oluştur` başlangıç kapısı; e-posta, parola, backend veya bulut hesabı olmadan IndexedDB tabanlı cihaz profili
+- `Studio` üzerinden profil kapısını zorunlu kılmadan SQL Laboratuvarı’na misafir erişimi
 - Yazarken otomatik kaydedilen SQL taslakları; `⌘/Ctrl+S` ile anında kayıt
 - Açık/koyu tema, editör tercihleri ve reduced-motion desteği
 - Dışa/içe aktarılabilir ilerleme verisi
@@ -73,6 +74,11 @@ web adresinin IndexedDB alanında bağımsız kalır; cihazlar ve origin'ler ara
 canlı eşitleme yapılmaz. Repo veya alan adı değişirse ilerleme önce JSON olarak dışa aktarılmalıdır. Vaka
 konumu, denemeler, ipuçları, tamamlanmalar, kanıtlar ve SQL taslakları aynı
 origin içinde otomatik kaydedilir; normal kullanımda `⌘/Ctrl+S` gerekmez.
+`Hemen Başla`, bu yerel çalışma alanını seçmek veya adlandırmak için
+`Giriş yap / Hesap oluştur` ekranını açar. Bu ekran gerçek kimlik doğrulama değildir; e-posta
+ya da parola toplamaz, backend'e veri göndermez ve başka cihazda oturum açma
+veya bulut senkronizasyonu vaat etmez. `Studio` bağlantısı SQL Laboratuvarı'na
+misafir erişimini korur.
 
 ## Komutlar
 

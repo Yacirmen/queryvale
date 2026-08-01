@@ -4,9 +4,11 @@ import { CheckCircle2, CircleAlert } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { modules, tasks } from "../content/curriculum";
 import {
+  createLocalAccount,
   createDefaultProgress,
   exportProgress,
   getProgressPersistenceIssue,
+  hasLocalAccount,
   importProgress,
   isProgressPersistenceAvailable,
   loadProgress,
@@ -23,6 +25,7 @@ import {
 import { selectResumeTask } from "../features/progress/resumeTask";
 import type { AppScreen, Navigate, NavigateOptions } from "./appTypes";
 import { AppHeader } from "./components/AppHeader";
+import { AccountScreen } from "./screens/AccountScreen";
 import { LandingScreen } from "./screens/LandingScreen";
 import { LearningPathScreen } from "./screens/LearningPathScreen";
 import { ProgressScreen } from "./screens/ProgressScreen";
@@ -31,12 +34,14 @@ import { WorkspaceScreen } from "./screens/WorkspaceScreen";
 
 function routeFor(screen: AppScreen, taskId?: string): string {
   if (screen === "home") return "#/";
+  if (screen === "account") return "#/giris";
   if (screen === "workspace") return `#/lab/${taskId ?? tasks[0]?.id ?? ""}`;
   return `#/${screen}`;
 }
 
 function screenFromHash(hash: string): AppScreen {
   if (hash.startsWith("#/lab/")) return "workspace";
+  if (hash === "#/giris") return "account";
   if (hash === "#/learn") return "learn";
   if (hash === "#/progress") return "progress";
   if (hash === "#/settings") return "settings";
@@ -67,6 +72,7 @@ export function QueryvaleApp() {
   const [activeTaskId, setActiveTaskId] = useState(tasks[0]?.id ?? "");
   const [isLoaded, setIsLoaded] = useState(false);
   const [isReplacingProgress, setIsReplacingProgress] = useState(false);
+  const [isCreatingLocalAccount, setIsCreatingLocalAccount] = useState(false);
   const [persistenceAvailable, setPersistenceAvailable] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [pendingAnchor, setPendingAnchor] =
@@ -80,6 +86,7 @@ export function QueryvaleApp() {
   const isReplacingProgressRef = useRef(false);
   const shouldFocusScreenRef = useRef(false);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const localAccountWriteRef = useRef<Promise<boolean> | undefined>(undefined);
 
   const activeTask = useMemo(
     () => tasks.find((task) => task.id === activeTaskId) ?? tasks[0],
@@ -97,6 +104,11 @@ export function QueryvaleApp() {
       ? { ...selection, task: access.task }
       : selection;
   }, [progress]);
+  const completedTaskCount = useMemo(
+    () => tasks.filter((task) => progress.tasks[task.id]?.completed).length,
+    [progress.tasks],
+  );
+  const localAccountExists = hasLocalAccount(progress);
 
   useEffect(() => {
     let current = true;
@@ -398,6 +410,82 @@ export function QueryvaleApp() {
     [persist],
   );
 
+  const openResumeWorkspace = useCallback(() => {
+    navigate("workspace", {
+      taskId: resumeSelection.task?.id,
+      onboarding: resumeSelection.shouldShowOnboarding,
+    });
+  }, [navigate, resumeSelection]);
+
+  const handleCreateLocalProfile = useCallback(
+    (name: string): Promise<boolean> => {
+      if (localAccountWriteRef.current) {
+        return localAccountWriteRef.current;
+      }
+      setIsCreatingLocalAccount(true);
+      const operation = (async () => {
+        try {
+          const accountBase = progressRef.current;
+          const accountSnapshot = createLocalAccount(accountBase, name);
+          await enqueueSave(accountSnapshot);
+
+          let finalProgress = accountSnapshot;
+          if (progressRef.current !== accountBase) {
+            let mergedWithoutLosingActivity = false;
+            for (let attempt = 0; attempt < 4; attempt += 1) {
+              const current = progressRef.current;
+              const merged = { ...current, profile: accountSnapshot.profile };
+              await enqueueSave(merged);
+              if (progressRef.current === current) {
+                finalProgress = merged;
+                mergedWithoutLosingActivity = true;
+                break;
+              }
+            }
+            if (!mergedWithoutLosingActivity) {
+              throw new Error(
+                "Profil kaydı sırasında çalışma değişmeye devam etti. Lütfen tekrar dene.",
+              );
+            }
+          }
+
+          if (!isProgressPersistenceAvailable()) {
+            throw new Error(
+              "Yerel profil bu cihazda kalıcı olarak kaydedilemedi.",
+            );
+          }
+          progressRef.current = finalProgress;
+          setProgress(finalProgress);
+          setPersistenceAvailable(true);
+          setNotice({
+            tone: "success",
+            message: `Yerel profil ${finalProgress.profile.displayName} adıyla hazır.`,
+          });
+          return true;
+        } catch (error) {
+          setPersistenceAvailable(isProgressPersistenceAvailable());
+          setNotice({
+            tone: "error",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Yerel profil bu cihazda kaydedilemedi.",
+          });
+          return false;
+        }
+      })();
+      localAccountWriteRef.current = operation;
+      void operation.finally(() => {
+        if (localAccountWriteRef.current === operation) {
+          localAccountWriteRef.current = undefined;
+          setIsCreatingLocalAccount(false);
+        }
+      });
+      return operation;
+    },
+    [enqueueSave],
+  );
+
   const handleExport = () => {
     const currentProgress = progressRef.current;
     const blob = new Blob([exportProgress(currentProgress)], {
@@ -526,91 +614,113 @@ export function QueryvaleApp() {
   };
 
   return (
-    <div
-      className="app-shell"
-      data-screen={screen}
-      aria-busy={!isLoaded || isReplacingProgress}
-      inert={!isLoaded || isReplacingProgress}
-    >
-      <AppHeader
-        screen={screen}
-        onNavigate={navigate}
-        onHomeStart={() =>
-          navigate("workspace", {
-            taskId: resumeSelection.task?.id,
-            onboarding: resumeSelection.shouldShowOnboarding,
-          })
-        }
-        onDataEngine={() => navigate("home", { anchor: "queryvale-studio" })}
-        homeStartLabel={
-          resumeSelection.isReturningLearner
-            ? "Kaldığın vakaya devam et"
-            : "İlk vakaya başla"
-        }
-      />
+    <>
+      {isCreatingLocalAccount ? (
+        <span className="sr-only" role="status" aria-live="polite" aria-atomic>
+          Yerel profil hazırlanıyor ve güvenle kaydediliyor.
+        </span>
+      ) : null}
+      <div
+        className="app-shell"
+        data-screen={screen}
+        aria-busy={!isLoaded || isReplacingProgress || isCreatingLocalAccount}
+        inert={!isLoaded || isReplacingProgress || isCreatingLocalAccount}
+      >
+        <AppHeader
+          screen={screen}
+          onNavigate={navigate}
+          onStudio={openResumeWorkspace}
+          onHowItWorks={() => navigate("home", { anchor: "queryvale-studio" })}
+          onStart={() => navigate("account")}
+          disabled={isCreatingLocalAccount}
+          startLabel={
+            localAccountExists
+              ? "Profiline gir ve kaldığın vakaya devam et"
+              : resumeSelection.isReturningLearner
+                ? "Yerel profil oluştur veya kaldığın vakaya devam et"
+                : "Hesap oluştur ve ilk vakaya başla"
+          }
+        />
 
-      {screen === "home" && (
-        <LandingScreen
-          onNavigate={navigate}
-          resumeTask={resumeSelection.task}
-          isReturningLearner={resumeSelection.isReturningLearner}
-          showOnboardingOnStart={resumeSelection.shouldShowOnboarding}
-          reducedMotion={progress.settings.reducedMotion}
-        />
-      )}
-      {screen === "learn" && (
-        <LearningPathScreen
-          modules={modules}
-          tasks={tasks}
-          progress={progress}
-          onNavigate={navigate}
-        />
-      )}
-      {screen === "workspace" && activeTask && (
-        <WorkspaceScreen
-          key={activeTask.id}
-          task={activeTask}
-          modules={modules}
-          tasks={tasks}
-          progress={progress}
-          settings={progress.settings}
-          persistenceAvailable={persistenceAvailable}
-          showFirstCaseGuide={showOnboarding}
-          onDismissFirstCaseGuide={() => setShowOnboarding(false)}
-          onProgressChange={persistWorkspaceProgress}
-          onNavigate={navigate}
-        />
-      )}
-      {screen === "progress" && (
-        <ProgressScreen
-          modules={modules}
-          tasks={tasks}
-          progress={progress}
-          profileName={progress.profile.displayName}
-          onProfileNameChange={handleProfileNameChange}
-          onNavigate={navigate}
-        />
-      )}
-      {screen === "settings" && (
-        <SettingsScreen
-          settings={progress.settings}
-          onChange={updateSettings}
-          onExport={handleExport}
-          onImport={handleImport}
-          onReset={handleReset}
-        />
-      )}
+        {screen === "home" && (
+          <LandingScreen
+            onStart={() => navigate("account")}
+            resumeTask={resumeSelection.task}
+            isReturningLearner={resumeSelection.isReturningLearner}
+            hasLocalAccount={localAccountExists}
+            startDisabled={isCreatingLocalAccount}
+            reducedMotion={progress.settings.reducedMotion}
+          />
+        )}
+        {screen === "account" && (
+          <AccountScreen
+            profileName={progress.profile.displayName}
+            hasLocalAccount={localAccountExists}
+            hasLearningProgress={resumeSelection.isReturningLearner}
+            completedCount={completedTaskCount}
+            totalCount={tasks.length}
+            resumeTaskTitle={resumeSelection.task?.title}
+            persistenceAvailable={persistenceAvailable}
+            writePending={isCreatingLocalAccount}
+            onCreateProfile={handleCreateLocalProfile}
+            onContinue={openResumeWorkspace}
+            onGuestContinue={openResumeWorkspace}
+          />
+        )}
+        {screen === "learn" && (
+          <LearningPathScreen
+            modules={modules}
+            tasks={tasks}
+            progress={progress}
+            onNavigate={navigate}
+          />
+        )}
+        {screen === "workspace" && activeTask && (
+          <WorkspaceScreen
+            key={activeTask.id}
+            task={activeTask}
+            modules={modules}
+            tasks={tasks}
+            progress={progress}
+            settings={progress.settings}
+            persistenceAvailable={persistenceAvailable}
+            showFirstCaseGuide={showOnboarding}
+            onDismissFirstCaseGuide={() => setShowOnboarding(false)}
+            onProgressChange={persistWorkspaceProgress}
+            onNavigate={navigate}
+          />
+        )}
+        {screen === "progress" && (
+          <ProgressScreen
+            modules={modules}
+            tasks={tasks}
+            progress={progress}
+            profileName={progress.profile.displayName}
+            onProfileNameChange={handleProfileNameChange}
+            onNavigate={navigate}
+          />
+        )}
+        {screen === "settings" && (
+          <SettingsScreen
+            settings={progress.settings}
+            onChange={updateSettings}
+            onExport={handleExport}
+            onImport={handleImport}
+            onReset={handleReset}
+          />
+        )}
 
-      {notice && (
-        <div className="toast" role="status">
-          {notice.tone === "success" ? (
-            <CheckCircle2 size={14} />
-          ) : (
-            <CircleAlert size={14} />
-          )}
-          {notice.message}
-        </div>
-      )}
-    </div>
+        {notice && (
+          <div className="toast" role="status">
+            {notice.tone === "success" ? (
+              <CheckCircle2 size={14} />
+            ) : (
+              <CircleAlert size={14} />
+            )}
+            {notice.message}
+          </div>
+        )}
+      </div>
+    </>
   );
 }
