@@ -216,6 +216,7 @@ export function LandingScreen({
         className="landing-reference-track landing-studio-track"
         data-step={studioStep + 1}
         aria-labelledby="landing-studio-heading"
+        tabIndex={-1}
       >
         <div className="landing-reference-sticky landing-studio-stage">
           <h2 id="landing-studio-heading" className="sr-only">

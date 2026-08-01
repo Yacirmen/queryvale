@@ -238,9 +238,22 @@ async function readStoredState(): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const transaction = database.transaction(STORE_NAME, "readonly");
     const request = transaction.objectStore(STORE_NAME).get(STATE_KEY);
-    request.onsuccess = () => resolve(request.result as unknown);
-    request.onerror = () => reject(request.error);
-    transaction.oncomplete = () => database.close();
+    let storedState: unknown;
+    request.onsuccess = () => {
+      storedState = request.result as unknown;
+    };
+    transaction.oncomplete = () => {
+      database.close();
+      resolve(storedState);
+    };
+    transaction.onerror = () => {
+      database.close();
+      reject(transaction.error ?? request.error);
+    };
+    transaction.onabort = () => {
+      database.close();
+      reject(transaction.error ?? new Error("İlerleme kaydı okunamadı."));
+    };
   });
 }
 

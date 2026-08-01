@@ -1,110 +1,77 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { createDefaultProgress } from "../../features/progress/progressStore";
 import { AppHeader } from "./AppHeader";
 
 describe("AppHeader", () => {
-  it("explains the three-part workflow and exposes a single active destination", () => {
-    render(
-      <AppHeader
-        screen="learn"
-        profileName="SQL Kaşifi"
-        settings={createDefaultProgress().settings}
-        onNavigate={vi.fn()}
-        onSettingsChange={vi.fn()}
-      />,
+  it("shows the five reference controls and marks the current destination", () => {
+    const { rerender } = render(
+      <AppHeader screen="learn" onNavigate={vi.fn()} />,
     );
 
     const navigation = screen.getByRole("navigation", {
-      name: "Çalışma alanları",
+      name: "Ana bölümler",
     });
-    const route = within(navigation).getByRole("button", {
-      name: "Rota",
+    const route = within(navigation).getByRole("button", { name: "Rota" });
+    const studio = within(navigation).getByRole("button", {
+      name: "Studio — SQL Laboratuvarı",
     });
+    const dataEngine = within(navigation).getByRole("button", {
+      name: "Veri Motoru",
+    });
+    const documentation = within(navigation).getByRole("link", {
+      name: "Dokümanlar",
+    });
+    const start = screen.getByRole("button", { name: "İlk vakaya başla" });
 
+    expect(route).toBeVisible();
+    expect(studio).toBeVisible();
+    expect(dataEngine).toBeVisible();
+    expect(documentation).toBeVisible();
+    expect(start).toBeVisible();
     expect(route).toHaveAttribute("aria-current", "page");
-    expect(
-      within(navigation).getByText("Bölümler ve sıradaki vaka"),
-    ).toBeVisible();
-    expect(
-      within(navigation).getByText("Sorgunu yaz ve çalıştır"),
-    ).toBeVisible();
-    expect(
-      within(navigation).getByText("SQL Kaşifi · İlerleme ve Kanıt Defteri"),
-    ).toBeVisible();
-    expect(within(navigation).getAllByText("Şu an")).toHaveLength(1);
-    expect(
-      within(navigation).getByRole("button", { name: "Profilim" }),
-    ).not.toHaveAttribute("aria-current");
-    expect(screen.getByText("Sorudan kanıta")).toBeVisible();
+    expect(studio).not.toHaveAttribute("aria-current");
 
-    const utilities = screen.getByRole("group", {
-      name: "Görünüm ve tercihler",
-    });
-    expect(
-      within(utilities).getByRole("button", { name: "Açık temaya geç" }),
-    ).toBeVisible();
-    expect(
-      within(utilities).getByRole("button", { name: "Ayarları aç" }),
-    ).toBeVisible();
+    rerender(<AppHeader screen="workspace" onNavigate={vi.fn()} />);
+
+    expect(route).not.toHaveAttribute("aria-current");
+    expect(studio).toHaveAttribute("aria-current", "page");
+    expect(documentation).toHaveAttribute(
+      "href",
+      "https://github.com/Yacirmen/queryvale#readme",
+    );
+    expect(documentation).toHaveAttribute("target", "_blank");
+    expect(documentation).toHaveAttribute("rel", "noreferrer");
   });
 
-  it("routes every explicit control and marks home and settings states", async () => {
+  it("routes Rota and calls the Studio, data-engine and CTA handlers", async () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
-    const onSettingsChange = vi.fn();
     const onHomeStart = vi.fn();
-    const settings = createDefaultProgress().settings;
-    const { rerender } = render(
+    const onDataEngine = vi.fn();
+
+    render(
       <AppHeader
         screen="home"
-        profileName="SQL Kaşifi"
-        settings={settings}
         onNavigate={onNavigate}
-        onSettingsChange={onSettingsChange}
         onHomeStart={onHomeStart}
-        homeStartLabel="İlk vakaya başla"
+        onDataEngine={onDataEngine}
+        homeStartLabel="Kaldığın vakaya devam et"
       />,
     );
 
-    const brand = screen.getByRole("button", {
-      name: "Queryvale ana sayfa",
-    });
-    expect(brand).toHaveAttribute("aria-current", "page");
-
-    expect(
-      within(
-        screen.getByRole("navigation", { name: "Çalışma alanları" }),
-      ).getByRole("button", { name: "Studio" }),
-    ).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "İlk vakaya başla" }));
-    await user.click(screen.getByRole("button", { name: "Ayarları aç" }));
-    await user.click(screen.getByRole("button", { name: "Açık temaya geç" }));
-
-    expect(onHomeStart).toHaveBeenCalledOnce();
-    expect(onNavigate).toHaveBeenNthCalledWith(1, "settings");
-    expect(onSettingsChange).toHaveBeenCalledWith({
-      ...settings,
-      theme: "light",
-    });
-
-    rerender(
-      <AppHeader
-        screen="settings"
-        profileName="SQL Kaşifi"
-        settings={settings}
-        onNavigate={onNavigate}
-        onSettingsChange={onSettingsChange}
-        onHomeStart={onHomeStart}
-        homeStartLabel="İlk vakaya başla"
-      />,
+    await user.click(screen.getByRole("button", { name: "Rota" }));
+    await user.click(
+      screen.getByRole("button", { name: "Studio — SQL Laboratuvarı" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Veri Motoru" }));
+    await user.click(
+      screen.getByRole("button", { name: "Kaldığın vakaya devam et" }),
     );
 
-    expect(screen.getByRole("button", { name: "Ayarları aç" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
-    expect(brand).not.toHaveAttribute("aria-current");
+    expect(onNavigate).toHaveBeenCalledOnce();
+    expect(onNavigate).toHaveBeenCalledWith("learn");
+    expect(onHomeStart).toHaveBeenCalledTimes(2);
+    expect(onDataEngine).toHaveBeenCalledOnce();
   });
 });

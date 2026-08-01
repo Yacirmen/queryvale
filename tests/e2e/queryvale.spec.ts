@@ -14,35 +14,79 @@ test("locked module links return a new learner to the first accessible case", as
   await expect(lockNotice).toContainText("Veriyle ilk temas");
 });
 
-test("header keeps one clear active destination without horizontal overflow", async ({
+test("the unified fixed header keeps five controls visible across every route", async ({
   page,
 }) => {
-  await page.goto("/");
+  const routes = [
+    { path: "/", active: "home" },
+    { path: "/#/learn", active: "learn" },
+    { path: "/#/lab/m1-t1", active: "workspace" },
+    { path: "/#/progress", active: undefined },
+    { path: "/#/settings", active: undefined },
+  ] as const;
 
-  const currentDestinations = page.locator('[aria-current="page"]:visible');
-  await expect(currentDestinations).toHaveCount(1);
-  await expect(
-    page.getByRole("button", { name: "Queryvale ana sayfa" }),
-  ).toHaveAttribute("aria-current", "page");
+  for (const route of routes) {
+    await page.goto(route.path);
+    await expect(page.locator(".app-shell")).toHaveAttribute(
+      "aria-busy",
+      "false",
+    );
 
-  await page.getByRole("button", { name: "Rota", exact: true }).click();
-  await expect(page).toHaveURL(/#\/learn$/);
-  await expect(currentDestinations).toHaveCount(1);
-  await expect(
-    page.getByRole("button", { name: "Rota", exact: true }),
-  ).toHaveAttribute("aria-current", "page");
+    const header = page.locator(".app-header");
+    const brand = header.getByRole("button", {
+      name: "Queryvale ana sayfa",
+    });
+    const routeLink = header.getByRole("button", {
+      name: "Rota",
+      exact: true,
+    });
+    const studio = header.getByRole("button", {
+      name: "Studio — SQL Laboratuvarı",
+    });
+    const dataEngine = header.getByRole("button", { name: "Veri Motoru" });
+    const documentation = header.getByRole("link", { name: "Dokümanlar" });
+    const start = header.locator(".landing-header-cta");
 
-  await page.getByRole("button", { name: "Ayarları aç" }).click();
-  await expect(page).toHaveURL(/#\/settings$/);
-  await expect(currentDestinations).toHaveCount(1);
-  await expect(
-    page.getByRole("button", { name: "Ayarları aç" }),
-  ).toHaveAttribute("aria-current", "page");
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth,
-    ),
-  ).toBe(true);
+    await expect(header).toHaveCSS("position", "fixed");
+    for (const control of [
+      routeLink,
+      studio,
+      dataEngine,
+      documentation,
+      start,
+    ]) {
+      await expect(control).toBeVisible();
+    }
+    await expect(documentation).toHaveAttribute(
+      "href",
+      "https://github.com/Yacirmen/queryvale#readme",
+    );
+    await expect(documentation).toHaveAttribute("target", "_blank");
+
+    const activeControls = header.locator('[aria-current="page"]');
+    if (route.active === "home") {
+      await expect(activeControls).toHaveCount(1);
+      await expect(brand).toHaveAttribute("aria-current", "page");
+    } else if (route.active === "learn") {
+      await expect(activeControls).toHaveCount(1);
+      await expect(routeLink).toHaveAttribute("aria-current", "page");
+    } else if (route.active === "workspace") {
+      await expect(activeControls).toHaveCount(1);
+      await expect(studio).toHaveAttribute("aria-current", "page");
+    } else {
+      await expect(activeControls).toHaveCount(0);
+    }
+
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+  }
+
+  await page.getByRole("button", { name: "Veri Motoru" }).click();
+  await expect(page).toHaveURL(/#\/$/);
+  await expect(page.locator("#queryvale-studio")).toBeFocused();
 });
 
 test("desktop landing pins the authored role and three-step SQL story", async ({
@@ -201,8 +245,19 @@ test("landing, onboarding and first real SQL task", async ({
     await expect(editor).toBeVisible();
   }
   if (!isMobile) {
-    await page.getByRole("button", { name: "Açık temaya geç" }).click();
+    await page.evaluate(() => {
+      window.location.hash = "#/settings";
+    });
+    await expect(page).toHaveURL(/#\/settings$/);
+    await page
+      .getByRole("group", { name: "Tema" })
+      .getByRole("button", { name: "Açık", exact: true })
+      .click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await page
+      .getByRole("button", { name: "Studio — SQL Laboratuvarı" })
+      .click();
+    await expect(page).toHaveURL(/#\/lab\/m1-t1$/);
     await expect(page.locator(".editor-toolbar")).toHaveCSS(
       "background-color",
       "rgb(248, 250, 252)",
@@ -425,7 +480,10 @@ test("landing, onboarding and first real SQL task", async ({
   ).toBeVisible();
   await expect(page).toHaveURL(/#\/lab\/m1-t2$/);
 
-  await page.getByRole("button", { name: "Profilim", exact: true }).click();
+  await page.evaluate(() => {
+    window.location.hash = "#/progress";
+  });
+  await expect(page).toHaveURL(/#\/progress$/);
   const scoreCard = page
     .getByText("Analiz puanı", { exact: true })
     .locator("..");
@@ -504,7 +562,7 @@ test("learning path and settings remain usable on a narrow viewport", async ({
   await expect(page.locator(".task-status-label").first()).toBeVisible();
   await expect(page.locator("body")).not.toHaveCSS("overflow-x", "scroll");
 
-  await page.getByRole("button", { name: "SQL Laboratuvarı" }).click();
+  await page.getByRole("button", { name: "Studio — SQL Laboratuvarı" }).click();
   await expect(
     page.getByRole("tablist", { name: "Vaka çalışma adımları" }),
   ).toBeVisible();

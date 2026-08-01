@@ -69,6 +69,8 @@ export function QueryvaleApp() {
   const [isReplacingProgress, setIsReplacingProgress] = useState(false);
   const [persistenceAvailable, setPersistenceAvailable] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [pendingAnchor, setPendingAnchor] =
+    useState<NavigateOptions["anchor"]>();
   const [notice, setNotice] = useState<{
     tone: "success" | "error";
     message: string;
@@ -178,6 +180,25 @@ export function QueryvaleApp() {
       progress.settings.reducedMotion,
     );
   }, [progress.settings.reducedMotion, progress.settings.theme]);
+
+  useEffect(() => {
+    if (!isLoaded || screen !== "home" || !pendingAnchor) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.getElementById(pendingAnchor);
+      if (!target) return;
+      const reduceMotion =
+        progress.settings.reducedMotion ||
+        (typeof window.matchMedia === "function" &&
+          window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+      target.scrollIntoView({
+        behavior: reduceMotion ? "auto" : "smooth",
+        block: "start",
+      });
+      target.focus({ preventScroll: true });
+      setPendingAnchor(undefined);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [isLoaded, pendingAnchor, progress.settings.reducedMotion, screen]);
 
   useEffect(() => {
     if (!notice) return;
@@ -329,18 +350,21 @@ export function QueryvaleApp() {
         }
       }
       setShowOnboarding(Boolean(options?.onboarding));
+      setPendingAnchor(options?.anchor);
       const nextRoute = routeFor(nextScreen, nextTaskId);
-      shouldFocusScreenRef.current = true;
+      shouldFocusScreenRef.current = !options?.anchor;
       setScreen(nextScreen);
       if (window.location.hash !== nextRoute) window.location.hash = nextRoute;
       const reduceMotion =
         progressRef.current.settings.reducedMotion ||
         (typeof window.matchMedia === "function" &&
           window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-      window.scrollTo({
-        top: 0,
-        behavior: reduceMotion ? "auto" : "smooth",
-      });
+      if (!options?.anchor) {
+        window.scrollTo({
+          top: 0,
+          behavior: reduceMotion ? "auto" : "smooth",
+        });
+      }
     },
     [activeTaskId, persist],
   );
@@ -504,21 +528,20 @@ export function QueryvaleApp() {
   return (
     <div
       className="app-shell"
+      data-screen={screen}
       aria-busy={!isLoaded || isReplacingProgress}
       inert={!isLoaded || isReplacingProgress}
     >
       <AppHeader
         screen={screen}
-        profileName={progress.profile.displayName}
-        settings={progress.settings}
         onNavigate={navigate}
-        onSettingsChange={updateSettings}
         onHomeStart={() =>
           navigate("workspace", {
             taskId: resumeSelection.task?.id,
             onboarding: resumeSelection.shouldShowOnboarding,
           })
         }
+        onDataEngine={() => navigate("home", { anchor: "queryvale-studio" })}
         homeStartLabel={
           resumeSelection.isReturningLearner
             ? "Kaldığın vakaya devam et"

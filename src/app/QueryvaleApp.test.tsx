@@ -1,5 +1,6 @@
 import {
   act,
+  cleanup,
   fireEvent,
   render,
   screen,
@@ -49,6 +50,7 @@ const sqlEngineHarness = vi.hoisted(() => ({
 const progressPersistenceHarness = vi.hoisted(() => ({
   loadGate: undefined as Promise<void> | undefined,
   saveDelays: [] as number[],
+  pendingSaves: new Set<Promise<void>>(),
 }));
 
 function progressWithCompletedModulesBefore(moduleId: string) {
@@ -63,6 +65,20 @@ function progressWithCompletedModulesBefore(moduleId: string) {
     );
 }
 
+function navigateToRoute(route: "progress" | "settings") {
+  act(() => {
+    window.history.pushState(null, "", `#/${route}`);
+    window.dispatchEvent(new Event("hashchange"));
+  });
+}
+
+function getThemeChoice(name: "Açık" | "Koyu") {
+  return within(screen.getByRole("group", { name: "Tema" })).getByRole(
+    "button",
+    { name },
+  );
+}
+
 vi.mock("../features/progress/progressStore", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("../features/progress/progressStore")>();
@@ -73,15 +89,21 @@ vi.mock("../features/progress/progressStore", async (importOriginal) => {
       if (gate) await gate;
       return actual.loadProgress();
     },
-    saveProgress: async (
+    saveProgress: (
       state: Parameters<typeof actual.saveProgress>[0],
       options?: Parameters<typeof actual.saveProgress>[1],
     ) => {
-      const delay = progressPersistenceHarness.saveDelays.shift() ?? 0;
-      if (delay) {
-        await new Promise((resolve) => window.setTimeout(resolve, delay));
-      }
-      return actual.saveProgress(state, options);
+      const operation = (async () => {
+        const delay = progressPersistenceHarness.saveDelays.shift() ?? 0;
+        if (delay) {
+          await new Promise((resolve) => window.setTimeout(resolve, delay));
+        }
+        await actual.saveProgress(state, options);
+      })();
+      progressPersistenceHarness.pendingSaves.add(operation);
+      return operation.finally(() => {
+        progressPersistenceHarness.pendingSaves.delete(operation);
+      });
     },
   };
 });
@@ -241,6 +263,8 @@ vi.mock("./components/LocalMonacoEditor", () => {
 
 describe("QueryvaleApp", () => {
   beforeEach(async () => {
+    cleanup();
+    await Promise.allSettled([...progressPersistenceHarness.pendingSaves]);
     editorShortcutHarness.actions.clear();
     sqlEngineHarness.failInitialize = false;
     sqlEngineHarness.failReset = false;
@@ -320,7 +344,20 @@ describe("QueryvaleApp", () => {
 
   it("starts every mutation attempt from a fresh fixture", async () => {
     window.location.hash = "#/lab/m8-t1";
-    await saveProgress(progressWithCompletedModulesBefore("module-8"));
+    const unlockedProgress = progressWithCompletedModulesBefore("module-8");
+    expect(
+      buildModuleAccessStates(modules, tasks, unlockedProgress.tasks).find(
+        (module) => module.moduleId === "module-8",
+      ),
+    ).toMatchObject({ isUnlocked: true });
+    await saveProgress(unlockedProgress);
+    expect(
+      buildModuleAccessStates(
+        modules,
+        tasks,
+        (await loadProgress()).tasks,
+      ).find((module) => module.moduleId === "module-8"),
+    ).toMatchObject({ isUnlocked: true });
     const user = userEvent.setup();
     const mutationTask = tasks.find((task) => task.id === "m8-t1");
     expect(mutationTask).toBeDefined();
@@ -453,8 +490,8 @@ describe("QueryvaleApp", () => {
     );
     await user.click(
       within(
-        screen.getByRole("navigation", { name: "Çalışma alanları" }),
-      ).getByRole("button", { name: "SQL Laboratuvarı" }),
+        screen.getByRole("navigation", { name: "Ana bölümler" }),
+      ).getByRole("button", { name: "Studio — SQL Laboratuvarı" }),
     );
 
     await screen.findByRole("textbox", { name: "SQL sorgu editörü" });
@@ -783,11 +820,7 @@ describe("QueryvaleApp", () => {
       within(completion).getByRole("button", { name: "Kanıt Defteri’nde" }),
     ).toBeDisabled();
 
-    await user.click(
-      within(
-        screen.getByRole("navigation", { name: "Çalışma alanları" }),
-      ).getByRole("button", { name: /^Profilim$/ }),
-    );
+    navigateToRoute("progress");
     const scoreCard = screen.getByText("Analiz puanı").closest("article");
     expect(scoreCard).not.toBeNull();
     expect(scoreCard).toHaveTextContent(
@@ -848,11 +881,7 @@ describe("QueryvaleApp", () => {
       expect(restored.evidenceByTaskId["m1-t1"]).toBeUndefined();
     });
 
-    await user.click(
-      within(
-        screen.getByRole("navigation", { name: "Çalışma alanları" }),
-      ).getByRole("button", { name: /^Profilim$/ }),
-    );
+    navigateToRoute("progress");
     const notebook = await screen.findByRole("region", {
       name: "Kanıt Defteri",
     });
@@ -931,11 +960,7 @@ describe("QueryvaleApp", () => {
       { timeout: 2_500 },
     );
 
-    await user.click(
-      within(
-        screen.getByRole("navigation", { name: "Çalışma alanları" }),
-      ).getByRole("button", { name: /^Profilim$/ }),
-    );
+    navigateToRoute("progress");
     const conceptSection = screen
       .getByRole("heading", { name: "Hangi SQL konularını çalıştın?" })
       .closest("section");
@@ -1067,7 +1092,7 @@ describe("QueryvaleApp", () => {
     });
   });
 
-  it("keeps a newer theme change when a running query saves its result", async () => {
+  it("keeps a completed query when the theme later changes in Settings", async () => {
     window.location.hash = "#/lab/m1-t1";
     sqlEngineHarness.runDelayMs = 60;
     const user = userEvent.setup();
@@ -1079,9 +1104,11 @@ describe("QueryvaleApp", () => {
     await user.type(editor, "SELECT product_name, category FROM products;");
     await screen.findByText("PostgreSQL hazır");
     await user.click(screen.getByRole("button", { name: "Çalıştır" }));
-    await user.click(screen.getByRole("button", { name: "Açık temaya geç" }));
-
     expect(await screen.findByText("Doğru çözüm")).toBeInTheDocument();
+    navigateToRoute("settings");
+    await screen.findByRole("heading", { name: "Ayarlar" });
+    await user.click(getThemeChoice("Açık"));
+
     await waitFor(async () => {
       const restored = await loadProgress();
       expect(restored.settings.theme).toBe("light");
@@ -1430,7 +1457,7 @@ describe("QueryvaleApp", () => {
 
     await user.click(
       within(
-        await screen.findByRole("navigation", { name: "Çalışma alanları" }),
+        await screen.findByRole("navigation", { name: "Ana bölümler" }),
       ).getByRole("button", {
         name: /^Rota$/,
       }),
@@ -1473,7 +1500,7 @@ describe("QueryvaleApp", () => {
 
     await user.click(
       within(
-        await screen.findByRole("navigation", { name: "Çalışma alanları" }),
+        await screen.findByRole("navigation", { name: "Ana bölümler" }),
       ).getByRole("button", { name: "Rota" }),
     );
 
@@ -1485,7 +1512,6 @@ describe("QueryvaleApp", () => {
   });
 
   it("clears the exact legacy starter without discarding user progress", async () => {
-    const user = userEvent.setup();
     const legacyStarter =
       "-- İş sorusunu ve şemayı inceleyerek sorgunu düzenle\nSELECT\n  *\nFROM products\nLIMIT 10;";
     const stored = recordAttempt(
@@ -1503,12 +1529,8 @@ describe("QueryvaleApp", () => {
     expect(
       await screen.findByRole("textbox", { name: "SQL sorgu editörü" }),
     ).toHaveValue("");
-    await user.click(
-      within(
-        screen.getByRole("navigation", { name: "Çalışma alanları" }),
-      ).getByRole("button", { name: /^Profilim$/ }),
-    );
-    expect(screen.getByText("1 toplam deneme")).toBeInTheDocument();
+    navigateToRoute("progress");
+    expect(await screen.findByText("1 toplam deneme")).toBeInTheDocument();
     const moduleProgressSection = screen
       .getByRole("heading", { name: "SQL konularında neredesin?" })
       .closest("section");
@@ -1533,11 +1555,7 @@ describe("QueryvaleApp", () => {
     const user = userEvent.setup();
     render(<QueryvaleApp />);
 
-    await user.click(
-      within(
-        await screen.findByRole("navigation", { name: "Ana menü" }),
-      ).getByRole("button", { name: "Profilim" }),
-    );
+    navigateToRoute("progress");
     await user.click(
       screen.getByRole("button", {
         name: "SQL Kaşifi kullanıcı adını düzenle",
@@ -1551,12 +1569,6 @@ describe("QueryvaleApp", () => {
     expect(
       await screen.findByRole("heading", { name: "Yasir Usta" }),
     ).toBeInTheDocument();
-    expect(
-      within(
-        screen.getByRole("navigation", { name: "Çalışma alanları" }),
-      ).getByText("Yasir Usta · İlerleme ve Kanıt Defteri"),
-    ).toBeInTheDocument();
-
     await waitFor(async () => {
       const restored = await loadProgress();
       expect(restored.profile.id).toBe(initial.profile.id);
@@ -1565,7 +1577,7 @@ describe("QueryvaleApp", () => {
     });
   });
 
-  it("does not persist the temporary profile before hydration completes", async () => {
+  it("does not expose Settings or replace the profile before hydration completes", async () => {
     const stored = updateProfileName(createDefaultProgress(), "Ayşe");
     await saveProgress(stored);
     let releaseLoad!: () => void;
@@ -1573,13 +1585,19 @@ describe("QueryvaleApp", () => {
       releaseLoad = resolve;
     });
 
+    window.location.hash = "#/settings";
     render(<QueryvaleApp />);
     const shell = document.querySelector(".app-shell");
     expect(shell).toHaveAttribute("aria-busy", "true");
-    fireEvent.click(screen.getByRole("button", { name: "Açık temaya geç" }));
+    expect(
+      screen.queryByRole("group", { name: "Tema" }),
+    ).not.toBeInTheDocument();
 
     await act(async () => releaseLoad());
     await waitFor(() => expect(shell).toHaveAttribute("aria-busy", "false"));
+    expect(
+      await screen.findByRole("group", { name: "Tema" }),
+    ).toBeInTheDocument();
     progressPersistenceHarness.loadGate = undefined;
     const restored = await loadProgress();
     expect(restored.profile).toEqual(stored.profile);
@@ -1590,11 +1608,7 @@ describe("QueryvaleApp", () => {
     const user = userEvent.setup();
     render(<QueryvaleApp />);
 
-    await user.click(
-      within(
-        await screen.findByRole("navigation", { name: "Ana menü" }),
-      ).getByRole("button", { name: "Profilim" }),
-    );
+    navigateToRoute("progress");
     await user.click(
       screen.getByRole("button", {
         name: "SQL Kaşifi kullanıcı adını düzenle",
@@ -1629,11 +1643,9 @@ describe("QueryvaleApp", () => {
     );
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     const user = userEvent.setup();
+    window.location.hash = "#/settings";
     render(<QueryvaleApp />);
-
-    await user.click(
-      await screen.findByRole("button", { name: "Ayarları aç" }),
-    );
+    await screen.findByRole("heading", { name: "Ayarlar" });
     const input = screen.getByLabelText("İlerleme dosyası seç");
     const file = new File([exportProgress(imported)], "ayse.json", {
       type: "application/json",
@@ -1672,11 +1684,9 @@ describe("QueryvaleApp", () => {
     };
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     const user = userEvent.setup();
+    window.location.hash = "#/settings";
     render(<QueryvaleApp />);
-
-    await user.click(
-      await screen.findByRole("button", { name: "Ayarları aç" }),
-    );
+    await screen.findByRole("heading", { name: "Ayarlar" });
     await user.upload(
       screen.getByLabelText("İlerleme dosyası seç"),
       new File([exportProgress(backup)], "eski-yedek.json", {
@@ -1696,11 +1706,9 @@ describe("QueryvaleApp", () => {
   it("rejects an oversized progress file before reading it", async () => {
     await saveProgress(createDefaultProgress());
     const user = userEvent.setup();
+    window.location.hash = "#/settings";
     render(<QueryvaleApp />);
-
-    await user.click(
-      await screen.findByRole("button", { name: "Ayarları aç" }),
-    );
+    await screen.findByRole("heading", { name: "Ayarlar" });
     await user.upload(
       screen.getByLabelText("İlerleme dosyası seç"),
       new File([new Uint8Array(2_000_001)], "buyuk-yedek.json", {
@@ -1727,6 +1735,7 @@ describe("QueryvaleApp", () => {
     );
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     const user = userEvent.setup();
+    window.location.hash = "#/settings";
     render(<QueryvaleApp />);
     await waitFor(() =>
       expect(document.querySelector(".app-shell")).toHaveAttribute(
@@ -1736,8 +1745,7 @@ describe("QueryvaleApp", () => {
     );
 
     progressPersistenceHarness.saveDelays = [60, 0];
-    await user.click(screen.getByRole("button", { name: "Açık temaya geç" }));
-    await user.click(screen.getByRole("button", { name: "Ayarları aç" }));
+    await user.click(getThemeChoice("Açık"));
     await user.upload(
       screen.getByLabelText("İlerleme dosyası seç"),
       new File([exportProgress(imported)], "ayse.json", {
@@ -1768,11 +1776,9 @@ describe("QueryvaleApp", () => {
     await saveProgress(stored);
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     const user = userEvent.setup();
+    window.location.hash = "#/settings";
     render(<QueryvaleApp />);
-
-    await user.click(
-      await screen.findByRole("button", { name: "Ayarları aç" }),
-    );
+    await screen.findByRole("heading", { name: "Ayarlar" });
     await user.click(screen.getByRole("button", { name: "Sıfırla" }));
 
     await waitFor(async () => {
@@ -1818,7 +1824,8 @@ describe("QueryvaleApp", () => {
     expect(screen.getByText(`0 / ${tasks.length} çalışma`)).toBeInTheDocument();
   });
 
-  it("changes the theme from the global header", async () => {
+  it("changes the theme from the Settings route", async () => {
+    window.location.hash = "#/settings";
     render(<QueryvaleApp />);
     await waitFor(() =>
       expect(document.documentElement.dataset.theme).toBe("dark"),
@@ -1829,7 +1836,7 @@ describe("QueryvaleApp", () => {
         "false",
       ),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Açık temaya geç" }));
+    fireEvent.click(getThemeChoice("Açık"));
     await waitFor(() =>
       expect(document.documentElement.dataset.theme).toBe("light"),
     );

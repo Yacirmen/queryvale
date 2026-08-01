@@ -41,11 +41,24 @@
   --workbench-rail-handle: #94a3b8;
   --shadow: 0 20px 70px rgb(15 23 42 / 11%);
   --shadow-soft: 0 8px 30px rgb(15 23 42 / 8%);
+  --brand-start: #3b82f6;
+  --brand-end: #a855f7;
+  --action-primary-bg: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  --action-primary-hover: linear-gradient(135deg, #60a5fa, #a855f7);
+  --action-primary-shadow: 0 8px 24px rgb(59 130 246 / 28%);
+  --state-current: #3b82f6;
+  --state-next: #a855f7;
+  --state-success: #059669;
+  --radius-control: 10px;
+  --radius-card: 18px;
+  --radius-feature: 24px;
+  --content-max: 1240px;
+  --content-gutter: 48px;
   --radius-sm: 10px;
   --radius-md: 16px;
   --radius-lg: 24px;
-  --header-h: 68px;
-  --mobile-nav-h: 72px;
+  --header-h: 77px;
+  --mobile-nav-h: 0px;
   --font-size-micro: 12px;
   --font-size-caption: 13px;
   --font-size-small: 14px;
@@ -3472,7 +3485,7 @@ button {
   border-radius: 9px;
   padding: 12px;
   overflow-x: auto;
-  color: #e4ede8;
+  color: var(--code-text);
   background: var(--code-bg);
   font-family: var(--font-geist-mono), monospace;
   font-size: var(--font-size-caption);
@@ -5447,7 +5460,7 @@ button {
   gap: 7px;
 }
 
-.concept-chip {
+.progress-dashboard-aside .concept-chip {
   border: 1px solid var(--line);
   border-radius: 9px;
   padding: 7px 9px;
@@ -5459,15 +5472,15 @@ button {
   font-size: var(--font-size-caption);
 }
 
-.concept-chip.strong {
+.progress-dashboard-aside .concept-chip.strong {
   border-color: color-mix(in srgb, var(--success) 26%, var(--line));
 }
 
-.concept-chip.focus {
+.progress-dashboard-aside .concept-chip.focus {
   border-color: color-mix(in srgb, var(--amber) 27%, var(--line));
 }
 
-.concept-chip small {
+.progress-dashboard-aside .concept-chip small {
   color: var(--text-faint);
   font-family: var(--font-geist-sans), sans-serif;
   font-size: var(--font-size-micro);
@@ -7863,6 +7876,321 @@ button {
   .landing-reference-cta-button,
   .landing-header-cta {
     border: 1px solid CanvasText;
+  }
+}
+
+/*
+ * Global reference header and product-wide visual contract.
+ * The same chrome is rendered on every route; only active state and targets vary.
+ */
+.app-header {
+  position: fixed;
+  z-index: 100;
+  inset: 0 0 auto;
+  width: 100%;
+  height: var(--header-h);
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0 64px;
+  background: rgb(248 250 252 / 85%);
+  box-shadow: none;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  isolation: isolate;
+}
+
+[data-theme="dark"] .app-header {
+  border-bottom-color: rgb(255 255 255 / 5%);
+  background: rgb(11 15 25 / 80%);
+}
+
+.app-header .header-inner {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+}
+
+.app-header .brand {
+  min-width: auto;
+  min-height: 44px;
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 0;
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+  transition:
+    filter 180ms ease,
+    transform 180ms ease;
+}
+
+.app-header .brand:hover,
+.app-header .brand[aria-current="page"] {
+  border-color: transparent;
+  background: transparent;
+  transform: translateY(-1px);
+}
+
+.app-header .brand:hover {
+  filter: brightness(1.12);
+}
+
+.app-header .brand-word {
+  display: block;
+  background: linear-gradient(135deg, var(--brand-start), var(--brand-end));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+
+.reference-primary-nav {
+  min-width: 0;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+
+.reference-nav-link {
+  position: relative;
+  min-width: 0;
+  min-height: 44px;
+  border: 0;
+  padding: 10px 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  background: transparent;
+  font-size: 15.2px;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+[data-theme="dark"] .reference-nav-link {
+  color: #d1d5db;
+}
+
+.reference-nav-link:hover,
+.reference-nav-link[aria-current="page"] {
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+[data-theme="dark"] .reference-nav-link:hover,
+[data-theme="dark"] .reference-nav-link[aria-current="page"] {
+  color: #ffffff;
+}
+
+.reference-nav-link[aria-current="page"]::after {
+  position: absolute;
+  right: 0;
+  bottom: 3px;
+  left: 0;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand-start), var(--brand-end));
+  content: "";
+}
+
+.app-header .landing-header-cta {
+  min-width: auto;
+  min-height: 44px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 10px;
+  padding: 10.4px 22.4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  background: var(--action-primary-bg);
+  box-shadow: 0 4px 18px rgb(59 130 246 / 35%);
+  font-size: 14.4px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    box-shadow 180ms ease,
+    filter 180ms ease,
+    transform 180ms ease;
+}
+
+.app-header .landing-header-cta:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgb(59 130 246 / 42%);
+}
+
+.app-shell[data-screen="learn"] > .page,
+.app-shell[data-screen="progress"] > .page,
+.app-shell[data-screen="settings"] > .page,
+.app-shell[data-screen="workspace"] > .workspace-page {
+  margin-top: var(--header-h);
+}
+
+.page-container {
+  width: min(var(--content-max), calc(100% - var(--content-gutter)));
+}
+
+.primary-button,
+.brief-action.primary,
+.solution-action.primary,
+.profile-name-save {
+  border-color: transparent;
+  color: #ffffff;
+  background: var(--action-primary-bg);
+  box-shadow: var(--action-primary-shadow);
+}
+
+.primary-button:hover,
+.brief-action.primary:hover,
+.solution-action.primary:hover,
+.profile-name-save:hover {
+  background: var(--action-primary-hover);
+}
+
+.path-progress-card,
+.path-focus-card,
+.module-card,
+.settings-panel,
+.settings-aside,
+.progress-signal-strip,
+.progress-next-mission,
+.profile-widget,
+.evidence-card {
+  border-radius: var(--radius-card);
+}
+
+.module-card.current {
+  border-color: color-mix(in srgb, var(--state-current) 52%, var(--line));
+}
+
+.module-card.next {
+  border-color: color-mix(in srgb, var(--state-next) 40%, var(--line));
+}
+
+.module-card.completed {
+  border-color: color-mix(in srgb, var(--state-success) 34%, var(--line));
+}
+
+[data-reduced-motion="true"] .app-header .brand,
+[data-reduced-motion="true"] .reference-nav-link,
+[data-reduced-motion="true"] .app-header .landing-header-cta {
+  transition: none;
+}
+
+@media (max-width: 1040px) {
+  .app-header {
+    padding-inline: 24px;
+  }
+
+  .app-header .header-inner {
+    gap: 22px;
+  }
+
+  .reference-primary-nav {
+    gap: 22px;
+  }
+
+  .reference-nav-link {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 720px) {
+  :root {
+    --header-h: 112px;
+    --mobile-nav-h: 0px;
+    --content-gutter: 28px;
+  }
+
+  .app-shell {
+    padding-bottom: 0;
+  }
+
+  .app-header {
+    height: var(--header-h);
+    padding: 7px 14px 5px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .app-header .header-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 45px 44px;
+    align-content: center;
+    column-gap: 14px;
+    row-gap: 4px;
+  }
+
+  .app-header .brand {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+  }
+
+  .app-header .brand-word {
+    font-size: 20px;
+  }
+
+  .reference-primary-nav {
+    width: 100%;
+    margin: 0;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .reference-nav-link {
+    min-height: 44px;
+    flex: 1;
+    padding: 8px 0;
+    font-size: 11.5px;
+  }
+
+  .reference-nav-link[aria-current="page"]::after {
+    bottom: 2px;
+  }
+
+  .app-header .landing-header-cta {
+    min-height: 44px;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    padding-inline: 15px;
+    font-size: 12px;
+  }
+
+  .workspace-body[data-mobile-view="editor"] .workbench,
+  .workspace-body[data-mobile-view="results"] .workbench {
+    height: max(560px, calc(100svh - var(--header-h) - 106px));
+  }
+}
+
+@media (forced-colors: active) {
+  .reference-nav-link[aria-current="page"],
+  .app-header .landing-header-cta {
+    border: 2px solid Highlight;
   }
 }
 
