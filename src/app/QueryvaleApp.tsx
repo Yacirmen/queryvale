@@ -106,7 +106,7 @@ export function QueryvaleApp() {
       if (hashTask && tasks.some((task) => task.id === hashTask)) {
         setActiveTaskId(hashTask);
       }
-      shouldFocusScreenRef.current = true;
+      if (isLoadedRef.current) shouldFocusScreenRef.current = true;
       setScreen(nextScreen);
     };
     window.addEventListener("hashchange", listener);

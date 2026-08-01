@@ -879,6 +879,13 @@ describe("QueryvaleApp", () => {
     scrollTo.mockClear();
     render(<QueryvaleApp />);
 
+    await waitFor(() =>
+      expect(document.querySelector(".app-shell")).toHaveAttribute(
+        "aria-busy",
+        "false",
+      ),
+    );
+
     await user.click(
       within(
         await screen.findByRole("navigation", { name: "Çalışma bölümleri" }),
