@@ -25,9 +25,7 @@ function errorDetails(error: unknown): {
       message: error.message,
       code: typeof errorLike.code === "string" ? errorLike.code : undefined,
       position:
-        typeof errorLike.position === "string"
-          ? errorLike.position
-          : undefined,
+        typeof errorLike.position === "string" ? errorLike.position : undefined,
     };
   }
   if (typeof error === "string") {
@@ -42,9 +40,7 @@ function errorDetails(error: unknown): {
           : "Bilinmeyen SQL hatası",
       code: typeof errorLike.code === "string" ? errorLike.code : undefined,
       position:
-        typeof errorLike.position === "string"
-          ? errorLike.position
-          : undefined,
+        typeof errorLike.position === "string" ? errorLike.position : undefined,
     };
   }
   return { message: "Bilinmeyen SQL hatası" };
@@ -68,13 +64,16 @@ export function translateSqlError(error: unknown): SqlErrorFeedback {
       title: "Bu sorguya izin verilmiyor",
       message: error.violations[0]?.message ?? error.message,
       suggestion:
-        "Görev verilerini yalnızca bu görevin izin verdiği SQL işlemleriyle kullan.",
+        "Vaka verilerini yalnızca bu vakanın izin verdiği SQL işlemleriyle kullan.",
       technicalMessage: details.message,
       code: details.code,
     };
   }
 
-  if (details.code === "42703" || lower.includes("column") && lower.includes("does not exist")) {
+  if (
+    details.code === "42703" ||
+    (lower.includes("column") && lower.includes("does not exist"))
+  ) {
     return {
       title: "Kolon bulunamadı",
       message: identifier
@@ -87,12 +86,15 @@ export function translateSqlError(error: unknown): SqlErrorFeedback {
     };
   }
 
-  if (details.code === "42P01" || lower.includes("relation") && lower.includes("does not exist")) {
+  if (
+    details.code === "42P01" ||
+    (lower.includes("relation") && lower.includes("does not exist"))
+  ) {
     return {
       title: "Tablo bulunamadı",
       message: identifier
-        ? `"${identifier}" adında bir tablo bu görevde yok.`
-        : "Sorguda kullandığın tablolardan biri bu görevde yok.",
+        ? `"${identifier}" adında bir tablo bu vakada yok.`
+        : "Sorguda kullandığın tablolardan biri bu vakada yok.",
       suggestion: "Şema panelindeki tablo adlarını kontrol et.",
       technicalMessage: `${details.message}${location}`,
       code: details.code,
@@ -171,7 +173,7 @@ export function translateSqlError(error: unknown): SqlErrorFeedback {
   if (
     details.code === "42883" ||
     lower.includes("operator does not exist") ||
-    lower.includes("function") && lower.includes("does not exist")
+    (lower.includes("function") && lower.includes("does not exist"))
   ) {
     return {
       title: "Veri tipleri uyuşmuyor",
@@ -193,4 +195,3 @@ export function translateSqlError(error: unknown): SqlErrorFeedback {
     code: details.code,
   };
 }
-

@@ -32,9 +32,9 @@ interface HeaderDestination {
 const destinations: HeaderDestination[] = [
   {
     id: "learn",
-    label: "Vaka Rotası",
+    label: "Rota",
     shortLabel: "Rota",
-    description: "Modüller ve sıradaki vaka",
+    description: "Bölümler ve sıradaki vaka",
     icon: Route,
   },
   {
@@ -167,7 +167,7 @@ export function AppHeader({
             </span>
           </button>
 
-          <nav className="primary-nav" aria-label="Çalışma bölümleri">
+          <nav className="primary-nav" aria-label="Çalışma alanları">
             {renderDestinations("desktop")}
           </nav>
 

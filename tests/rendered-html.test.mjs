@@ -28,8 +28,11 @@ test("server-renders Queryvale product metadata and shell", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>Queryvale — Veriyi karara dönüştür<\/title>/i);
-  assert.match(html, /Bir sorgu nasıl büyür/i);
+  assert.match(
+    html,
+    /<title>Queryvale — SQL ezberleme, veri analisti gibi çalış<\/title>/i,
+  );
+  assert.match(html, /Bir iş sorusu nasıl karara dönüşür/i);
   assert.match(html, /Şimdi sıra/i);
   assert.match(html, /Katalog görünümünü hazırla/i);
   assert.match(html, /Queryvale/);

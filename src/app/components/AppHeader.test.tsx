@@ -17,15 +17,15 @@ describe("AppHeader", () => {
     );
 
     const navigation = screen.getByRole("navigation", {
-      name: "Çalışma bölümleri",
+      name: "Çalışma alanları",
     });
     const route = within(navigation).getByRole("button", {
-      name: "Vaka Rotası",
+      name: "Rota",
     });
 
     expect(route).toHaveAttribute("aria-current", "page");
     expect(
-      within(navigation).getByText("Modüller ve sıradaki vaka"),
+      within(navigation).getByText("Bölümler ve sıradaki vaka"),
     ).toBeVisible();
     expect(
       within(navigation).getByText("Sorgunu yaz ve çalıştır"),
@@ -72,7 +72,7 @@ describe("AppHeader", () => {
 
     await user.click(
       within(
-        screen.getByRole("navigation", { name: "Çalışma bölümleri" }),
+        screen.getByRole("navigation", { name: "Çalışma alanları" }),
       ).getByRole("button", { name: "SQL Laboratuvarı" }),
     );
     await user.click(screen.getByRole("button", { name: "Ayarları aç" }));

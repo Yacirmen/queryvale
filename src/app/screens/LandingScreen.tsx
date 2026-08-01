@@ -23,6 +23,13 @@ export function LandingScreen({
 }: LandingScreenProps) {
   const productIntroductionRef = useRef<HTMLElement>(null);
 
+  const startOrResumeCase = () => {
+    onNavigate("workspace", {
+      taskId: resumeTask?.id,
+      onboarding: showOnboardingOnStart,
+    });
+  };
+
   const continueToProductIntroduction = () => {
     const target = productIntroductionRef.current;
     if (!target) return;
@@ -38,7 +45,11 @@ export function LandingScreen({
       className="page landing-premium landing-gateway"
       tabIndex={-1}
     >
-      <LandingSqlFilm onContinue={continueToProductIntroduction} />
+      <LandingSqlFilm
+        isReturningLearner={isReturningLearner}
+        onContinue={continueToProductIntroduction}
+        onStart={startOrResumeCase}
+      />
 
       <section
         id="product-introduction"
@@ -62,7 +73,7 @@ export function LandingScreen({
               Şimdi sıra <span>sende.</span>
             </h2>
             <p className="landing-entry-lead">
-              Soruyu oku, SQL’ini dene; sonucu gerçek görev verisinde gör.
+              Soruyu oku, SQL’ini dene; sonucu gerçek vaka verisinde gör.
               Takılırsan ipuçları yanında.
             </p>
 
@@ -70,12 +81,7 @@ export function LandingScreen({
               <button
                 className="home-primary-action"
                 type="button"
-                onClick={() =>
-                  onNavigate("workspace", {
-                    taskId: resumeTask?.id,
-                    onboarding: showOnboardingOnStart,
-                  })
-                }
+                onClick={startOrResumeCase}
                 title={
                   isReturningLearner && resumeTask
                     ? `Son konumun: ${resumeTask.title}`

@@ -19,7 +19,6 @@ import {
 import { selectResumeTask } from "../features/progress/resumeTask";
 import type { AppScreen, Navigate, NavigateOptions } from "./appTypes";
 import { AppHeader } from "./components/AppHeader";
-import { OnboardingDialog } from "./components/Dialogs";
 import { LandingScreen } from "./screens/LandingScreen";
 import { LearningPathScreen } from "./screens/LearningPathScreen";
 import { ProgressScreen } from "./screens/ProgressScreen";
@@ -99,7 +98,7 @@ export function QueryvaleApp() {
           setPersistenceAvailable(false);
           setNotice({
             tone: "error",
-            message: "Kaldığın görev bu cihazda kaydedilemedi.",
+            message: "Kaldığın vaka bu cihazda kaydedilemedi.",
           });
         });
       }
@@ -264,7 +263,7 @@ export function QueryvaleApp() {
           persist(nextProgress);
         }
       }
-      if (options?.onboarding) setShowOnboarding(true);
+      setShowOnboarding(Boolean(options?.onboarding));
       const nextRoute = routeFor(nextScreen, nextTaskId);
       shouldFocusScreenRef.current = true;
       setScreen(nextScreen);
@@ -368,7 +367,7 @@ export function QueryvaleApp() {
         ? `Bu dosya mevcut “${imported.profile.displayName}” profilinin bir yedeği.`
         : `Bu dosya “${imported.profile.displayName}” profiline ait.`;
       const confirmed = window.confirm(
-        `${sourceSummary} Mevcut kayıtta ${currentCompleted}, yedekte ${importedCompleted} tamamlanmış görev var; yedek ${new Intl.DateTimeFormat(
+        `${sourceSummary} Mevcut kayıtta ${currentCompleted}, yedekte ${importedCompleted} tamamlanmış vaka var; yedek ${new Intl.DateTimeFormat(
           "tr-TR",
           { dateStyle: "medium" },
         ).format(
@@ -407,7 +406,7 @@ export function QueryvaleApp() {
 
   const handleReset = async () => {
     const confirmed = window.confirm(
-      "Tüm görev geçmişi ve sorgular kalıcı olarak sıfırlansın mı? Profil adın ve çalışma tercihlerin korunacak.",
+      "Tüm vaka geçmişi ve sorgular kalıcı olarak sıfırlansın mı? Profil adın ve çalışma tercihlerin korunacak.",
     );
     if (!confirmed) return;
     const currentProgress = progressRef.current;
@@ -469,6 +468,8 @@ export function QueryvaleApp() {
           progress={progress}
           settings={progress.settings}
           persistenceAvailable={persistenceAvailable}
+          showFirstCaseGuide={showOnboarding}
+          onDismissFirstCaseGuide={() => setShowOnboarding(false)}
           onProgressChange={persistWorkspaceProgress}
           onNavigate={navigate}
         />
@@ -490,13 +491,6 @@ export function QueryvaleApp() {
           onExport={handleExport}
           onImport={handleImport}
           onReset={handleReset}
-        />
-      )}
-
-      {showOnboarding && (
-        <OnboardingDialog
-          onClose={() => setShowOnboarding(false)}
-          onStart={() => setShowOnboarding(false)}
         />
       )}
 

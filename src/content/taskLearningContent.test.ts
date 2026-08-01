@@ -46,6 +46,51 @@ describe("task learning content", () => {
     }
   });
 
+  it("keeps module 1 guidance in logic, keyword and scaffold order", () => {
+    const moduleOneTasks = tasks.filter((task) => task.moduleId === "module-1");
+    const keywordChecks: Record<string, RegExp> = {
+      "m1-t1": /\bSELECT\b[\s\S]*\bFROM\b/,
+      "m1-t2": /\bDISTINCT\b[\s\S]*\bSELECT\b/,
+      "m1-t3": /\bORDER BY\b[\s\S]*\bASC\b[\s\S]*\bLIMIT\b/,
+      "m1-t4": /\bORDER BY\b[\s\S]*\bDESC\b/,
+    };
+    const explainedFields: Record<string, string[]> = {
+      "m1-t1": ["product_name (", "category ("],
+      "m1-t2": ["category ("],
+      "m1-t3": ["stock_quantity (", "product_name ("],
+      "m1-t4": ["product_name (", "unit_price ("],
+    };
+
+    expect(moduleOneTasks.map((task) => task.id)).toEqual([
+      "m1-t1",
+      "m1-t2",
+      "m1-t3",
+      "m1-t4",
+    ]);
+
+    for (const task of moduleOneTasks) {
+      expect(task.hints[0], `${task.id} ilk ipucu SQL vermemeli`).not.toMatch(
+        /\b(?:SELECT|FROM|DISTINCT|ORDER BY|ASC|DESC|LIMIT)\b/i,
+      );
+      expect(
+        task.hints[1],
+        `${task.id} ikinci ipucu yapıyı açıklamalı`,
+      ).toMatch(keywordChecks[task.id]!);
+      expect(task.hints[2], `${task.id} üçüncü ipucu iskelet olmalı`).toMatch(
+        /\[[^\]]+\]/,
+      );
+      expect(task.hints[2]).not.toBe(task.solutionSql);
+      expect(task.solutionSql.trim()).not.toBe("");
+
+      for (const field of explainedFields[task.id]!) {
+        expect(
+          task.objective,
+          `${task.id} teknik alanı ilk kullanımda açıklamalı: ${field}`,
+        ).toContain(field);
+      }
+    }
+  });
+
   it("teaches an approach without embedding a copyable SQL answer", () => {
     const copyableQuery =
       /\b(?:select\s+distinct\s+(?!ve\b)[a-z_*][\w.*]*\s+from\s+[a-z_][\w.]*|select\s+[a-z_*][\w.*]*(?:\s*,\s*[a-z_*][\w.*]*)+\s+from\s+[a-z_][\w.]*|update\s+[a-z_][\w.]*\s+set\s+[\s\S]+\bwhere\b[\s\S]+\breturning\b)/i;

@@ -60,7 +60,7 @@ export function evaluateLessonQuery(
       correct: false,
       title: "Değişiklik doğrulanamadı",
       message:
-        "Sorgu bir sonuç döndürdü ancak gerçek tablo durumu doğrulanamadı. Görev verisini sıfırlayıp yeniden dene.",
+        "Sorgu bir sonuç döndürdü ancak gerçek tablo durumu doğrulanamadı. Vaka verisini sıfırlayıp yeniden dene.",
     };
   }
 
@@ -82,7 +82,7 @@ export function evaluateLessonQuery(
       correct: false,
       title: "Görünen çıktı ile gerçek değişiklik uyuşmuyor",
       message:
-        "RETURNING çıktısı beklenen biçimde görünse de tablodaki gerçek durum görev sözleşmesiyle eşleşmedi. Hedef koşulunu ve yazılan değeri kontrol et.",
+        "RETURNING çıktısı beklenen biçimde görünse de tablodaki gerçek durum vaka sözleşmesiyle eşleşmedi. Hedef koşulunu ve yazılan değeri kontrol et.",
       expectedRowCount: verification.expectedResult.length,
       actualRowCount: mutationVerificationResult.rows.length,
     };

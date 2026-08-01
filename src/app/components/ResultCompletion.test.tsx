@@ -27,12 +27,21 @@ describe("ResultCompletion", () => {
       name: task.completionMessage,
     });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(within(panel).getByText("6 satır · 2 deneme")).toBeVisible();
+    expect(
+      within(panel).getByText("Vaka doğrulandı · 6 satır · 2 deneme"),
+    ).toBeVisible();
+    expect(within(panel).getByText("2 kolon doğru")).toBeVisible();
+    expect(within(panel).getByText("6 satır doğru")).toBeVisible();
+    expect(within(panel).getByText("İş kuralı karşılandı")).toBeVisible();
+    expect(within(panel).getByText("Kanıt hazırlanıyor")).toBeVisible();
+    expect(
+      within(panel).getByText(/yorumun otomatik puanlanmaz/i),
+    ).not.toBeVisible();
     expect(within(panel).getByText(task.debrief.steps[0])).not.toBeVisible();
 
     await user.click(within(panel).getByText("Çözümü incele"));
 
-    expect(within(panel).getByText("Bu görevin temel mantığı")).toBeVisible();
+    expect(within(panel).getByText("Bu vakanın temel mantığı")).toBeVisible();
     expect(within(panel).getByText(task.debrief.steps[0])).toBeVisible();
     expect(
       within(panel).getByText(task.debrief.transfer.reveal),
@@ -61,7 +70,7 @@ describe("ResultCompletion", () => {
     expect(onNext).not.toHaveBeenCalled();
     await user.click(
       screen.getByRole("button", {
-        name: "Sonraki göreve geç: Kategori listesini tekilleştir",
+        name: "Sonraki vakaya geç: Kategori listesini tekilleştir",
       }),
     );
     expect(onNext).toHaveBeenCalledTimes(1);
@@ -88,6 +97,9 @@ describe("ResultCompletion", () => {
       />,
     );
 
+    expect(screen.getByText(/yorumun otomatik puanlanmaz/i)).not.toBeVisible();
+    expect(screen.getByText("Kanıt doğrulandı")).toBeVisible();
+    await user.click(screen.getByText("Karar notu ekle"));
     expect(screen.getByText(/yorumun otomatik puanlanmaz/i)).toBeVisible();
     await user.type(
       screen.getByRole("textbox", { name: /^Bulgu/i }),

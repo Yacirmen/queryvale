@@ -11,11 +11,11 @@ test("header keeps one clear active destination without horizontal overflow", as
     page.getByRole("button", { name: "Queryvale ana sayfa" }),
   ).toHaveAttribute("aria-current", "page");
 
-  await page.getByRole("button", { name: "Vaka Rotası" }).click();
+  await page.getByRole("button", { name: "Rota", exact: true }).click();
   await expect(page).toHaveURL(/#\/learn$/);
   await expect(currentDestinations).toHaveCount(1);
   await expect(
-    page.getByRole("button", { name: "Vaka Rotası" }),
+    page.getByRole("button", { name: "Rota", exact: true }),
   ).toHaveAttribute("aria-current", "page");
 
   await page.getByRole("button", { name: "Ayarları aç" }).click();
@@ -78,7 +78,11 @@ test("desktop landing keeps one SQL canvas while native scroll grows the query",
   await expect(
     page.getByRole("tab", { name: /6\. adım: Karar/i }),
   ).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator(".landing-sql-code")).toContainText("DENSE_RANK");
+  await expect(
+    page.locator(
+      '.landing-sql-film-frame[aria-hidden="false"] .landing-sql-code',
+    ),
+  ).toContainText("DENSE_RANK");
   await expect(page).toHaveURL(/\/$/);
 
   await scrollToStoryProgress(0.208);
@@ -94,9 +98,11 @@ test("landing, onboarding and first real SQL task", async ({
   test.setTimeout(60_000);
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: /Bir sorgu nasıl büyür/i }),
+    page.getByRole("heading", {
+      name: /Bir iş sorusu nasıl karara dönüşür/i,
+    }),
   ).toBeVisible();
-  await page.getByRole("button", { name: /Tanıtıma geç/i }).click();
+  await page.getByRole("button", { name: /Nasıl çalışır/i }).click();
   await expect(
     page.getByRole("heading", { name: /Şimdi sıra sende/i }),
   ).toBeVisible();
@@ -120,15 +126,24 @@ test("landing, onboarding and first real SQL task", async ({
 
   await page.getByRole("button", { name: /İlk vakayı birlikte çöz/i }).click();
   await expect(
-    page.getByRole("heading", { name: "Masana hoş geldin." }),
+    page.getByRole("heading", {
+      name: "Bu vakada yalnız üç adımın var.",
+    }),
   ).toBeVisible();
-  await page.getByRole("button", { name: /Laboratuvarı hazırla/i }).click();
+  if (isMobile) {
+    await page.getByRole("button", { name: /Veriyi aç/i }).click();
+    const dataTab = page.getByRole("tab", { name: "Veri görünümü" });
+    await expect(dataTab).toHaveAttribute("aria-selected", "true");
+    await expect(dataTab).toBeFocused();
+    await page.getByRole("tab", { name: "Vaka görünümü" }).click();
+  }
+  await page.getByRole("button", { name: "Başlangıç rehberini kapat" }).click();
 
   await expect(
     page.getByRole("heading", { name: "Katalog görünümünü hazırla" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("list", { name: "Göreve başlama sırası" }),
+    page.getByRole("list", { name: "Vakaya başlama sırası" }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "İstenen teslim" }),
@@ -148,7 +163,15 @@ test("landing, onboarding and first real SQL task", async ({
   );
   const runButton = page.getByRole("button", { name: /Çalıştır/i });
   const editor = page.getByRole("textbox", { name: "Editor content" });
-  await expect(editor).toBeVisible();
+  if (isMobile) {
+    await expect(
+      page.getByRole("tablist", { name: "Vaka çalışma adımları" }),
+    ).toBeVisible();
+    await expect(editor).toBeHidden();
+    await expect(runButton).toHaveCount(0);
+  } else {
+    await expect(editor).toBeVisible();
+  }
   if (!isMobile) {
     await page.getByRole("button", { name: "Açık temaya geç" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
@@ -181,7 +204,6 @@ test("landing, onboarding and first real SQL task", async ({
       model.setValue(nextSql);
     }, sql);
 
-  await expect(runButton).toBeDisabled();
   await expect
     .poll(() =>
       page.evaluate(() => {
@@ -201,12 +223,13 @@ test("landing, onboarding and first real SQL task", async ({
 
   await page.getByRole("button", { name: "Sorguyu yaz" }).click();
   await expect(editor).toBeFocused();
+  await expect(runButton).toBeDisabled();
 
-  await page.getByRole("button", { name: "Sonraki görev" }).click();
+  await page.getByRole("button", { name: "Sonraki vaka" }).click();
   await expect(
     page.getByRole("heading", { name: "Kategori listesini tekilleştir" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Önceki görev" }).click();
+  await page.getByRole("button", { name: "Önceki vaka" }).click();
   await expect(
     page.getByRole("heading", { name: "Katalog görünümünü hazırla" }),
   ).toBeVisible();
@@ -215,7 +238,7 @@ test("landing, onboarding and first real SQL task", async ({
   await expect(helpToggle).toHaveAttribute("aria-expanded", "true");
   await page.getByRole("button", { name: "1. ipucunu aç" }).click();
   await expect(
-    page.getByText(/SELECT görmek istediğin kolonları/i),
+    page.getByText(/Her ürün sonuçta bir satır olarak kalmalı/i),
   ).toBeVisible();
   await page.getByRole("button", { name: "2. ipucunu aç" }).click();
   await page.getByRole("button", { name: "3. ipucunu aç" }).click();
@@ -267,12 +290,15 @@ test("landing, onboarding and first real SQL task", async ({
 
   await editor.focus();
   await editor.press("ControlOrMeta+Enter");
-  await expect(page.getByText("Kolonları yeniden kontrol et")).toBeVisible({
-    timeout: 20_000,
-  });
+  if (isMobile) {
+    const resultTab = page.getByRole("tab", { name: "Sonuç görünümü" });
+    await expect(resultTab).toHaveAttribute("aria-selected", "true");
+    await expect(resultTab).toBeFocused();
+  }
   await expect(
-    page.getByText("Katalog sözleşmesindeki iki kolona odaklan"),
-  ).toBeVisible();
+    page.getByText("Kolonları yeniden kontrol et", { exact: true }),
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("İstenen iki bilgi alanına dön")).toBeVisible();
   await expect
     .poll(() =>
       page.evaluate(() => {
@@ -290,8 +316,17 @@ test("landing, onboarding and first real SQL task", async ({
     )
     .toBe(incompleteSql);
 
+  if (isMobile) {
+    await page.getByRole("tab", { name: "SQL görünümü" }).click();
+  }
   await setSql("SELECT product_name, category FROM products;");
   await runButton.click();
+
+  if (isMobile) {
+    const resultTab = page.getByRole("tab", { name: "Sonuç görünümü" });
+    await expect(resultTab).toHaveAttribute("aria-selected", "true");
+    await expect(resultTab).toBeFocused();
+  }
 
   await expect(page.getByText("Doğru çözüm", { exact: true })).toBeVisible({
     timeout: 20_000,
@@ -314,6 +349,7 @@ test("landing, onboarding and first real SQL task", async ({
     "Haftalık katalog kontrolünü ürün adı ve kategori alanlarıyla yürütün.";
   const caveat =
     "Bu kanıt yalnız mevcut ürün kataloğu anlık görüntüsünü kapsıyor.";
+  await completionPanel.getByText("Karar notu ekle").click();
   await completionPanel.getByRole("textbox", { name: /^Bulgu/ }).fill(finding);
   await completionPanel
     .getByRole("textbox", { name: /^Öneri/ })
@@ -327,16 +363,16 @@ test("landing, onboarding and first real SQL task", async ({
     completionPanel.getByRole("button", { name: "Kanıt Defteri’nde" }),
   ).toBeDisabled();
   await expect(
-    completionPanel.getByText("Bu görevin temel mantığı"),
+    completionPanel.getByText("Bu vakanın temel mantığı"),
   ).toBeHidden();
   await completionPanel.getByText("Çözümü incele").click();
   await expect(
-    completionPanel.getByText("Bu görevin temel mantığı"),
+    completionPanel.getByText("Bu vakanın temel mantığı"),
   ).toBeVisible();
   await expect(resultTable.getByText("Desk Lamp")).toBeVisible();
   await completionPanel
     .getByRole("button", {
-      name: "Sonraki göreve geç: Kategori listesini tekilleştir",
+      name: "Sonraki vakaya geç: Kategori listesini tekilleştir",
     })
     .click();
   await expect(
@@ -383,7 +419,7 @@ test("learning path and settings remain usable on a narrow viewport", async ({
     "aria-busy",
     "false",
   );
-  await page.getByRole("button", { name: /Tanıtıma geç/i }).click();
+  await page.getByRole("button", { name: /Nasıl çalışır/i }).click();
   const taskPreview = page.getByRole("region", {
     name: "Katalog görünümünü hazırla",
   });
@@ -401,10 +437,8 @@ test("learning path and settings remain usable on a narrow viewport", async ({
       () => document.documentElement.scrollWidth - window.innerWidth,
     ),
   ).toBeLessThanOrEqual(0);
-  await page.getByRole("button", { name: "Vaka Rotası", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Öğrenme yolu" }),
-  ).toBeVisible();
+  await page.getByRole("button", { name: "Rota", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Rota" })).toBeVisible();
   await expect(
     page.getByText("Önerilen başlangıç", { exact: true }),
   ).toBeVisible();
@@ -414,5 +448,9 @@ test("learning path and settings remain usable on a narrow viewport", async ({
   await expect(page.locator("body")).not.toHaveCSS("overflow-x", "scroll");
 
   await page.getByRole("button", { name: "SQL Laboratuvarı" }).click();
+  await expect(
+    page.getByRole("tablist", { name: "Vaka çalışma adımları" }),
+  ).toBeVisible();
+  await page.getByRole("tab", { name: "SQL görünümü" }).click();
   await expect(page.getByRole("button", { name: /Çalıştır/i })).toBeVisible();
 });

@@ -118,11 +118,11 @@ const firstContactTasks: LessonTask[] = [
     slug: "catalog-view",
     moduleId: "module-1",
     title: "Katalog görünümünü hazırla",
-    subtitle: "İlk SELECT sorgunla doğru kolonları getir.",
+    subtitle: "İlk sorgunda yalnız ürün adı ve kategoriyi getir.",
     scenario:
-      "Ürün operasyon ekibi, haftalık katalog kontrolü için ürün adlarını ve kategorilerini içeren sade bir görünüm istedi.",
+      "Ürün operasyon ekibi, haftalık katalog kontrolünde her ürünün adını ve kategorisini yan yana görmek istiyor.",
     objective:
-      "products tablosundan product_name ve category kolonlarını bu sırayla getir.",
+      "products adlı ürün tablosundan product_name (ürün adı) ve category (kategori) kolonlarını bu sırayla getir.",
     difficulty: "beginner",
     estimatedMinutes: 5,
     prerequisites: [],
@@ -144,9 +144,9 @@ const firstContactTasks: LessonTask[] = [
     requiredConcepts: ["SELECT"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "SELECT görmek istediğin kolonları, FROM ise verinin geldiği tabloyu belirtir.",
-      "İstenen kolonlar product_name ve category; kaynak tablo products.",
-      "İskelet: SELECT [birinci kolon], [ikinci kolon] FROM [tablo];",
+      "Her ürün sonuçta bir satır olarak kalmalı; yalnız görünen bilgiler ürün adı ve kategori olmalı.",
+      "SELECT hangi kolonların gösterileceğini, FROM ise verinin hangi tablodan alınacağını söyler.",
+      "İskelet: SELECT [ürün adı kolonu], [kategori kolonu] FROM [ürün tablosu];",
     ],
     explanation:
       "SELECT yalnızca ihtiyaç duyulan kolonları seçmeyi sağlar. Kolonları açıkça yazmak, gereksiz veriyi taşımayan ve amacı okunabilen rapor sorguları üretir.",
@@ -159,10 +159,11 @@ const firstContactTasks: LessonTask[] = [
     slug: "unique-categories",
     moduleId: "module-1",
     title: "Kategori listesini tekilleştir",
-    subtitle: "Tekrarlanan değerleri rapordan çıkar.",
+    subtitle: "Her kategoriyi listede yalnız bir kez göster.",
     scenario:
-      "Satın alma ekibi filtre menüsünü beslemek için her kategorinin yalnızca bir kez yer aldığı bir listeye ihtiyaç duyuyor.",
-    objective: "products tablosundaki benzersiz category değerlerini getir.",
+      "Satın alma ekibi, kategori seçim listesinde aynı adın tekrar etmemesini istiyor.",
+    objective:
+      "products tablosundaki category (kategori) kolonunu getir; aynı kategori birden fazla üründe bulunsa da sonuçta yalnız bir kez görünsün.",
     difficulty: "beginner",
     estimatedMinutes: 6,
     prerequisites: ["m1-t1"],
@@ -177,9 +178,9 @@ const firstContactTasks: LessonTask[] = [
     requiredConcepts: ["DISTINCT"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "Aynı değerin tekrarını engelleyen anahtar kelimeyi düşün.",
-      "DISTINCT, SELECT ile seçilen kolonun hemen önünde kullanılır.",
-      "İskelet: SELECT DISTINCT [kolon] FROM [tablo]; Burada yalnız category kolonuna ihtiyacın var.",
+      "Hedef altı ürünü göstermek değil, bu ürünlerde geçen dört farklı kategoriyi birer kez göstermektir.",
+      "DISTINCT, seçilen tekrar eden değerleri sonuçta birer kez gösterir ve SELECT'ten sonra yazılır.",
+      "İskelet: SELECT DISTINCT [kategori kolonu] FROM [ürün tablosu];",
     ],
     explanation:
       "DISTINCT, seçilen kolon kombinasyonundaki tekrarları kaldırır. Burada tek kolon seçildiği için her kategori sonuçta yalnızca bir kez görünür.",
@@ -194,9 +195,9 @@ const firstContactTasks: LessonTask[] = [
     title: "Kritik stokları sırala",
     subtitle: "En az stoğu kalan üç ürünü bul.",
     scenario:
-      "Depo sorumlusu, günün ilk tedarik görüşmelerinde hangi ürünlere öncelik vereceğini belirlemek istiyor.",
+      "Depo sorumlusu tedarik görüşmelerine stoğu en az olan ürünlerden başlayacak ve ilk üç ürünün adını, stok miktarını görmek istiyor.",
     objective:
-      "Ürünleri stock_quantity kolonuna göre küçükten büyüğe sırala; ilk 3 kaydın product_name ve stock_quantity kolonlarını getir.",
+      "products tablosundaki ürünleri stock_quantity (stok miktarı) küçükten büyüğe sırala. İlk 3 satırın product_name (ürün adı) ve stock_quantity kolonlarını bu sırayla getir.",
     difficulty: "beginner",
     estimatedMinutes: 8,
     prerequisites: ["m1-t2"],
@@ -215,9 +216,9 @@ const firstContactTasks: LessonTask[] = [
     requiredConcepts: ["ORDER_BY", "LIMIT"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "Önce satırları stok miktarına göre sıralamalısın.",
-      "ORDER BY stock_quantity ASC düşük değerleri üste taşır.",
-      "İskelet: SELECT [kolonlar] FROM products ORDER BY stock_quantity ASC LIMIT 3;",
+      "Önce bütün ürünleri en az stoktan en çok stoğa diz; sonra bu listenin ilk üç satırını al.",
+      "ORDER BY satırları sıralar; ASC küçükten büyüğe yönü, LIMIT ise kaç satır alınacağını belirtir.",
+      "İskelet: SELECT [ürün adı], [stok miktarı] FROM [ürün tablosu] ORDER BY [stok miktarı] ASC LIMIT [satır sayısı];",
     ],
     explanation:
       "ORDER BY sonucu belirli bir kolona göre sıralar; ASC küçükten büyüğe sıralamadır. LIMIT ise sıralanmış sonuç kümesinden gereken kadar satır alır.",
@@ -232,9 +233,9 @@ const firstContactTasks: LessonTask[] = [
     title: "Fiyat panosunu düzenle",
     subtitle: "Katalog fiyatlarını yüksekten düşüğe sun.",
     scenario:
-      "Ticari ekip, premium ürünleri hızlıca görebileceği bir fiyat panosu hazırlıyor.",
+      "Ticari ekip bütün ürün adlarını ve fiyatlarını görmek, en yüksek fiyatlı ürünü listenin başına almak istiyor.",
     objective:
-      "product_name ve unit_price kolonlarını unit_price azalan sırada getir.",
+      "products tablosundan product_name (ürün adı) ve unit_price (birim fiyat) kolonlarını getir. Hiçbir ürünü elemeden unit_price değerini yüksekten düşüğe sırala.",
     difficulty: "beginner",
     estimatedMinutes: 6,
     prerequisites: ["m1-t3"],
@@ -256,9 +257,9 @@ const firstContactTasks: LessonTask[] = [
     requiredConcepts: ["ORDER_BY"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "Sonuç sırasını ORDER BY ile belirlersin.",
-      "Azalan sıralama için kolon adından sonra DESC kullan.",
-      "İskelet: SELECT [kolonlar] FROM products ORDER BY unit_price DESC;",
+      "Bütün ürünler sonuçta kalmalı; yalnızca okuma sırası değişmeli ve en yüksek fiyat ilk satırda olmalı.",
+      "ORDER BY sıralanacak kolonu, DESC ise büyükten küçüğe yönü belirtir.",
+      "İskelet: SELECT [ürün adı], [birim fiyat] FROM [ürün tablosu] ORDER BY [birim fiyat] DESC;",
     ],
     explanation:
       "DESC, ORDER BY sıralamasını büyükten küçüğe çevirir. Rapor tüketicisinin beklediği sıralamayı sorguda açıkça tanımlamak sonucu öngörülebilir yapar.",

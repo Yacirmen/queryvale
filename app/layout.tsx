@@ -13,13 +13,17 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://yacirmen.github.io/queryvale/"),
   title: {
-    default: "Queryvale — Veriyi karara dönüştür",
+    default: "Queryvale — SQL ezberleme, veri analisti gibi çalış",
     template: "%s · Queryvale",
   },
   description:
-    "Gerçek iş sorularını kendi hızında çözerek SQL'i ve veri analisti düşünme biçimini öğrenebileceğin tarayıcı tabanlı laboratuvar.",
+    "Gerçek iş sorularını incele, SQL sorgunu tarayıcıda çalıştır, sonucunu doğrula ve bulgunu bir karar notuna dönüştür.",
   applicationName: "Queryvale",
+  alternates: {
+    canonical: "https://yacirmen.github.io/queryvale/",
+  },
   keywords: [
     "SQL",
     "veri analizi",
@@ -28,25 +32,25 @@ export const metadata: Metadata = {
     "interaktif eğitim",
   ],
   openGraph: {
-    title: "Queryvale — Veriyi karara dönüştür",
+    title: "SQL ezberleme. Veri analisti gibi çalış.",
     description:
-      "Bir sorgunun adım adım nasıl büyüyüp anlatılabilir bir karara dönüştüğünü keşfet.",
+      "İş sorusunu incele, sorgunu çalıştır, sonucunu doğrula ve kararını anlat.",
     type: "website",
     locale: "tr_TR",
     images: [
       {
-        url: "/og.png",
+        url: "https://yacirmen.github.io/queryvale/og-analyst-loop.png",
         width: 1200,
         height: 630,
-        alt: "Queryvale — Bir sorgu nasıl büyür?",
+        alt: "Queryvale — SQL ezberleme, veri analisti gibi çalış",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Queryvale — Veriyi karara dönüştür",
-    description: "Bir tabloyla başla, içindeki hikâyeyi SQL ile bul.",
-    images: ["/og.png"],
+    title: "SQL ezberleme. Veri analisti gibi çalış.",
+    description: "Gerçek iş sorularını sorguya, sonucu kanıta dönüştür.",
+    images: ["https://yacirmen.github.io/queryvale/og-analyst-loop.png"],
   },
 };
 

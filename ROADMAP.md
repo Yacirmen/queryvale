@@ -8,16 +8,16 @@ Bu yol haritası tarih vaadi değil, bağımlılık ve değer sırasıdır. Her 
 
 - Queryvale kimliği ve responsive uygulama kabuğu
 - Ana sayfa ve birkaç saniyede anlaşılır değer önerisi
-- Atlanabilir onboarding ve ilk göreve doğrudan geçiş
-- On çalışan modülü mesleki sonuçlarına göre gruplayan dört kariyer bölümü
+- İlk vaka içinde kapatılabilir 90 saniyelik rehber ve ana filmden doğrudan vaka/devam eylemi
+- On çalışan SQL konusunu mesleki sonuçlarına göre gruplayan dört bölüm
 - Her vakada `Sor → İncele → Sorgula → Doğrula → Anlat` döngüsü
-- Masaüstü öncelikli görev çalışma alanı
+- Masaüstü öncelikli vaka çalışma alanı; mobilde `Vaka | Veri | SQL | Sonuç` sekmeleri
 - Şema, örnek satır, editor, sonuç ve ipucu panelleri
 
 ### P0: SQL ve değerlendirme
 
 - Lazy-load PGlite worker
-- Görev başına izole kurulum/reset
+- Vaka başına izole kurulum/reset
 - Sonuç satır limiti, timeout ve stale-run koruması
 - Kolon, satır, sıra, `NULL`, duplicate, tolerans kontrolleri
 - Gerekli kavram ve yasak işlem sinyalleri
@@ -25,21 +25,20 @@ Bu yol haritası tarih vaadi değil, bağımlılık ve değer sırasıdır. Her 
 
 ### P0: Öğrenme ve kalıcılık
 
-- İlk yedi modül için çalışan, doğrulanmış 28 görevlik öğrenme yolu
-- Modül 8–10 için tamamlanmış üretim kalitesi genişleme: güvenli veri değişikliği, modelleme/veri güveni ve yönetici raporu alanlarında dörder vaka; toplam 40 görev
-- Her görevde kavram odağı, çıktı tanesi, kabul kontrolleri ve üç kademeli ipucu
+- On modülün tamamında dörder çalışan ve doğrulanmış vaka; toplam 40 vaka
+- Her vakada kavram odağı, çıktı tanesi, kabul kontrolleri ve üç kademeli ipucu
 - Hazırlık ipuçları yetmediğinde açık talep üzerine, cezasız tam çalışan çözüm
 - Değerlendirme durumuna özel koçluk ve başarı sonrası transfer odaklı debrief
 - Doğru değerlendirmeden üretilen sınırlı kanıt snapshot’ı, isteğe bağlı karar notu ve Kanıt Defteri
 - IndexedDB v4 ilerleme, güvenilir devam konumu, otomatik SQL taslağı, ayarlar ve `evidenceByTaskId` kalıcılığı
 - İçe/dışa aktarma ve onaylı reset
-- İlerleme özeti ve sıradaki görev önerisi
+- İlerleme özeti ve sıradaki vaka önerisi
 
 ### Çıkış kapısı
 
 - Kritik unit/integration/E2E testleri geçer.
 - Typecheck/lint ve production build hatasızdır.
-- İlk görev, yanlış sorgu, ipucu, tamamlama ve mobil akış doğrulanır.
+- İlk vaka, yanlış sorgu, ipucu, tamamlama ve mobil sekmeli akış doğrulanır.
 - Doğru sorgunun sonucu kullanıcı görmeden kaybolmaz; sonraki vakaya geçiş açık kullanıcı eylemidir.
 - Kanıt snapshot’ı yalnız doğru değerlendirmede oluşur, sınırlarını korur ve karar notuyla birlikte yeniden açılabilir.
 - Çalışmayan eylem veya sahte sonuç yoktur.

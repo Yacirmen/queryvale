@@ -183,7 +183,7 @@ export function SettingsScreen({
                 <div className="setting-label">
                   <strong>Yedekle veya taşı</strong>
                   <span>
-                    Tamamlanan görevleri, sorguları, profil adını ve tercihleri
+                    Tamamlanan vakaları, sorguları, profil adını ve tercihleri
                     JSON olarak aktar. Başka bir profile ait kayıt içe alınmadan
                     önce onay istenir.
                   </span>
@@ -219,7 +219,7 @@ export function SettingsScreen({
                 <div className="setting-label">
                   <strong>İlerlemeyi sıfırla</strong>
                   <span>
-                    Görev geçmişini temizler; profil adını ve çalışma
+                    Vaka geçmişini temizler; profil adını ve çalışma
                     tercihlerini korur.
                   </span>
                 </div>

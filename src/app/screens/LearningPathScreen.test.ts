@@ -121,25 +121,32 @@ describe("LearningPathScreen career chapters", () => {
       }),
     );
 
+    expect(screen.getByText("Veri analisti rotası")).toBeInTheDocument();
     expect(
-      screen.getByText("Veri analisti kariyer rotası"),
+      screen.getByRole("heading", { level: 1, name: "Rota" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
         name: "Sorgudan karara ilerlediğin yol",
       }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Bölümler ve SQL konuları" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Vaka durum özeti" }),
+    ).toBeInTheDocument();
 
     const foundationChapter = screen.getByRole("article", {
-      name: "Temeli kur kariyer bölümü",
+      name: "Temeli kur bölümü",
     });
     const businessChapter = screen.getByRole("article", {
-      name: "İş sorusunu çöz kariyer bölümü",
+      name: "İş sorusunu çöz bölümü",
     });
 
-    expect(foundationChapter).toHaveTextContent("0/12 görev tamamlandı");
+    expect(foundationChapter).toHaveTextContent("0/12 vaka tamamlandı");
     expect(within(foundationChapter).getByText("Önerilen odak")).toBeVisible();
-    expect(businessChapter).toHaveTextContent("1/8 görev tamamlandı");
+    expect(businessChapter).toHaveTextContent("1/8 vaka tamamlandı");
     expect(within(businessChapter).getByText("İlerliyorsun")).toBeVisible();
     expect(
       screen.getAllByText("İstediğinde açık", { exact: true }),

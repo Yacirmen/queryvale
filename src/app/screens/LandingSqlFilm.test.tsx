@@ -100,7 +100,22 @@ describe("LandingSqlFilm", () => {
   it("keeps one scene in the manual fallback and reveals the validated final query", async () => {
     const user = userEvent.setup();
     const onContinue = vi.fn();
-    const { container } = render(<LandingSqlFilm onContinue={onContinue} />);
+    const onStart = vi.fn();
+    const { container } = render(
+      <LandingSqlFilm
+        isReturningLearner={false}
+        onContinue={onContinue}
+        onStart={onStart}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", {
+        name: "Bir iş sorusu nasıl karara dönüşür?",
+      }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /İlk vakaya başla/i }));
+    expect(onStart).toHaveBeenCalledOnce();
 
     expect(screen.getAllByRole("tab")).toHaveLength(landingSqlScenes.length);
     expect(
@@ -133,12 +148,22 @@ describe("LandingSqlFilm", () => {
     expect(container.querySelectorAll(".landing-sql-editor")).toHaveLength(1);
     expect(container).not.toHaveTextContent("FROM products");
 
-    await user.click(screen.getByRole("button", { name: /Tanıtıma geç/i }));
+    await user.click(screen.getByRole("button", { name: /Nasıl çalışır/i }));
     expect(onContinue).toHaveBeenCalledOnce();
   });
 
   it("supports roving tab focus with arrows, Home and End", () => {
-    render(<LandingSqlFilm onContinue={() => undefined} />);
+    render(
+      <LandingSqlFilm
+        isReturningLearner
+        onContinue={() => undefined}
+        onStart={() => undefined}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /Kaldığın vakaya devam et/i }),
+    ).toBeInTheDocument();
 
     const firstTab = screen.getByRole("tab", { name: /1\. adım: Kapsam/i });
     const secondTab = screen.getByRole("tab", { name: /2\. adım: Hedef/i });

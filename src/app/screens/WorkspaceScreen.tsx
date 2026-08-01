@@ -53,6 +53,7 @@ import {
 } from "../../features/progress/progressStore";
 import type { Navigate } from "../appTypes";
 import { CommandDialog } from "../components/Dialogs";
+import { FirstCaseGuide } from "../components/FirstCaseGuide";
 import { ResultCompletion } from "../components/ResultCompletion";
 
 const MonacoEditor = lazy(() => import("../components/LocalMonacoEditor"));
@@ -63,6 +64,8 @@ interface WorkspaceScreenProps {
   progress: ProgressState;
   settings: EditorSettings;
   persistenceAvailable: boolean;
+  showFirstCaseGuide: boolean;
+  onDismissFirstCaseGuide: () => void;
   onProgressChange: (update: (current: ProgressState) => ProgressState) => void;
   onNavigate: Navigate;
 }
@@ -120,6 +123,14 @@ const HINT_ACTION_LABELS = [
   "Sorgu iskeletini göster",
 ] as const;
 const DRAFT_AUTOSAVE_DELAY_MS = 700;
+const MOBILE_WORKSPACE_VIEWS = [
+  { id: "brief", label: "Vaka" },
+  { id: "schema", label: "Veri" },
+  { id: "editor", label: "SQL" },
+  { id: "results", label: "Sonuç" },
+] as const;
+
+type MobileWorkspaceView = (typeof MOBILE_WORKSPACE_VIEWS)[number]["id"];
 
 export function WorkspaceScreen({
   task,
@@ -127,10 +138,14 @@ export function WorkspaceScreen({
   progress,
   settings,
   persistenceAvailable,
+  showFirstCaseGuide,
+  onDismissFirstCaseGuide,
   onProgressChange,
   onNavigate,
 }: WorkspaceScreenProps) {
   const [panelTab, setPanelTab] = useState<"brief" | "schema">("brief");
+  const [mobileView, setMobileView] = useState<MobileWorkspaceView>("brief");
+  const [isCompactWorkspace, setIsCompactWorkspace] = useState(false);
   const [query, setQuery] = useState(() => getInitialQuery(task, progress));
   const [engineState, setEngineState] = useState<
     "loading" | "ready" | "failed"
@@ -168,6 +183,13 @@ export function WorkspaceScreen({
   const pendingEditorFocusRef = useRef(false);
   const briefTabRef = useRef<HTMLButtonElement>(null);
   const schemaTabRef = useRef<HTMLButtonElement>(null);
+  const briefPanelRef = useRef<HTMLDivElement>(null);
+  const mobileViewRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  const showResultsAndFocus = useCallback(() => {
+    setMobileView("results");
+    window.setTimeout(() => mobileViewRefs.current[3]?.focus(), 0);
+  }, []);
 
   const taskIndex = tasks.findIndex((candidate) => candidate.id === task.id);
   const previousTask = taskIndex > 0 ? tasks[taskIndex - 1] : undefined;
@@ -181,6 +203,15 @@ export function WorkspaceScreen({
   const nextHintIndex = task.hints.findIndex(
     (_, index) => !visibleHints.includes(index),
   );
+
+  useEffect(() => {
+    const updateCompactWorkspace = () =>
+      setIsCompactWorkspace(window.innerWidth <= 820);
+    updateCompactWorkspace();
+    window.addEventListener("resize", updateCompactWorkspace);
+    return () => window.removeEventListener("resize", updateCompactWorkspace);
+  }, []);
+
   useEffect(() => {
     let current = true;
     runGenerationRef.current += 1;
@@ -202,6 +233,7 @@ export function WorkspaceScreen({
           "Yerel PostgreSQL motoru hazırlanamadı. Bu sistem hatası sorgunla ilgili değil; Sıfırla ile yeniden dene veya sayfayı yenile.",
         );
         setEvaluation(undefined);
+        showResultsAndFocus();
       });
 
     return () => {
@@ -342,6 +374,7 @@ export function WorkspaceScreen({
       );
       setResult(execution);
       setEvaluation(nextEvaluation);
+      showResultsAndFocus();
       const hasNewerSavedDraft =
         draftRevisionRef.current !== draftRevisionAtRunStart;
       const verifiedSnapshot = nextEvaluation.correct
@@ -380,13 +413,15 @@ export function WorkspaceScreen({
         setEvaluation(undefined);
         setEngineState("failed");
         setEngineSetupError(
-          "Görev verisi bu deneme için hazırlanamadı. Bu sistem hatası sorgunla ilgili değil; Sıfırla ile yeniden dene veya sayfayı yenile.",
+          "Vaka verisi bu deneme için hazırlanamadı. Bu sistem hatası sorgunla ilgili değil; Sıfırla ile yeniden dene veya sayfayı yenile.",
         );
+        showResultsAndFocus();
         return;
       }
       const nextEvaluation = evaluateLessonQuery(task, query, undefined, error);
       setResult(undefined);
       setEvaluation(nextEvaluation);
+      showResultsAndFocus();
       const hasNewerSavedDraft =
         draftRevisionRef.current !== draftRevisionAtRunStart;
       onProgressChange((current) => {
@@ -414,7 +449,14 @@ export function WorkspaceScreen({
         }
       }
     }
-  }, [engineState, isRunning, onProgressChange, query, task]);
+  }, [
+    engineState,
+    isRunning,
+    onProgressChange,
+    query,
+    showResultsAndFocus,
+    task,
+  ]);
 
   useEffect(() => {
     if (result && resultsContentRef.current) {
@@ -468,16 +510,17 @@ export function WorkspaceScreen({
       draftDirtyRef.current = false;
       setEngineSetupError(undefined);
       setEngineState("ready");
-      setToast("Görev verisi ve editör başlangıç durumuna döndü.");
+      setToast("Vaka verisi ve editör başlangıç durumuna döndü.");
     } catch {
       if (!isCurrentReset()) return;
       setEngineState("failed");
       setEngineSetupError(
-        "Görev verisi yeniden hazırlanamadı. Bu sistem hatası sorgunla ilgili değil; tekrar Sıfırla’yı dene veya sayfayı yenile.",
+        "Vaka verisi yeniden hazırlanamadı. Bu sistem hatası sorgunla ilgili değil; tekrar Sıfırla’yı dene veya sayfayı yenile.",
       );
       setEvaluation(undefined);
+      showResultsAndFocus();
     }
-  }, [onProgressChange, task, updateQuery]);
+  }, [onProgressChange, showResultsAndFocus, task, updateQuery]);
 
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
@@ -511,12 +554,25 @@ export function WorkspaceScreen({
 
   const activatePanelTab = (nextTab: "brief" | "schema", moveFocus = false) => {
     setPanelTab(nextTab);
+    setMobileView(nextTab);
     if (!moveFocus) return;
     window.setTimeout(() => {
+      if (isCompactWorkspace) {
+        const mobileIndex = MOBILE_WORKSPACE_VIEWS.findIndex(
+          (view) => view.id === nextTab,
+        );
+        mobileViewRefs.current[mobileIndex]?.focus();
+        return;
+      }
       const target =
         nextTab === "brief" ? briefTabRef.current : schemaTabRef.current;
       target?.focus();
     }, 0);
+  };
+
+  const dismissFirstCaseGuide = () => {
+    onDismissFirstCaseGuide();
+    window.setTimeout(() => briefPanelRef.current?.focus(), 0);
   };
 
   const handlePanelTabKeyDown = (
@@ -562,12 +618,50 @@ export function WorkspaceScreen({
   };
 
   const focusEditor = () => {
+    setMobileView("editor");
     editorFrameRef.current?.scrollIntoView?.({
       behavior: settings.reducedMotion ? "auto" : "smooth",
       block: "center",
     });
     if (!editorRef.current) pendingEditorFocusRef.current = true;
     window.setTimeout(() => editorRef.current?.focus(), 0);
+  };
+
+  const activateMobileView = (
+    nextView: MobileWorkspaceView,
+    moveFocus = false,
+  ) => {
+    setMobileView(nextView);
+    if (nextView === "brief" || nextView === "schema") {
+      setPanelTab(nextView);
+    }
+    if (moveFocus) {
+      const nextIndex = MOBILE_WORKSPACE_VIEWS.findIndex(
+        (view) => view.id === nextView,
+      );
+      window.setTimeout(() => mobileViewRefs.current[nextIndex]?.focus(), 0);
+    }
+  };
+
+  const handleMobileViewKeyDown = (
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    index: number,
+  ) => {
+    let nextIndex: number | undefined;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      nextIndex = (index + 1) % MOBILE_WORKSPACE_VIEWS.length;
+    }
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      nextIndex =
+        (index - 1 + MOBILE_WORKSPACE_VIEWS.length) %
+        MOBILE_WORKSPACE_VIEWS.length;
+    }
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = MOBILE_WORKSPACE_VIEWS.length - 1;
+    if (nextIndex === undefined) return;
+    event.preventDefault();
+    const nextView = MOBILE_WORKSPACE_VIEWS[nextIndex]?.id;
+    if (nextView) activateMobileView(nextView, true);
   };
 
   const resizeBriefWithKeyboard = (
@@ -671,13 +765,13 @@ export function WorkspaceScreen({
     <main id="main-content" className="workspace-page" tabIndex={-1}>
       <div className="workspace-topbar">
         <div className="workspace-breadcrumb">
-          <span>{task.moduleId.replace("module-", "Modül ")}</span>
+          <span>Rota</span>
           <ArrowRight size={11} />
           <strong>{task.title}</strong>
         </div>
         <div className="workspace-topbar-actions">
           <span className="mission-counter">
-            Görev {String(taskIndex + 1).padStart(2, "0")} / {tasks.length}
+            Vaka {String(taskIndex + 1).padStart(2, "0")} / {tasks.length}
           </span>
           <button
             className="icon-button"
@@ -687,7 +781,7 @@ export function WorkspaceScreen({
               previousTask &&
               onNavigate("workspace", { taskId: previousTask.id })
             }
-            aria-label="Önceki görev"
+            aria-label="Önceki vaka"
           >
             <ArrowLeft size={14} />
           </button>
@@ -698,7 +792,7 @@ export function WorkspaceScreen({
             onClick={() =>
               nextTask && onNavigate("workspace", { taskId: nextTask.id })
             }
-            aria-label="Sonraki görev"
+            aria-label="Sonraki vaka"
           >
             <ArrowRight size={14} />
           </button>
@@ -713,468 +807,537 @@ export function WorkspaceScreen({
         </div>
       </div>
 
+      {isCompactWorkspace && (
+        <nav
+          className="workspace-mobile-tabs"
+          role="tablist"
+          aria-label="Vaka çalışma adımları"
+        >
+          {MOBILE_WORKSPACE_VIEWS.map((view, index) => {
+            const isActive = mobileView === view.id;
+            const resultStatus =
+              view.id === "results" && evaluation
+                ? evaluation.correct
+                  ? "Doğru"
+                  : "Kontrol et"
+                : undefined;
+            return (
+              <button
+                key={view.id}
+                id={`mobile-${task.id}-${view.id}-tab`}
+                ref={(node) => {
+                  mobileViewRefs.current[index] = node;
+                }}
+                type="button"
+                role="tab"
+                aria-label={`${view.label} görünümü`}
+                aria-describedby={
+                  resultStatus ? `mobile-${task.id}-result-status` : undefined
+                }
+                aria-selected={isActive}
+                aria-controls={
+                  view.id === "brief"
+                    ? `${task.id}-brief-panel`
+                    : view.id === "schema"
+                      ? `${task.id}-schema-panel`
+                      : view.id === "editor"
+                        ? "workspace-editor-panel"
+                        : "workspace-results-panel"
+                }
+                tabIndex={isActive ? 0 : -1}
+                onClick={() => activateMobileView(view.id)}
+                onKeyDown={(event) => handleMobileViewKeyDown(event, index)}
+              >
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <strong>{view.label}</strong>
+                {resultStatus && (
+                  <small id={`mobile-${task.id}-result-status`}>
+                    {resultStatus}
+                  </small>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+      )}
+
+      {evaluation && (
+        <span className="sr-only" role="status">
+          {evaluation.correct
+            ? "Sorgu doğru. Sonuç görünümü açıldı."
+            : `Sorgu kontrol edildi: ${evaluation.title}. Sonuç görünümü açıldı.`}
+        </span>
+      )}
+
       <div
         className="workspace-body"
+        data-mobile-view={mobileView}
         style={{ "--brief-width": `${briefWidth}px` } as React.CSSProperties}
       >
         <aside
           id="workspace-brief-panel"
           className="brief-panel"
-          aria-label={`${task.title} görev bilgileri`}
+          aria-label={`${task.title} vaka bilgileri`}
         >
-          <div
-            className="panel-tabs"
-            role="tablist"
-            aria-label="Görev bilgileri"
-          >
-            <button
-              id={`${task.id}-brief-tab`}
-              ref={briefTabRef}
-              className={`panel-tab ${panelTab === "brief" ? "active" : ""}`}
-              type="button"
-              role="tab"
-              aria-selected={panelTab === "brief"}
-              aria-controls={`${task.id}-brief-panel`}
-              tabIndex={panelTab === "brief" ? 0 : -1}
-              onClick={() => activatePanelTab("brief")}
-              onKeyDown={handlePanelTabKeyDown}
-            >
-              Görev
-            </button>
-            <button
-              id={`${task.id}-schema-tab`}
-              ref={schemaTabRef}
-              className={`panel-tab ${panelTab === "schema" ? "active" : ""}`}
-              type="button"
-              role="tab"
-              aria-selected={panelTab === "schema"}
-              aria-controls={`${task.id}-schema-panel`}
-              tabIndex={panelTab === "schema" ? 0 : -1}
-              onClick={() => activatePanelTab("schema")}
-              onKeyDown={handlePanelTabKeyDown}
-            >
-              Şema &amp; veri
-            </button>
-          </div>
-
-          {panelTab === "brief" ? (
+          {!isCompactWorkspace && (
             <div
-              id={`${task.id}-brief-panel`}
-              className="brief-scroll"
-              role="tabpanel"
-              aria-labelledby={`${task.id}-brief-tab`}
-              tabIndex={0}
+              className="panel-tabs"
+              role="tablist"
+              aria-label="Vaka bilgileri"
             >
-              <div className="brief-kicker">
-                <span className="brief-case-tag">
-                  {difficultyLabel(task)} vaka
+              <button
+                id={`${task.id}-brief-tab`}
+                ref={briefTabRef}
+                className={`panel-tab ${panelTab === "brief" ? "active" : ""}`}
+                type="button"
+                role="tab"
+                aria-selected={panelTab === "brief"}
+                aria-controls={`${task.id}-brief-panel`}
+                tabIndex={panelTab === "brief" ? 0 : -1}
+                onClick={() => activatePanelTab("brief")}
+                onKeyDown={handlePanelTabKeyDown}
+              >
+                Vaka
+              </button>
+              <button
+                id={`${task.id}-schema-tab`}
+                ref={schemaTabRef}
+                className={`panel-tab ${panelTab === "schema" ? "active" : ""}`}
+                type="button"
+                role="tab"
+                aria-selected={panelTab === "schema"}
+                aria-controls={`${task.id}-schema-panel`}
+                tabIndex={panelTab === "schema" ? 0 : -1}
+                onClick={() => activatePanelTab("schema")}
+                onKeyDown={handlePanelTabKeyDown}
+              >
+                Şema &amp; veri
+              </button>
+            </div>
+          )}
+
+          <div
+            id={`${task.id}-brief-panel`}
+            ref={briefPanelRef}
+            className="brief-scroll"
+            role="tabpanel"
+            aria-labelledby={
+              isCompactWorkspace
+                ? `mobile-${task.id}-brief-tab`
+                : `${task.id}-brief-tab`
+            }
+            tabIndex={0}
+            hidden={panelTab !== "brief"}
+          >
+            {showFirstCaseGuide && (
+              <FirstCaseGuide
+                onDismiss={dismissFirstCaseGuide}
+                onShowData={() => activatePanelTab("schema", true)}
+                onFocusEditor={focusEditor}
+              />
+            )}
+            <div className="brief-kicker">
+              <span className="brief-case-tag">
+                {difficultyLabel(task)} vaka
+              </span>
+              <span className="brief-time">
+                <Clock3 size={10} /> {task.estimatedMinutes} dk
+              </span>
+            </div>
+            <h1>{task.title}</h1>
+            <ol className="task-sequence" aria-label="Vakaya başlama sırası">
+              <li className="task-sequence-step task-sequence-step-primary">
+                <span className="task-step-index" aria-hidden="true">
+                  1
                 </span>
-                <span className="brief-time">
-                  <Clock3 size={10} /> {task.estimatedMinutes} dk
-                </span>
-              </div>
-              <h1>{task.title}</h1>
-              <ol className="task-sequence" aria-label="Göreve başlama sırası">
-                <li className="task-sequence-step task-sequence-step-primary">
-                  <span className="task-step-index" aria-hidden="true">
-                    1
-                  </span>
-                  <div className="task-step-heading">
-                    <span>Önce</span>
-                    <h2 id={`${task.id}-objective-title`}>İstenen teslim</h2>
-                  </div>
-                  <p className="task-objective">{task.objective}</p>
-                </li>
-
-                <li className="task-sequence-step">
-                  <span className="task-step-index" aria-hidden="true">
-                    2
-                  </span>
-                  <div className="task-step-heading">
-                    <span>Sonra</span>
-                    <h2>Çıktını tanı</h2>
-                  </div>
-                  <div className="task-output-grain">
-                    <span>Bir sonuç satırı neyi temsil eder?</span>
-                    <strong>{task.learningBrief.outputGrain}</strong>
-                  </div>
-                  <div className="task-column-contract">
-                    <div
-                      id={`${task.id}-columns-title`}
-                      className="output-contract-label"
-                    >
-                      <Columns3 size={12} /> Beklenen kolonlar
-                    </div>
-                    <ul
-                      className="expected-columns"
-                      aria-labelledby={`${task.id}-columns-title`}
-                    >
-                      {task.expectedColumns.map((column) => (
-                        <li key={column}>
-                          <button
-                            className="expected-column"
-                            type="button"
-                            onClick={() => void copyExpectedColumn(column)}
-                            aria-label={`${column} kolonunu kopyala`}
-                            title="Kolon adını panoya kopyala"
-                          >
-                            <code>{column}</code>
-                            <Copy size={11} />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <details className="task-disclosure task-check-disclosure">
-                    <summary>
-                      <CheckCircle2 size={13} />
-                      <span>Kendini kontrol et</span>
-                      <small>
-                        {task.learningBrief.acceptanceChecks.length} madde
-                      </small>
-                    </summary>
-                    <ul className="task-check-list">
-                      {task.learningBrief.acceptanceChecks.map((check) => (
-                        <li key={check}>{check}</li>
-                      ))}
-                    </ul>
-                  </details>
-                </li>
-
-                <li className="task-sequence-step">
-                  <span className="task-step-index" aria-hidden="true">
-                    3
-                  </span>
-                  <div className="task-step-heading">
-                    <span>Başla</span>
-                    <h2>Veriyi gör, sorgunu yaz</h2>
-                  </div>
-                  <div className="task-step-actions">
-                    <button
-                      className="brief-action primary"
-                      type="button"
-                      onClick={() => activatePanelTab("schema", true)}
-                    >
-                      <span className="task-action-index" aria-hidden="true">
-                        1
-                      </span>
-                      Şemayı incele <ArrowRight size={12} />
-                    </button>
-                    <button
-                      className="brief-action task-action-secondary"
-                      type="button"
-                      onClick={focusEditor}
-                    >
-                      <span className="task-action-index" aria-hidden="true">
-                        2
-                      </span>
-                      Sorguyu yaz <ArrowRight size={12} />
-                    </button>
-                  </div>
-                  <details className="task-disclosure task-concept-disclosure">
-                    <summary>
-                      <Braces size={13} />
-                      <span>Bu görevde ne çalışıyorsun?</span>
-                      <small>Kavram</small>
-                    </summary>
-                    <p className="task-concept-copy">
-                      {task.learningBrief.conceptAnchor}
-                    </p>
-                  </details>
-                </li>
-              </ol>
-
-              <details className="task-disclosure task-context-disclosure">
-                <summary>
-                  <TerminalSquare size={13} />
-                  <span>İş bağlamı</span>
-                  <small>İsteğe bağlı</small>
-                </summary>
-                <div className="task-disclosure-copy">
-                  <strong>{task.subtitle}</strong>
-                  <p>{task.scenario}</p>
+                <div className="task-step-heading">
+                  <span>Önce</span>
+                  <h2 id={`${task.id}-objective-title`}>İstenen teslim</h2>
                 </div>
-              </details>
+                <p className="task-objective">{task.objective}</p>
+              </li>
 
-              <section className="task-help-console" aria-label="Görev yardımı">
-                <button
-                  id={`${task.id}-help-toggle`}
-                  className="task-help-toggle"
-                  type="button"
-                  onClick={() => setHelpExpanded((current) => !current)}
-                  aria-expanded={helpExpanded}
-                  aria-controls={`${task.id}-help-panel`}
-                  aria-label={
-                    helpExpanded
-                      ? "Yardım adımlarını kapat"
-                      : "Yardım adımlarını aç"
-                  }
-                >
-                  <span className="task-help-icon" aria-hidden="true">
-                    <Lightbulb size={15} />
-                  </span>
-                  <span className="task-help-copy">
-                    <strong>Takıldın mı?</strong>
-                    <small>
-                      {helpExpanded ? "Yardımı kapat" : "Adım adım yardım al"}
-                    </small>
-                  </span>
-                  <span className="hint-progress" aria-hidden="true">
-                    {revealedHintCount}/{task.hints.length} ipucu
-                  </span>
-                  <ArrowRight
-                    className={helpExpanded ? "is-open" : undefined}
-                    size={13}
-                    aria-hidden="true"
-                  />
-                </button>
-                {helpExpanded && (
+              <li className="task-sequence-step">
+                <span className="task-step-index" aria-hidden="true">
+                  2
+                </span>
+                <div className="task-step-heading">
+                  <span>Sonra</span>
+                  <h2>Çıktını tanı</h2>
+                </div>
+                <div className="task-output-grain">
+                  <span>Bir sonuç satırı neyi temsil eder?</span>
+                  <strong>{task.learningBrief.outputGrain}</strong>
+                </div>
+                <div className="task-column-contract">
                   <div
-                    id={`${task.id}-help-panel`}
-                    className="task-help-panel"
-                    role="region"
-                    aria-labelledby={`${task.id}-help-toggle`}
+                    id={`${task.id}-columns-title`}
+                    className="output-contract-label"
                   >
-                    <p className="hint-section-intro">
-                      Her seferinde yalnız bir sonraki adımı aç. Son adımın
-                      ardından çalışan bir sorguyu da görebilirsin.
-                    </p>
-                    <div className="hint-stack">
-                      {revealedHintCount > 0 && (
-                        <ol
-                          key="revealed-hints"
-                          className="revealed-hint-list"
-                          aria-label="Açılan ipuçları"
-                        >
-                          {task.hints.map((hint, index) =>
-                            visibleHints.includes(index) ? (
-                              <li className="revealed-hint" key={hint}>
-                                <span className="hint-index">{index + 1}</span>
-                                <span>
-                                  <strong>
-                                    {index + 1}. adım ·{" "}
-                                    {HINT_STAGE_LABELS[index]}
-                                  </strong>
-                                  <span>{hint}</span>
-                                </span>
-                              </li>
-                            ) : null,
-                          )}
-                        </ol>
-                      )}
-                      {nextHintIndex >= 0 ? (
+                    <Columns3 size={12} /> Beklenen kolonlar
+                  </div>
+                  <ul
+                    className="expected-columns"
+                    aria-labelledby={`${task.id}-columns-title`}
+                  >
+                    {task.expectedColumns.map((column) => (
+                      <li key={column}>
                         <button
-                          key="next-hint"
-                          className="hint-button"
+                          className="expected-column"
                           type="button"
-                          onClick={() => revealHint(nextHintIndex)}
-                          aria-label={`${nextHintIndex + 1}. ipucunu aç`}
+                          onClick={() => void copyExpectedColumn(column)}
+                          aria-label={`${column} kolonunu kopyala`}
+                          title="Kolon adını panoya kopyala"
+                        >
+                          <code>{column}</code>
+                          <Copy size={11} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <details className="task-disclosure task-check-disclosure">
+                  <summary>
+                    <CheckCircle2 size={13} />
+                    <span>Kendini kontrol et</span>
+                    <small>
+                      {task.learningBrief.acceptanceChecks.length} madde
+                    </small>
+                  </summary>
+                  <ul className="task-check-list">
+                    {task.learningBrief.acceptanceChecks.map((check) => (
+                      <li key={check}>{check}</li>
+                    ))}
+                  </ul>
+                </details>
+              </li>
+
+              <li className="task-sequence-step">
+                <span className="task-step-index" aria-hidden="true">
+                  3
+                </span>
+                <div className="task-step-heading">
+                  <span>Başla</span>
+                  <h2>Veriyi gör, sorgunu yaz</h2>
+                </div>
+                <div className="task-step-actions">
+                  <button
+                    className="brief-action primary"
+                    type="button"
+                    onClick={() => activatePanelTab("schema", true)}
+                  >
+                    <span className="task-action-index" aria-hidden="true">
+                      1
+                    </span>
+                    Şemayı incele <ArrowRight size={12} />
+                  </button>
+                  <button
+                    className="brief-action task-action-secondary"
+                    type="button"
+                    onClick={focusEditor}
+                  >
+                    <span className="task-action-index" aria-hidden="true">
+                      2
+                    </span>
+                    Sorguyu yaz <ArrowRight size={12} />
+                  </button>
+                </div>
+                <details className="task-disclosure task-concept-disclosure">
+                  <summary>
+                    <Braces size={13} />
+                    <span>Bu vakada ne çalışıyorsun?</span>
+                    <small>Kavram</small>
+                  </summary>
+                  <p className="task-concept-copy">
+                    {task.learningBrief.conceptAnchor}
+                  </p>
+                </details>
+              </li>
+            </ol>
+
+            <details className="task-disclosure task-context-disclosure">
+              <summary>
+                <TerminalSquare size={13} />
+                <span>İş bağlamı</span>
+                <small>İsteğe bağlı</small>
+              </summary>
+              <div className="task-disclosure-copy">
+                <strong>{task.subtitle}</strong>
+                <p>{task.scenario}</p>
+              </div>
+            </details>
+
+            <section className="task-help-console" aria-label="Vaka yardımı">
+              <button
+                id={`${task.id}-help-toggle`}
+                className="task-help-toggle"
+                type="button"
+                onClick={() => setHelpExpanded((current) => !current)}
+                aria-expanded={helpExpanded}
+                aria-controls={`${task.id}-help-panel`}
+                aria-label={
+                  helpExpanded
+                    ? "Yardım adımlarını kapat"
+                    : "Yardım adımlarını aç"
+                }
+              >
+                <span className="task-help-icon" aria-hidden="true">
+                  <Lightbulb size={15} />
+                </span>
+                <span className="task-help-copy">
+                  <strong>Takıldın mı?</strong>
+                  <small>
+                    {helpExpanded ? "Yardımı kapat" : "Adım adım yardım al"}
+                  </small>
+                </span>
+                <span className="hint-progress" aria-hidden="true">
+                  {revealedHintCount}/{task.hints.length} ipucu
+                </span>
+                <ArrowRight
+                  className={helpExpanded ? "is-open" : undefined}
+                  size={13}
+                  aria-hidden="true"
+                />
+              </button>
+              {helpExpanded && (
+                <div
+                  id={`${task.id}-help-panel`}
+                  className="task-help-panel"
+                  role="region"
+                  aria-labelledby={`${task.id}-help-toggle`}
+                >
+                  <p className="hint-section-intro">
+                    Her seferinde yalnız bir sonraki adımı aç. Son adımın
+                    ardından çalışan bir sorguyu da görebilirsin.
+                  </p>
+                  <div className="hint-stack">
+                    {revealedHintCount > 0 && (
+                      <ol
+                        key="revealed-hints"
+                        className="revealed-hint-list"
+                        aria-label="Açılan ipuçları"
+                      >
+                        {task.hints.map((hint, index) =>
+                          visibleHints.includes(index) ? (
+                            <li className="revealed-hint" key={hint}>
+                              <span className="hint-index">{index + 1}</span>
+                              <span>
+                                <strong>
+                                  {index + 1}. adım · {HINT_STAGE_LABELS[index]}
+                                </strong>
+                                <span>{hint}</span>
+                              </span>
+                            </li>
+                          ) : null,
+                        )}
+                      </ol>
+                    )}
+                    {nextHintIndex >= 0 ? (
+                      <button
+                        key="next-hint"
+                        className="hint-button"
+                        type="button"
+                        onClick={() => revealHint(nextHintIndex)}
+                        aria-label={`${nextHintIndex + 1}. ipucunu aç`}
+                      >
+                        <span className="hint-button-icon">
+                          <Lightbulb size={14} />
+                        </span>
+                        <span className="hint-button-copy">
+                          <strong>{HINT_ACTION_LABELS[nextHintIndex]}</strong>
+                          <small>
+                            {nextHintIndex + 1}. yardım adımı · cevabı vermez
+                          </small>
+                        </span>
+                        <ArrowRight size={13} />
+                      </button>
+                    ) : (
+                      <>
+                        <div className="hint-complete">
+                          <CheckCircle2 size={13} />
+                          Üç hazırlık adımını gördün
+                        </div>
+                        <button
+                          className="hint-button solution-trigger"
+                          type="button"
+                          onClick={() => toggleSolution()}
+                          aria-expanded={solutionVisible}
+                          aria-controls={`${task.id}-solution`}
                         >
                           <span className="hint-button-icon">
-                            <Lightbulb size={14} />
+                            <TerminalSquare size={14} />
                           </span>
                           <span className="hint-button-copy">
-                            <strong>{HINT_ACTION_LABELS[nextHintIndex]}</strong>
+                            <strong>
+                              {solutionVisible
+                                ? "Çalışan çözümü gizle"
+                                : "Bir doğru sorguyu göster"}
+                            </strong>
                             <small>
-                              {nextHintIndex + 1}. yardım adımı · cevabı vermez
+                              Sorgunun tamamı açılır · editörün değişmez
                             </small>
                           </span>
-                          <ArrowRight size={13} />
+                          <ArrowRight
+                            className={solutionVisible ? "is-open" : undefined}
+                            size={13}
+                          />
                         </button>
-                      ) : (
-                        <>
-                          <div className="hint-complete">
-                            <CheckCircle2 size={13} />
-                            Üç hazırlık adımını gördün
-                          </div>
-                          <button
-                            className="hint-button solution-trigger"
-                            type="button"
-                            onClick={() => toggleSolution()}
-                            aria-expanded={solutionVisible}
-                            aria-controls={`${task.id}-solution`}
+                        {solutionVisible && (
+                          <div
+                            id={`${task.id}-solution`}
+                            className="solution-reveal"
+                            role="region"
+                            aria-labelledby={`${task.id}-solution-title`}
                           >
-                            <span className="hint-button-icon">
-                              <TerminalSquare size={14} />
-                            </span>
-                            <span className="hint-button-copy">
-                              <strong>
-                                {solutionVisible
-                                  ? "Çalışan çözümü gizle"
-                                  : "Bir doğru sorguyu göster"}
-                              </strong>
-                              <small>
-                                Sorgunun tamamı açılır · editörün değişmez
-                              </small>
-                            </span>
-                            <ArrowRight
-                              className={
-                                solutionVisible ? "is-open" : undefined
-                              }
-                              size={13}
-                            />
-                          </button>
-                          {solutionVisible && (
-                            <div
-                              id={`${task.id}-solution`}
-                              className="solution-reveal"
-                              role="region"
-                              aria-labelledby={`${task.id}-solution-title`}
-                            >
-                              <div className="solution-reveal-heading">
-                                <span className="solution-reveal-icon">
-                                  <Braces size={14} />
-                                </span>
-                                <div>
-                                  <strong id={`${task.id}-solution-title`}>
-                                    Çalışan çözüm örneği
-                                  </strong>
-                                  <span>
-                                    Tam SQL · gerçek motorla doğrulandı
-                                  </span>
-                                </div>
-                              </div>
-                              <p className="solution-reveal-note">
-                                Bu, geçerli çözümlerden biridir. Aynı sonucu
-                                farklı bir sorguyla da üretebilirsin.
-                              </p>
-                              <pre
-                                className="solution-code"
-                                tabIndex={0}
-                                aria-label={`${task.title} için örnek SQL sorgusu`}
-                              >
-                                <code>{task.solutionSql}</code>
-                              </pre>
-                              <p className="solution-reveal-footnote">
-                                Çözümü görmek görevi tamamlamaz veya ilerlemeni
-                                düşürmez. Sorguyu editörde çalıştırıp sonucu
-                                yine sen doğrularsın.
-                              </p>
-                              <div className="solution-reveal-actions">
-                                <button
-                                  className="solution-action"
-                                  type="button"
-                                  onClick={() => void copySolution()}
-                                >
-                                  <Copy size={13} /> SQL’i kopyala
-                                </button>
-                                <button
-                                  className="solution-action primary"
-                                  type="button"
-                                  onClick={focusEditor}
-                                >
-                                  Editöre dön ve kendin yaz
-                                  <ArrowRight size={13} />
-                                </button>
+                            <div className="solution-reveal-heading">
+                              <span className="solution-reveal-icon">
+                                <Braces size={14} />
+                              </span>
+                              <div>
+                                <strong id={`${task.id}-solution-title`}>
+                                  Çalışan çözüm örneği
+                                </strong>
+                                <span>Tam SQL · gerçek motorla doğrulandı</span>
                               </div>
                             </div>
-                          )}
-                          <span className="sr-only" role="status">
-                            {solutionAnnouncement}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </section>
-            </div>
-          ) : (
-            <div
-              id={`${task.id}-schema-panel`}
-              className="brief-scroll"
-              role="tabpanel"
-              aria-labelledby={`${task.id}-schema-tab`}
-              tabIndex={0}
-            >
-              <div className="brief-kicker">
-                <span>{task.schema.tables.length} tablo</span>
-                <span>İzole görev verisi</span>
-              </div>
-              <details className="task-disclosure schema-notes-disclosure">
-                <summary>
-                  <Database size={13} />
-                  <span>Veride dikkat et</span>
-                  <small>{task.learningBrief.dataNotes.length} not</small>
-                </summary>
-                <ul className="task-data-note-list">
-                  {task.learningBrief.dataNotes.map((note) => (
-                    <li key={note}>{note}</li>
-                  ))}
-                </ul>
-              </details>
-              <section className="brief-section" style={{ marginTop: 18 }}>
-                <div className="schema-list">
-                  {task.schema.tables.map((table) => {
-                    const samples = task.sampleRows.find(
-                      (sample) => sample.tableName === table.name,
-                    );
-                    return (
-                      <div className="schema-card" key={table.name}>
-                        <div className="schema-card-head">
-                          <Table2 size={13} />
-                          {table.name}
-                        </div>
-                        {table.columns.map((column) => (
-                          <div className="schema-row" key={column.name}>
-                            <span>
-                              {column.primaryKey && (
-                                <KeyRound
-                                  size={9}
-                                  aria-label="Birincil anahtar"
-                                />
-                              )}{" "}
-                              {column.name}
-                            </span>
-                            <span>{column.dataType}</span>
+                            <p className="solution-reveal-note">
+                              Bu, geçerli çözümlerden biridir. Aynı sonucu
+                              farklı bir sorguyla da üretebilirsin.
+                            </p>
+                            <pre
+                              className="solution-code"
+                              tabIndex={0}
+                              aria-label={`${task.title} için örnek SQL sorgusu`}
+                            >
+                              <code>{task.solutionSql}</code>
+                            </pre>
+                            <p className="solution-reveal-footnote">
+                              Çözümü görmek vakayı tamamlamaz veya ilerlemeni
+                              düşürmez. Sorguyu editörde çalıştırıp sonucu yine
+                              sen doğrularsın.
+                            </p>
+                            <div className="solution-reveal-actions">
+                              <button
+                                className="solution-action"
+                                type="button"
+                                onClick={() => void copySolution()}
+                              >
+                                <Copy size={13} /> SQL’i kopyala
+                              </button>
+                              <button
+                                className="solution-action primary"
+                                type="button"
+                                onClick={focusEditor}
+                              >
+                                Editöre dön ve kendin yaz
+                                <ArrowRight size={13} />
+                              </button>
+                            </div>
                           </div>
-                        ))}
-                        {samples?.rows.length ? (
-                          <div className="sample-table-wrap">
-                            <table className="sample-table">
-                              <thead>
-                                <tr>
+                        )}
+                        <span className="sr-only" role="status">
+                          {solutionAnnouncement}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </section>
+          </div>
+          <div
+            id={`${task.id}-schema-panel`}
+            className="brief-scroll"
+            role="tabpanel"
+            aria-labelledby={
+              isCompactWorkspace
+                ? `mobile-${task.id}-schema-tab`
+                : `${task.id}-schema-tab`
+            }
+            tabIndex={0}
+            hidden={panelTab !== "schema"}
+          >
+            <div className="brief-kicker">
+              <span>{task.schema.tables.length} tablo</span>
+              <span>İzole vaka verisi</span>
+            </div>
+            <details className="task-disclosure schema-notes-disclosure">
+              <summary>
+                <Database size={13} />
+                <span>Veride dikkat et</span>
+                <small>{task.learningBrief.dataNotes.length} not</small>
+              </summary>
+              <ul className="task-data-note-list">
+                {task.learningBrief.dataNotes.map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
+            </details>
+            <section className="brief-section" style={{ marginTop: 18 }}>
+              <div className="schema-list">
+                {task.schema.tables.map((table) => {
+                  const samples = task.sampleRows.find(
+                    (sample) => sample.tableName === table.name,
+                  );
+                  return (
+                    <div className="schema-card" key={table.name}>
+                      <div className="schema-card-head">
+                        <Table2 size={13} />
+                        {table.name}
+                      </div>
+                      {table.columns.map((column) => (
+                        <div className="schema-row" key={column.name}>
+                          <span>
+                            {column.primaryKey && (
+                              <KeyRound
+                                size={9}
+                                aria-label="Birincil anahtar"
+                              />
+                            )}{" "}
+                            {column.name}
+                          </span>
+                          <span>{column.dataType}</span>
+                        </div>
+                      ))}
+                      {samples?.rows.length ? (
+                        <div className="sample-table-wrap">
+                          <table className="sample-table">
+                            <thead>
+                              <tr>
+                                {Object.keys(samples.rows[0]).map((column) => (
+                                  <th key={column}>{column}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {samples.rows.slice(0, 3).map((row, rowIndex) => (
+                                <tr key={rowIndex}>
                                   {Object.keys(samples.rows[0]).map(
                                     (column) => (
-                                      <th key={column}>{column}</th>
+                                      <td key={column}>
+                                        {formatCell(row[column] as SqlScalar)}
+                                      </td>
                                     ),
                                   )}
                                 </tr>
-                              </thead>
-                              <tbody>
-                                {samples.rows
-                                  .slice(0, 3)
-                                  .map((row, rowIndex) => (
-                                    <tr key={rowIndex}>
-                                      {Object.keys(samples.rows[0]).map(
-                                        (column) => (
-                                          <td key={column}>
-                                            {formatCell(
-                                              row[column] as SqlScalar,
-                                            )}
-                                          </td>
-                                        ),
-                                      )}
-                                    </tr>
-                                  ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            </div>
-          )}
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          </div>
         </aside>
 
         <div
           className="resize-rail"
           role="separator"
           tabIndex={0}
-          aria-label="Görev panelini yeniden boyutlandır"
+          aria-label="Vaka panelini yeniden boyutlandır"
           aria-orientation="vertical"
           aria-controls="workspace-brief-panel"
           aria-valuemin={300}
@@ -1191,7 +1354,14 @@ export function WorkspaceScreen({
             { "--editor-height": `${editorHeight}%` } as React.CSSProperties
           }
         >
-          <section className="editor-section">
+          <section
+            id="workspace-editor-panel"
+            className="editor-section"
+            role={isCompactWorkspace ? "tabpanel" : undefined}
+            aria-labelledby={
+              isCompactWorkspace ? `mobile-${task.id}-editor-tab` : undefined
+            }
+          >
             <div className="editor-toolbar">
               <span className="toolbar-title">
                 <Braces size={13} /> analysis.sql
@@ -1392,7 +1562,14 @@ export function WorkspaceScreen({
             onKeyDown={resizeEditorWithKeyboard}
           />
 
-          <section className="results-section">
+          <section
+            id="workspace-results-panel"
+            className="results-section"
+            role={isCompactWorkspace ? "tabpanel" : undefined}
+            aria-labelledby={
+              isCompactWorkspace ? `mobile-${task.id}-results-tab` : undefined
+            }
+          >
             <div className="results-toolbar">
               <span className="toolbar-title">
                 <Database size={13} /> Sonuç
@@ -1449,7 +1626,7 @@ export function WorkspaceScreen({
                     type="button"
                     onClick={() => {
                       revealHint(nextHintIndex);
-                      activatePanelTab("brief");
+                      activatePanelTab("brief", true);
                     }}
                   >
                     <Lightbulb size={12} /> {nextHintIndex + 1}. ipucunu aç
@@ -1460,7 +1637,7 @@ export function WorkspaceScreen({
                     type="button"
                     onClick={() => {
                       toggleSolution(true);
-                      activatePanelTab("brief");
+                      activatePanelTab("brief", true);
                     }}
                     aria-controls={`${task.id}-solution`}
                   >
@@ -1503,8 +1680,8 @@ export function WorkspaceScreen({
                     <Columns3 size={24} />
                     <strong>Karar seti burada oluşacak</strong>
                     <p>
-                      Sorgunu çalıştırdığında gerçek satırlar, değerlendirme ve
-                      bir sonraki öğrenme adımı bu panelde görünür.
+                      Sorgunu çalıştırdığında gerçek satırlar ve doğrulama bu
+                      panelde görünür.
                     </p>
                   </div>
                 </div>

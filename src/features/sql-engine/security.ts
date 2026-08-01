@@ -6,44 +6,45 @@ const ALWAYS_FORBIDDEN_PATTERNS: ReadonlyArray<{
   {
     code: "database-operation",
     pattern: /\b(?:create|alter|drop)\s+database\b/i,
-    message: "Veritabanı düzeyindeki işlemler görev ortamında kullanılamaz.",
+    message: "Veritabanı düzeyindeki işlemler vaka ortamında kullanılamaz.",
   },
   {
     code: "system-operation",
     pattern: /\balter\s+system\b/i,
-    message: "Sistem ayarlarını değiştiren sorgular görev ortamında kullanılamaz.",
+    message:
+      "Sistem ayarlarını değiştiren sorgular vaka ortamında kullanılamaz.",
   },
   {
     code: "system-operation",
     pattern: /\b(?:create\s+extension|load|vacuum|cluster|reindex)\b/i,
-    message: "Bu bakım veya eklenti işlemi görev ortamında desteklenmiyor.",
+    message: "Bu bakım veya eklenti işlemi vaka ortamında desteklenmiyor.",
   },
   {
     code: "external-access",
     pattern: /\bcopy\b/i,
-    message: "COPY ile dosya veya akış erişimi görev ortamında kapalıdır.",
+    message: "COPY ile dosya veya akış erişimi vaka ortamında kapalıdır.",
   },
   {
     code: "privilege-operation",
     pattern: /\b(?:grant|revoke)\b/i,
-    message: "Yetki değiştiren sorgular görev ortamında kullanılamaz.",
+    message: "Yetki değiştiren sorgular vaka ortamında kullanılamaz.",
   },
   {
     code: "system-catalog",
     pattern: /\b(?:pg_catalog|information_schema)\s*\./i,
-    message: "Sistem kataloglarına erişim görev ortamında kapalıdır.",
+    message: "Sistem kataloglarına erişim vaka ortamında kapalıdır.",
   },
   {
     code: "system-catalog",
     pattern:
       /\b(?:from|join|update|into|table|truncate)\s+(?:only\s+)?pg_[a-z0-9_]*\b/i,
-    message: "PostgreSQL sistem tablolarına erişim görev ortamında kapalıdır.",
+    message: "PostgreSQL sistem tablolarına erişim vaka ortamında kapalıdır.",
   },
   {
     code: "system-operation",
     pattern:
       /\b(?:pg_read_file|pg_read_binary_file|pg_ls_dir|pg_reload_conf|pg_terminate_backend|lo_import|lo_export)\s*\(/i,
-    message: "Sistem işlevlerine erişim görev ortamında kapalıdır.",
+    message: "Sistem işlevlerine erişim vaka ortamında kapalıdır.",
   },
 ];
 
@@ -119,7 +120,9 @@ export function maskSqlLiteralsAndComments(sql: string): string {
         continue;
       }
       if (character === "$") {
-        const match = sql.slice(index).match(/^\$[a-zA-Z_][a-zA-Z0-9_]*\$|^\$\$/);
+        const match = sql
+          .slice(index)
+          .match(/^\$[a-zA-Z_][a-zA-Z0-9_]*\$|^\$\$/);
         if (match) {
           state = "dollar-quote";
           dollarDelimiter = match[0];
@@ -192,10 +195,7 @@ export function maskSqlLiteralsAndComments(sql: string): string {
       continue;
     }
 
-    if (
-      state === "dollar-quote" &&
-      sql.startsWith(dollarDelimiter, index)
-    ) {
+    if (state === "dollar-quote" && sql.startsWith(dollarDelimiter, index)) {
       output += " ".repeat(dollarDelimiter.length);
       index += dollarDelimiter.length;
       state = "normal";
@@ -260,7 +260,7 @@ export function validateQuerySecurity(
       violations.push({
         code: "forbidden-operation",
         operation,
-        message: `${operation.toUpperCase()} işlemi bu görevde kullanılamaz.`,
+        message: `${operation.toUpperCase()} işlemi bu vakada kullanılamaz.`,
       });
     }
   }
@@ -284,7 +284,10 @@ export class SqlSecurityError extends Error {
   readonly violations: SecurityViolation[];
 
   constructor(violations: SecurityViolation[]) {
-    super(violations[0]?.message ?? "Sorgu güvenlik politikası tarafından engellendi.");
+    super(
+      violations[0]?.message ??
+        "Sorgu güvenlik politikası tarafından engellendi.",
+    );
     this.name = "SqlSecurityError";
     this.violations = violations;
   }

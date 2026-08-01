@@ -205,13 +205,13 @@ export function LearningPathScreen({
         : focusItem?.status === "in-progress" && focusItem.isCurrent
           ? "Kaldığın yer"
           : focusItem?.status === "in-progress"
-            ? "Devam eden görev"
+            ? "Devam eden vaka"
             : focusItem?.status === "next"
               ? completedCount === 0
                 ? "Önerilen başlangıç"
                 : "Önerilen sonraki adım"
               : focusItem?.isCurrent
-                ? "Son açtığın görev"
+                ? "Son açtığın vaka"
                 : "Önerilen sonraki adım";
 
   const toggleModule = (moduleId: string) => {
@@ -237,26 +237,25 @@ export function LearningPathScreen({
           aria-labelledby="learning-path-title"
         >
           <div className="learning-hero-copy">
-            <div className="eyebrow">Veri analisti kariyer rotası</div>
-            <h1 id="learning-path-title">Öğrenme yolu</h1>
+            <div className="eyebrow">Veri analisti rotası</div>
+            <h1 id="learning-path-title">Rota</h1>
             <p>
               SQL temellerinden güvenilir bir yönetici çıktısına uzanan dört
-              kariyer bölümünde ilerle. Nerede kaldığını ve işte hangi sonucu
-              üretebilir hâle geldiğini gör. Tüm görevler açık; sıra yalnızca
-              bir öneridir.
+              bölümde ilerle. Nerede kaldığını ve işte hangi sonucu üretebilir
+              hâle geldiğini gör. Tüm vakalar açık; sıra yalnızca bir öneridir.
             </p>
           </div>
 
           <div className="learning-overview">
             <article className="path-progress-card">
               <div className="path-progress-heading">
-                <span>Kariyer rotası ilerlemesi</span>
+                <span>Rota ilerlemesi</span>
                 <strong>%{completionRate}</strong>
               </div>
               <div
                 className="progress-track"
                 role="progressbar"
-                aria-label="Veri analisti kariyer rotası ilerlemesi"
+                aria-label="Veri analisti rota ilerlemesi"
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={completionRate}
@@ -270,7 +269,7 @@ export function LearningPathScreen({
                 <strong>
                   {completedCount}/{tasks.length}
                 </strong>{" "}
-                görev tamamlandı
+                vaka tamamlandı
                 <span>{remainingMinutes} dk kaldı</span>
               </p>
             </article>
@@ -303,7 +302,7 @@ export function LearningPathScreen({
                   <span className="path-focus-kicker completed">
                     <Check size={14} /> Rota tamamlandı
                   </span>
-                  <strong>Tüm görevler tamam.</strong>
+                  <strong>Tüm vakalar tamam.</strong>
                   <p>
                     İlerlemeni ve ürettiğin kanıtları ayrıntılı
                     inceleyebilirsin.
@@ -327,20 +326,20 @@ export function LearningPathScreen({
         >
           <div className="career-chapter-overview-heading">
             <span className="path-section-kicker">
-              {journeyProgress.length} kariyer bölümü
+              {journeyProgress.length} bölüm
             </span>
             <h2 id="career-chapter-overview-title">
               Sorgudan karara ilerlediğin yol
             </h2>
             <p>
-              Bölüm yüzdeleri yalnız doğru sonuçla tamamlanan gerçek görevlerden
-              hesaplanır. Bir göreve göz atmak veya ipucu açmak ilerleme
+              Bölüm yüzdeleri yalnız doğru sonuçla tamamlanan gerçek vakalardan
+              hesaplanır. Bir vakaya göz atmak veya ipucu açmak ilerleme
               sayılmaz.
             </p>
           </div>
           <div
             className="career-chapter-progress-grid"
-            aria-label="Veri analisti kariyer bölümleri"
+            aria-label="Veri analisti rota bölümleri"
           >
             {journeyProgress.map((chapter) => {
               const chapterModuleNames = chapter.moduleIds.flatMap(
@@ -356,7 +355,7 @@ export function LearningPathScreen({
                 <article
                   className={`career-chapter-progress-card ${chapter.status}`}
                   key={chapter.id}
-                  aria-label={`${chapter.title} kariyer bölümü`}
+                  aria-label={`${chapter.title} bölümü`}
                 >
                   <div className="career-chapter-progress-topline">
                     <span>Bölüm {String(chapter.order).padStart(2, "0")}</span>
@@ -390,7 +389,7 @@ export function LearningPathScreen({
                   </div>
                   <p className="career-chapter-progress-count">
                     <strong>{chapter.completedTaskCount}</strong>/
-                    {chapter.totalTaskCount} görev tamamlandı
+                    {chapter.totalTaskCount} vaka tamamlandı
                   </p>
                 </article>
               );
@@ -398,7 +397,7 @@ export function LearningPathScreen({
           </div>
         </section>
 
-        <section className="path-status-grid" aria-label="Görev durum özeti">
+        <section className="path-status-grid" aria-label="Vaka durum özeti">
           {(
             [
               ["completed", "Tamamlandı", statusCounts.completed],
@@ -425,12 +424,12 @@ export function LearningPathScreen({
         <div className="path-list-heading">
           <div>
             <span className="path-section-kicker">
-              {journeyProgress.length} bölüm · {modules.length} modül ·{" "}
-              {tasks.length} görev
+              {journeyProgress.length} bölüm · {modules.length} SQL konusu ·{" "}
+              {tasks.length} vaka
             </span>
-            <h2>Kariyer bölümleri ve modüller</h2>
+            <h2>Bölümler ve SQL konuları</h2>
             <p>
-              Bölümler iş sonucunu, modüller o sonuca götüren SQL becerilerini
+              Bölümler iş sonucunu, SQL konuları o sonuca götüren becerileri
               gösterir. Hiçbiri kilitli değildir.
             </p>
           </div>
@@ -439,7 +438,7 @@ export function LearningPathScreen({
             type="button"
             onClick={toggleAllModules}
           >
-            {allExpanded ? "Tümünü daralt" : "Tüm modülleri aç"}
+            {allExpanded ? "Tümünü daralt" : "Tüm konuları aç"}
             {allExpanded ? (
               <ChevronDown size={15} />
             ) : (
@@ -471,7 +470,7 @@ export function LearningPathScreen({
                     <p>{chapter.workplaceOutcome}</p>
                   </div>
                   <span className="career-chapter-module-progress">
-                    {chapter.completedTaskCount}/{chapter.totalTaskCount} görev
+                    {chapter.completedTaskCount}/{chapter.totalTaskCount} vaka
                   </span>
                 </header>
                 <div className="career-chapter-module-list">
@@ -524,13 +523,13 @@ export function LearningPathScreen({
                           : completedTasks + activeTasks > 0
                             ? "Devam ediyor"
                             : containsNext
-                              ? "Sıradaki modül"
+                              ? "Sıradaki konu"
                               : "Başlamadı";
                     const moduleSignals = [
                       retryTasks ? `${retryTasks} tekrar` : "",
                       skippedTasks ? `${skippedTasks} atlandı` : "",
                       activeTasks ? `${activeTasks} devam ediyor` : "",
-                      containsNext ? "sıradaki görev hazır" : "",
+                      containsNext ? "sıradaki vaka hazır" : "",
                     ].filter(Boolean);
 
                     return (
@@ -545,7 +544,7 @@ export function LearningPathScreen({
                             onClick={() => toggleModule(module.id)}
                             aria-expanded={isExpanded}
                             aria-controls={`${module.id}-tasks`}
-                            aria-label={`${module.title} görevlerini ${
+                            aria-label={`${module.title} vakalarını ${
                               isExpanded ? "daralt" : "aç"
                             }`}
                           />
@@ -583,7 +582,7 @@ export function LearningPathScreen({
                               {moduleSignals.join(" · ") ||
                                 (isComplete
                                   ? "Tüm adımlar hazır"
-                                  : `${module.tasks.length - completedTasks} görev kaldı`)}
+                                  : `${module.tasks.length - completedTasks} vaka kaldı`)}
                             </small>
                             <span className="progress-track">
                               <span

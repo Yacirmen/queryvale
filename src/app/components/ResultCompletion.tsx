@@ -62,10 +62,10 @@ export function ResultCompletion({
   const [noteStatus, setNoteStatus] = useState<string>();
   const attemptLabel = attempts <= 1 ? "ilk deneme" : `${attempts} deneme`;
   const nextLabel = nextTaskTitle
-    ? `Sonraki: ${nextTaskTitle}`
+    ? `Sonraki vaka: ${nextTaskTitle}`
     : "İlerlemeyi görüntüle";
   const nextAriaLabel = nextTaskTitle
-    ? `Sonraki göreve geç: ${nextTaskTitle}`
+    ? `Sonraki vakaya geç: ${nextTaskTitle}`
     : "İlerlemeyi görüntüle";
   const normalizedDraft = useMemo(
     () => ({
@@ -120,7 +120,8 @@ export function ResultCompletion({
       data-testid="completion-panel"
     >
       <span className="sr-only" role="status">
-        Doğru çözüm. {rowCount} satır döndü. Sonraki adım hazır.
+        Vaka doğrulandı. {rowCount} satır döndü. Sonuç ekranda kalır; devam
+        etmek senin seçimin.
       </span>
 
       <div className="result-completion-head">
@@ -129,7 +130,7 @@ export function ResultCompletion({
         </span>
         <div className="result-completion-copy">
           <span className="result-completion-meta">
-            {rowCount} satır · {attemptLabel}
+            Vaka doğrulandı · {rowCount} satır · {attemptLabel}
           </span>
           <h3 id={`${task.id}-completion-title`}>{task.completionMessage}</h3>
         </div>
@@ -140,125 +141,137 @@ export function ResultCompletion({
         aria-label="Doğrulanan çıktı kontrolleri"
       >
         <span>
-          <Check size={13} aria-hidden="true" /> Kolonlar
+          <Check size={13} aria-hidden="true" />
+          {task.expectedColumns.length} kolon doğru
         </span>
         <span>
-          <Check size={13} aria-hidden="true" /> Satırlar
+          <Check size={13} aria-hidden="true" /> {rowCount} satır doğru
         </span>
         <span>
-          <Check size={13} aria-hidden="true" /> İş kuralı
+          <Check size={13} aria-hidden="true" /> İş kuralı karşılandı
+        </span>
+        <span>
+          <ShieldCheck size={13} aria-hidden="true" />
+          {evidence ? "Kanıt doğrulandı" : "Kanıt hazırlanıyor"}
         </span>
       </div>
 
-      <form
-        className="analyst-note-composer"
-        aria-labelledby={`${task.id}-analyst-note-title`}
-        onSubmit={saveNote}
-      >
-        <div className="analyst-note-heading">
-          <span className="analyst-note-icon" aria-hidden="true">
-            <NotebookPen size={17} />
-          </span>
-          <div>
-            <span className="analyst-note-kicker">Analist pratiği</span>
-            <h4 id={`${task.id}-analyst-note-title`}>
-              Çıktıyı bir karara dönüştür
-            </h4>
-          </div>
-          <span className="verified-evidence-badge">
-            <ShieldCheck size={13} aria-hidden="true" />
-            {evidence ? "Kanıt doğrulandı" : "Kanıt hazırlanıyor"}
-          </span>
-        </div>
-
-        <p className="analyst-note-intro">
-          Tabloyu incele ve paydaşa söyleyeceğin özü kendi cümlenle yaz. Sorgu
-          ile çıktı doğrulandı; yorumun otomatik puanlanmaz.
-        </p>
-
-        <div className="analyst-note-fields">
-          <label>
-            <span>Bulgu</span>
-            <small>Bu çıktı iş sorusu hakkında ne söylüyor?</small>
-            <textarea
-              value={finding}
-              maxLength={600}
-              rows={3}
-              placeholder="Sonuçtaki en önemli örüntüyü veya farkı tek cümleyle yaz."
-              onChange={(event) => {
-                setFinding(event.target.value);
-                setNoteError(undefined);
-                setNoteStatus(undefined);
-              }}
-            />
-          </label>
-          <label>
-            <span>Öneri</span>
-            <small>Bu bulguya göre hangi eylem alınmalı?</small>
-            <textarea
-              value={recommendation}
-              maxLength={600}
-              rows={3}
-              placeholder="Bu bulguya göre alınacak somut bir sonraki adımı yaz."
-              onChange={(event) => {
-                setRecommendation(event.target.value);
-                setNoteError(undefined);
-                setNoteStatus(undefined);
-              }}
-            />
-          </label>
-        </div>
-
-        <details className="analyst-note-caveat">
-          <summary>Varsayım veya veri çekincesi ekle</summary>
-          <label>
-            <span className="sr-only">Varsayım veya veri çekincesi</span>
-            <textarea
-              value={caveat}
-              maxLength={400}
-              rows={2}
-              placeholder="Örn. Bu yorum yalnız mevcut stok anlık görüntüsüne dayanıyor; satış hızı hesaba katılmadı."
-              onChange={(event) => {
-                setCaveat(event.target.value);
-                setNoteError(undefined);
-                setNoteStatus(undefined);
-              }}
-            />
-          </label>
-        </details>
-
-        <div className="analyst-note-footer">
+      <details className="result-completion-details">
+        <summary>
+          <NotebookPen size={14} aria-hidden="true" />
+          {evidence?.note ? "Karar notunu görüntüle" : "Karar notu ekle"}
           <span>
-            {rowCount} doğrulanmış satır · {task.expectedColumns.length} kolon
+            {evidence?.note
+              ? "Kanıt Defteri’nde"
+              : "Kanıt Defteri · isteğe bağlı"}
           </span>
-          <button
-            className="analyst-note-save"
-            type="submit"
-            disabled={!evidence || Boolean(evidence.note && !noteIsDirty)}
-          >
-            {evidence?.note && !noteIsDirty ? (
-              <>
-                <CheckCircle2 size={14} /> Kanıt Defteri’nde
-              </>
-            ) : (
-              <>
-                <Save size={14} />
-                {evidence?.note ? "Notu güncelle" : "Kanıta ekle"}
-              </>
-            )}
-          </button>
-        </div>
-        {noteError && (
-          <p className="analyst-note-error" role="alert">
-            {noteError}
+        </summary>
+        <form
+          className="analyst-note-composer"
+          aria-labelledby={`${task.id}-analyst-note-title`}
+          onSubmit={saveNote}
+        >
+          <div className="analyst-note-heading">
+            <span className="analyst-note-icon" aria-hidden="true">
+              <NotebookPen size={17} />
+            </span>
+            <div>
+              <span className="analyst-note-kicker">Analist pratiği</span>
+              <h4 id={`${task.id}-analyst-note-title`}>
+                Çıktıyı bir karara dönüştür
+              </h4>
+            </div>
+          </div>
+
+          <p className="analyst-note-intro">
+            Tabloyu incele ve paydaşa söyleyeceğin özü kendi cümlenle yaz. Sorgu
+            ile çıktı doğrulandı; yorumun otomatik puanlanmaz.
           </p>
-        )}
-        {noteStatus && (
-          <p className="analyst-note-status" role="status">
-            {noteStatus}
-          </p>
-        )}
-      </form>
+
+          <div className="analyst-note-fields">
+            <label>
+              <span>Bulgu</span>
+              <small>Bu çıktı iş sorusu hakkında ne söylüyor?</small>
+              <textarea
+                value={finding}
+                maxLength={600}
+                rows={3}
+                placeholder="Sonuçtaki en önemli örüntüyü veya farkı tek cümleyle yaz."
+                onChange={(event) => {
+                  setFinding(event.target.value);
+                  setNoteError(undefined);
+                  setNoteStatus(undefined);
+                }}
+              />
+            </label>
+            <label>
+              <span>Öneri</span>
+              <small>Bu bulguya göre hangi eylem alınmalı?</small>
+              <textarea
+                value={recommendation}
+                maxLength={600}
+                rows={3}
+                placeholder="Bu bulguya göre alınacak somut bir sonraki adımı yaz."
+                onChange={(event) => {
+                  setRecommendation(event.target.value);
+                  setNoteError(undefined);
+                  setNoteStatus(undefined);
+                }}
+              />
+            </label>
+          </div>
+
+          <details className="analyst-note-caveat">
+            <summary>Varsayım veya veri çekincesi ekle</summary>
+            <label>
+              <span className="sr-only">Varsayım veya veri çekincesi</span>
+              <textarea
+                value={caveat}
+                maxLength={400}
+                rows={2}
+                placeholder="Örn. Bu yorum yalnız mevcut stok anlık görüntüsüne dayanıyor; satış hızı hesaba katılmadı."
+                onChange={(event) => {
+                  setCaveat(event.target.value);
+                  setNoteError(undefined);
+                  setNoteStatus(undefined);
+                }}
+              />
+            </label>
+          </details>
+
+          <div className="analyst-note-footer">
+            <span>
+              {rowCount} doğrulanmış satır · {task.expectedColumns.length} kolon
+            </span>
+            <button
+              className="analyst-note-save"
+              type="submit"
+              disabled={!evidence || Boolean(evidence.note && !noteIsDirty)}
+            >
+              {evidence?.note && !noteIsDirty ? (
+                <>
+                  <CheckCircle2 size={14} /> Kanıt Defteri’nde
+                </>
+              ) : (
+                <>
+                  <Save size={14} />
+                  {evidence?.note ? "Notu güncelle" : "Kanıta ekle"}
+                </>
+              )}
+            </button>
+          </div>
+          {noteError && (
+            <p className="analyst-note-error" role="alert">
+              {noteError}
+            </p>
+          )}
+          {noteStatus && (
+            <p className="analyst-note-status" role="status">
+              {noteStatus}
+            </p>
+          )}
+        </form>
+      </details>
 
       <details className="result-completion-details">
         <summary>
@@ -270,7 +283,7 @@ export function ResultCompletion({
           <p>{task.explanation}</p>
 
           <section aria-labelledby={`${task.id}-solution-logic`}>
-            <h4 id={`${task.id}-solution-logic`}>Bu görevin temel mantığı</h4>
+            <h4 id={`${task.id}-solution-logic`}>Bu vakanın temel mantığı</h4>
             <ol className="result-completion-steps">
               {task.debrief.steps.map((step) => (
                 <li key={step}>{step}</li>
@@ -316,8 +329,8 @@ export function ResultCompletion({
 
       <div className="result-completion-actions">
         <span>
-          Önce çıktını incele. Karar notu isteğe bağlı; hazır olduğunda devam
-          et.
+          Sonuç ekranda kalır. Karar notunu yazabilir veya hazır olduğunda devam
+          edebilirsin.
         </span>
         <button
           className="primary-button"

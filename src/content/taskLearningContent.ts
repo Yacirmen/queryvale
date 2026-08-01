@@ -6,13 +6,13 @@ export const TASK_LEARNING_CONTENT: Readonly<
   "m1-t1": {
     learningBrief: {
       conceptAnchor:
-        "SELECT listesini, raporun veri sözleşmesi gibi düşün: hangi kolonları hangi sırada yazarsan çıktı da o yapıda oluşur.",
+        "SELECT, sonuçta hangi dikey bilgi alanlarının (kolonların) görüneceğini belirler. Kolonları hangi sırada yazarsan ekranda da o sırada görürsün.",
       outputGrain:
-        "Her satır katalogdaki tek bir ürünü; her ürün de sonuçta tam bir kez temsil eder.",
+        "Sonuçtaki her satır tek bir ürünü temsil eder. Bu görev ürün elemediği için altı ürünün altısı da görünür.",
       acceptanceChecks: [
         "Çıktıda önce product_name, sonra category kolonu bulunmalı.",
-        "Altı ürünün tamamı korunmalı; filtreleme veya tekilleştirme yapılmamalı.",
-        "İstenen iki kolon dışında ürün kimliği, fiyat ya da stok bilgisi dönmemeli.",
+        "Altı ürünün tamamı sonuçta bulunmalı.",
+        "Ürün kimliği, fiyat ve stok gibi istenmeyen bilgiler görünmemeli.",
       ],
       dataNotes: [
         "Furniture ve Stationery kategorileri birden fazla üründe tekrar eder.",
@@ -21,55 +21,55 @@ export const TASK_LEARNING_CONTENT: Readonly<
     },
     coaching: {
       "columns-wrong": {
-        title: "Katalog sözleşmesindeki iki kolona odaklan",
+        title: "İstenen iki bilgi alanına dön",
         checks: [
-          "Şema panelinden kolon adlarının product_name ve category olduğunu doğrula.",
-          "SELECT listendeki kolon sırasını görevde istenen çıktı sırasıyla karşılaştır.",
+          "Şema panelinde ürün adı alanının product_name, kategori alanının category olduğunu doğrula.",
+          "SELECT bölümünde önce product_name, sonra category yazdığını kontrol et.",
         ],
       },
       "rows-wrong": {
-        title: "Katalogdaki bütün ürünleri koru",
+        title: "Altı ürünün tamamını koru",
         checks: [
-          "Sonucu azaltan WHERE, DISTINCT veya LIMIT kullanıp kullanmadığını kontrol et.",
-          "Veri kaynağının products tablosu olduğundan ve altı satır döndüğünden emin ol.",
+          "Sorguna ürün sayısını azaltan ek bir koşul veya satır sınırı koyup koymadığını kontrol et.",
+          "Veriyi products tablosundan aldığını ve sonuçta altı satır bulunduğunu doğrula.",
         ],
       },
       "order-wrong": {
-        title: "Bu raporda satır sırası serbest",
+        title: "Bu görev ürünlerin sırasını ölçmüyor",
         checks: [
-          "Görev satır sırasını istemediği için ORDER BY eklemek zorunda değilsin.",
-          "Sorunun kolon sırası ile satır sırasını karıştırmaktan kaynaklanmadığını kontrol et.",
+          "Ürünler farklı sırada görünse de altı doğru ürün varsa satırları yeniden dizmen gerekmez.",
+          "Satırların sırası ile product_name ve category kolonlarının soldan sağa sırasını birbirinden ayır.",
         ],
       },
       "required-concept-missing": {
-        title: "Veriyi doğrudan seçerek getir",
+        title: "Görünecek alanları SELECT ile seç",
         checks: [
-          "Sonuç kümesini products tablosundan bir SELECT ifadesiyle ürettiğini doğrula.",
-          "İki hedef kolonu açıkça seç; tüm kolonları kapsayan kısayola dayanma.",
+          "Sonucu bir SELECT sorgusuyla products tablosundan ürettiğini doğrula.",
+          "Yalnız istenen iki kolonu adlarıyla yaz; tablodaki bütün kolonları getiren kısayolu kullanma.",
         ],
       },
       "execution-error": {
-        title: "İlk katalog sorgunun sözdizimini toparla",
+        title: "İlk sorgunun üç parçasını kontrol et",
         checks: [
-          "SELECT, kolon listesi ve FROM bölümlerinin doğru sırada olduğuna bak.",
-          "Kolonlar arasındaki virgülü ve products tablo adının yazımını kontrol et.",
+          "Sıranın SELECT, gösterilecek kolonlar ve FROM ile kaynak tablo biçiminde olduğunu kontrol et.",
+          "İki kolon arasındaki virgülü ve products tablo adının yazımını gözden geçir.",
         ],
       },
     },
     debrief: {
       steps: [
-        "İş talebindeki iki çıktı alanını belirle.",
-        "Bu alanların products şemasındaki karşılıklarını seç.",
-        "Satırları değiştirmeden seçimin altı ürünü koruduğunu doğrula.",
+        "İş talebinde görünmesi gereken iki bilgiyi belirledin: ürün adı ve kategori.",
+        "Bu bilgilerin products tablosundaki product_name ve category karşılıklarını seçtin.",
+        "Altı ürünün korunduğunu ve yalnız iki istenen kolonun göründüğünü kontrol ettin.",
       ],
       whyItWorks:
-        "İstenen kolonları açıkça seçmek, sonuç kümesinin kapsamını değiştirmeden yalnızca görünür veri şeklini daraltır.",
+        "SELECT bölümünde yalnız gereken kolonları yazmak ürünleri silmez; sadece sonuçta hangi bilgilerin gösterileceğini belirler.",
       edgeCases: [
         "Yeni bir ürün eklendiğinde sorgu onu da otomatik olarak sonuçta gösterir.",
-        "Bir kategori NULL olabilseydi satır yine korunur, category hücresi NULL görünürdü.",
+        "Bir ürünün kategori bilgisi eksik olsaydı ürün satırı yine görünür, yalnız kategori hücresi boş kalırdı.",
       ],
       workplaceImpact:
-        "Dar ve açık kolon seçimi ağ trafiğini azaltır, BI veri sözleşmesini anlaşılır tutar ve şema değişikliklerine karşı raporu daha güvenli yapar.",
+        "Yalnız gereken bilgileri seçmek raporu daha kolay okunur, paylaşılır ve kontrol edilir hâle getirir.",
       transfer: {
         prompt:
           "Bir müşteri tablosundan yalnızca müşteri adı ve şehir alanlarını içeren, tüm müşterileri koruyan bir dışa aktarım hazırlasan hangi iki kararı önce verirdin?",
@@ -81,46 +81,46 @@ export const TASK_LEARNING_CONTENT: Readonly<
   "m1-t2": {
     learningBrief: {
       conceptAnchor:
-        "DISTINCT bir satır filtresi değil, seçilen kolon kombinasyonları üzerindeki tekrar giderme işlemidir.",
+        "DISTINCT, seçtiğin değerler içindeki tekrarları kaldırır. Yalnız category seçildiğinde her kategori sonuçta bir kez görünür.",
       outputGrain:
-        "Her satır katalogda bulunan benzersiz bir kategoriyi temsil eder.",
+        "Sonuçtaki her satır katalogda bulunan farklı bir kategoriyi temsil eder; artık ürün başına bir satır yoktur.",
       acceptanceChecks: [
         "Çıktı yalnızca category kolonunu içermeli.",
         "Home, Stationery, Furniture ve Lifestyle değerlerinin her biri bir kez görünmeli.",
         "Birden fazla ürüne sahip kategoriler sonuçta yinelenmemeli.",
       ],
       dataNotes: [
-        "Furniture ve Stationery tekrar ettiği için ham kolon seçimi altı satır üretir.",
-        "Kategori sırası bu görevde önemli değildir.",
+        "category kolonunu tekrarları kaldırmadan seçmek altı satır üretir; Furniture ve Stationery birden fazla kez görünür.",
+        "Kategori sırası bu vakada önemli değildir.",
       ],
     },
     coaching: {
       "columns-wrong": {
-        title: "Tekilleştirme anahtarını yalnızca category yap",
+        title: "Sonuçta yalnız kategori bilgisini bırak",
         checks: [
           "SELECT listesinde category dışında bir kolon bulunmadığını kontrol et.",
-          "product_name veya product_id eklersen kombinasyonların benzersizleşeceğini hatırla.",
+          "product_name veya product_id eklersen her ürün yeniden ayrı bir satıra dönüşebilir.",
         ],
       },
       "rows-wrong": {
-        title: "Tekrar eden kategorileri sonuç düzeyinde birleştir",
+        title: "Dört farklı kategoriyi birer kez göster",
         checks: [
-          "Sonuçta dört satır ve dört farklı kategori bulunduğunu say.",
-          "DISTINCT anahtar kelimesinin seçilen category değerine uygulandığını doğrula.",
+          "Sonuçta dört satır bulunduğunu ve hiçbir kategori adının tekrar etmediğini kontrol et.",
+          "DISTINCT anahtar kelimesini category seçiminin önünde kullandığını doğrula.",
         ],
       },
       "order-wrong": {
-        title: "Kategori sırası değil benzersizlik ölçülüyor",
+        title: "Bu görev kategori sırasını ölçmüyor",
         checks: [
-          "ORDER BY kullanmasan da dört kategori doğru kabul edilir.",
-          "Gördüğün farkın tekrar eden satırlardan mı, yalnızca görünüm sırasından mı geldiğini ayır.",
+          "Dört kategori farklı sırada görünse de aynı dört değer varsa sıralama eklemen gerekmez.",
+          "Sorunun yalnız görünüm sırası mı, yoksa tekrar eden veya eksik kategori mi olduğunu ayır.",
         ],
       },
       "required-concept-missing": {
-        title: "Benzersizliği DISTINCT ile ifade et",
+        title: "Tekrarları DISTINCT ile kaldır",
         checks: [
-          "Tekrarları manuel koşullarla elemek yerine DISTINCT kullandığını kontrol et.",
-          "DISTINCT'in SELECT listesindeki bütün kolon kombinasyonuna etki ettiğini hatırla.",
+          "Kategori adlarını elle seçmek yerine tekrarları DISTINCT ile kaldırdığını kontrol et.",
+          "DISTINCT'in SELECT bölümünde seçtiğin bütün kolonlara birlikte uygulandığını hatırla.",
         ],
       },
       "execution-error": {
@@ -133,32 +133,32 @@ export const TASK_LEARNING_CONTENT: Readonly<
     },
     debrief: {
       steps: [
-        "Filtre menüsünün tekilleştirme anahtarı olarak category alanını belirle.",
-        "Yalnızca bu alanın benzersiz kombinasyonlarını iste.",
-        "Dört farklı değerin tekrar olmadan döndüğünü doğrula.",
+        "Listenin ürünleri değil, farklı kategorileri göstermesi gerektiğini belirledin.",
+        "Yalnız category kolonunu seçip DISTINCT ile tekrarları kaldırdın.",
+        "Dört kategori adının birer kez göründüğünü doğruladın.",
       ],
       whyItWorks:
-        "Seçim listesi tek kolondan oluştuğu için DISTINCT aynı category değerine sahip ürün satırlarını tek sonuç satırında toplar.",
+        "Seçimde yalnız category bulunduğu için DISTINCT aynı kategoriye sahip ürünleri ayrı ayrı göstermez; kategori adını sonuçta bir kez bırakır.",
       edgeCases: [
-        "Seçime product_name eklenirse her ürün-kategori çifti farklı olacağı için tekrarlar geri gelir.",
-        "Birden fazla NULL kategori, DISTINCT sonucunda tek bir NULL satırı olarak görünür.",
+        "Seçime product_name eklersen her ürün adı farklı olduğu için kategori tekrarları yeniden görünür.",
+        "Kategori bilgisi eksik olan birden fazla ürün varsa sonuçta tek bir boş kategori satırı görünür.",
       ],
       workplaceImpact:
-        "Benzersiz boyut listeleri filtreler, seçim kutuları ve veri kalite profilleri için temel girdi sağlar.",
+        "Tekrarsız listeler kategori filtrelerini, seçim alanlarını ve kısa özetleri temiz ve kullanılabilir tutar.",
       transfer: {
         prompt:
-          "Siparişlerden benzersiz şehir ve durum çiftleri istendiğinde DISTINCT hangi veri tanesini tekilleştirir?",
+          "Siparişlerden tekrarsız şehir ve durum çiftleri istendiğinde DISTINCT hangi değerleri birlikte değerlendirir?",
         reveal:
-          "Tek bir kolonu değil, seçtiğin city-status kombinasyonunu; aynı şehir farklı durumlarda birden fazla kez görünebilir.",
+          "Seçtiğin city ve status değerlerini bir çift olarak değerlendirir; aynı şehir farklı durumlarla birden fazla satırda görünebilir.",
       },
     },
   },
   "m1-t3": {
     learningBrief: {
       conceptAnchor:
-        "LIMIT hangi satırların alınacağını tek başına belirlemez; önce ORDER BY ile öncelik kuralını kurmak gerekir.",
+        "Önce sıralama, sonra satır sınırı gelir: ORDER BY en düşük stoğu üste taşır; LIMIT bu sıralı listenin ilk üç satırını alır.",
       outputGrain:
-        "Her satır düşük stok önceliğine sahip tek bir ürünü temsil eder.",
+        "Sonuçtaki her satır tedarikte öncelik verilecek tek bir ürünü temsil eder; yalnız ilk üç ürün görünür.",
       acceptanceChecks: [
         "Çıktı product_name ve stock_quantity kolonlarını bu sırayla içermeli.",
         "Yalnızca üç ürün dönmeli: stok miktarları 4, 7 ve 18 olan ürünler.",
@@ -166,36 +166,36 @@ export const TASK_LEARNING_CONTENT: Readonly<
       ],
       dataNotes: [
         "Standing Desk en düşük, Notebook en yüksek stok miktarına sahiptir.",
-        "Veri setinde eşit stok yoktur; gerçek veride eşitlik için ikinci sıralama anahtarı gerekebilir.",
+        "Veri setinde eşit stok yoktur; eşitlik olsaydı hangi ürünün önce geleceği ayrıca belirtilmeliydi.",
       ],
     },
     coaching: {
       "columns-wrong": {
-        title: "Tedarik listesinin iki kolonunu koru",
+        title: "Tedarik listesinde iki bilgiyi koru",
         checks: [
           "İlk kolonun ürün adı, ikinci kolonun stok miktarı olduğunu doğrula.",
-          "Sıralama için kullandığın kolonun çıktıda doğru adla bulunduğunu kontrol et.",
+          "Bu bilgilerin product_name ve stock_quantity kolonlarından geldiğini kontrol et.",
         ],
       },
       "rows-wrong": {
-        title: "Önce önceliklendir, sonra üç satıra indir",
+        title: "Sıraladıktan sonra ilk üç ürünü al",
         checks: [
-          "LIMIT değerinin üç olduğunu ve sıralamadan sonra uygulandığını düşün.",
+          "Önce bütün ürünleri stok miktarına göre dizdiğini, satır sınırını bundan sonra uyguladığını kontrol et.",
           "İlk üç stok değerinin 4, 7 ve 18 olup olmadığını kontrol et.",
         ],
       },
       "order-wrong": {
         title: "Kritik stokları en düşükten başlat",
         checks: [
-          "stock_quantity sıralama yönünün artan olduğunu doğrula.",
+          "stock_quantity sıralamasının küçükten büyüğe, yani ASC yönünde olduğunu doğrula.",
           "Sıralama ölçütünün ürün adı veya fiyat olmadığını kontrol et.",
         ],
       },
       "required-concept-missing": {
-        title: "ORDER BY ve LIMIT görev paylaşımını koru",
+        title: "ORDER BY ile sırala, LIMIT ile üçe indir",
         checks: [
           "Önceliği ORDER BY ile açıkça tanımladığını kontrol et.",
-          "Sonuç boyutunu LIMIT ile üç satır olarak sınırladığını doğrula.",
+          "Sıralanmış sonucu LIMIT ile üç satır olarak sınırladığını doğrula.",
         ],
       },
       "execution-error": {
@@ -208,18 +208,18 @@ export const TASK_LEARNING_CONTENT: Readonly<
     },
     debrief: {
       steps: [
-        "Tedarik önceliğini en az stok olarak tanımla.",
-        "Tüm ürünleri bu ölçüte göre artan sırala.",
-        "Sıralanmış listenin ilk üç satırını seç ve kolon yapısını doğrula.",
+        "Tedarik önceliğini en az stok olarak belirledin.",
+        "Tüm ürünleri stock_quantity değerine göre küçükten büyüğe sıraladın.",
+        "Sıralanmış listenin ilk üç satırını alıp iki istenen kolonu doğruladın.",
       ],
       whyItWorks:
-        "Sıralama kritik ürünleri listenin başına taşır; satır sınırı bundan sonra uygulandığında doğru üç ürün seçilir.",
+        "ORDER BY düşük stoklu ürünleri listenin başına taşır. LIMIT bu işlemden sonra çalıştığı için rastgele üç ürün yerine gerçekten en az stoklu üç ürün kalır.",
       edgeCases: [
-        "İki ürünün stoğu eşitse kararlı sonuç için product_id gibi ikinci bir sıralama alanı eklenir.",
-        "Negatif stok veri kalitesi hatası olsa da artan sıralamada en üste çıkar ve incelemeyi tetikler.",
+        "İki ürünün stoğu eşitse hangisinin önce geleceğini belirlemek için product_id gibi ikinci bir sıralama alanı gerekebilir.",
+        "Eksi stok hatalı bir kayıt olsa da küçükten büyüğe sıralamada en üste çıkar ve kontrol edilmesi gerektiğini gösterir.",
       ],
       workplaceImpact:
-        "Doğru top-N kalıbı stok yenileme, en iyi müşteri ve en maliyetli olay gibi operasyonel kuyrukların temelidir.",
+        "Önce sırala, sonra sınırla yaklaşımı stok yenileme, en yüksek tutarlı faturalar ve en acil destek kayıtları gibi öncelik listelerinin temelidir.",
       transfer: {
         prompt:
           "En yüksek tutarlı beş faturayı seçerken sıralama yönü ve LIMIT hangi sırayla düşünülmeli?",
@@ -231,7 +231,7 @@ export const TASK_LEARNING_CONTENT: Readonly<
   "m1-t4": {
     learningBrief: {
       conceptAnchor:
-        "ORDER BY iş kullanıcısının okuma önceliğini veri sonucunun bir parçası haline getirir.",
+        "ORDER BY hangi kolona göre sıralanacağını, DESC ise büyük değerin önce geleceğini belirtir. Burada en pahalı ürün listenin başına taşınır.",
       outputGrain:
         "Her satır bir ürünü ve o ürünün birim fiyatını temsil eder.",
       acceptanceChecks: [
@@ -253,51 +253,51 @@ export const TASK_LEARNING_CONTENT: Readonly<
         ],
       },
       "rows-wrong": {
-        title: "Premium görünümde bütün kataloğu koru",
+        title: "Sıralarken hiçbir ürünü kaybetme",
         checks: [
-          "WHERE veya LIMIT nedeniyle ürün eksiltmediğinden emin ol.",
+          "Sorgunun yalnızca sıralamayı değiştirdiğini, ürünleri sonuçtan çıkarmadığını kontrol et.",
           "Sonuçta altı farklı ürün bulunduğunu kontrol et.",
         ],
       },
       "order-wrong": {
-        title: "Fiyat yönünü premiumdan erişebilire çevir",
+        title: "Fiyatları doğru yönde sırala",
         checks: [
-          "ORDER BY ölçütünün unit_price olduğunu kontrol et.",
-          "Azalan yönün açıkça belirtildiğini ve en yüksek fiyatın ilk satırda olduğunu doğrula.",
+          "ORDER BY bölümünde sıralama alanının unit_price olduğunu kontrol et.",
+          "DESC yönünü kullandığını ve en yüksek fiyatın ilk satırda olduğunu doğrula.",
         ],
       },
       "required-concept-missing": {
         title: "İş önceliğini ORDER BY ile görünür kıl",
         checks: [
-          "Motorun doğal satır sırasına güvenmek yerine ORDER BY kullandığını doğrula.",
+          "Tablonun kendiliğinden hep aynı sırada geleceğini varsayma; ORDER BY kullandığını doğrula.",
           "Sıralama yönünü rapor talebindeki yüksekten düşüğe kuralıyla eşleştir.",
         ],
       },
       "execution-error": {
         title: "Fiyat sıralamasının sözdizimini kontrol et",
         checks: [
-          "ORDER BY ifadesinin tablo kaynağından sonra geldiğini doğrula.",
-          "unit_price ve azalan yön anahtar kelimesinin yazımını kontrol et.",
+          "ORDER BY bölümünün FROM ile belirtilen tablo kaynağından sonra geldiğini doğrula.",
+          "unit_price kolon adını ve DESC anahtar kelimesini doğru yazdığını kontrol et.",
         ],
       },
     },
     debrief: {
       steps: [
-        "Panoda gösterilecek ürün ve fiyat alanlarını seç.",
-        "Okuma önceliğini en yüksek fiyat olarak belirle.",
-        "Altı satırın azalan fiyat düzenini uç değerlerle doğrula.",
+        "Panoda gösterilecek ürün adı ve birim fiyat alanlarını seçtin.",
+        "Fiyatı yüksekten düşüğe sıralama kuralını ekledin.",
+        "Altı ürünün korunduğunu, 349.90'ın ilk ve 6.50'nin son sırada olduğunu doğruladın.",
       ],
       whyItWorks:
-        "Azalan fiyat sıralaması, satır kaybetmeden premium ürünleri doğrudan karar vericinin görüş alanına taşır.",
+        "DESC yönündeki fiyat sıralaması hiçbir ürünü elemeden en yüksek fiyatı ilk satıra, en düşük fiyatı son satıra taşır.",
       edgeCases: [
         "Aynı fiyatlı ürünlerde ikincil sıralama belirtilmezse kendi aralarındaki sıra garanti edilmez.",
-        "NULL fiyatlar için ürün politikasına göre NULLS FIRST veya NULLS LAST kararı gerekebilir.",
+        "Fiyatı eksik bir ürün olsaydı onu listenin neresinde göstereceğin için ayrıca bir iş kuralı gerekirdi.",
       ],
       workplaceImpact:
-        "Açık sıralama; fiyat panoları, risk listeleri ve öncelik kuyruklarında kullanıcıların aynı sonucu görmesini sağlar.",
+        "Açık bir sıralama kuralı fiyat panolarında, risk listelerinde ve iş kuyruklarında herkesin aynı öncelik düzenini görmesini sağlar.",
       transfer: {
         prompt:
-          "Bir destek kuyruğunu önce en yüksek öncelik, eşitlikte en eski kayıt olacak şekilde nasıl modellemeyi düşünürsün?",
+          "Bir destek kuyruğunu önce en yüksek öncelik, eşitlikte en eski kayıt gelecek şekilde nasıl sıralardın?",
         reveal:
           "ORDER BY içinde önce önceliği azalan, ardından oluşturulma zamanını artan yönde ikinci anahtar olarak tanımlarsın.",
       },
@@ -316,7 +316,7 @@ export const TASK_LEARNING_CONTENT: Readonly<
       ],
       dataNotes: [
         "Veri setinde tam 500 tutarlı sipariş yoktur; buna rağmen iş kuralı 500'ü kapsar.",
-        "Sipariş durumu bu görevde filtre ölçütü değildir.",
+        "Sipariş durumu bu vakada filtre ölçütü değildir.",
       ],
     },
     coaching: {
@@ -540,7 +540,7 @@ export const TASK_LEARNING_CONTENT: Readonly<
         "Deniz, Ece ve Selin alfabetik sırada dönmeli.",
       ],
       dataNotes: [
-        "LIKE karşılaştırması bu görevde büyük-küçük harfe duyarlıdır.",
+        "LIKE karşılaştırması bu vakada büyük-küçük harfe duyarlıdır.",
         "NULL değer, boş metinle aynı değildir ve eşitlik operatörüyle yakalanmaz.",
       ],
     },
@@ -616,7 +616,7 @@ export const TASK_LEARNING_CONTENT: Readonly<
       ],
       dataNotes: [
         "unit_price NUMERIC tipinde olduğu için hesap parasal hassasiyeti korur.",
-        "Aynı temsilcinin birden fazla satırı vardır; bu görevde toplulaştırma yapılmaz.",
+        "Aynı temsilcinin birden fazla satırı vardır; bu vakada toplulaştırma yapılmaz.",
       ],
     },
     coaching: {

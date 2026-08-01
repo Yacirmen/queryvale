@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  ArrowRight,
-  Code2,
-  Database,
-  Lightbulb,
-  Play,
-  RotateCcw,
-  Save,
-  X,
-} from "lucide-react";
+import { Database, Play, RotateCcw, Save, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 interface BaseDialogProps {
@@ -102,85 +93,6 @@ function useDialogFocus(onClose: () => void) {
   return dialogRef;
 }
 
-export function OnboardingDialog({
-  onClose,
-  onStart,
-}: BaseDialogProps & { onStart: () => void }) {
-  const dialogRef = useDialogFocus(onClose);
-  return (
-    <div
-      ref={dialogRef}
-      className="modal-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="onboarding-title"
-      tabIndex={-1}
-    >
-      <div className="modal-card">
-        <div className="modal-head">
-          <div>
-            <span className="modal-kicker">60 saniyelik başlangıç</span>
-            <h2 id="onboarding-title">Masana hoş geldin.</h2>
-          </div>
-          <button
-            className="icon-button"
-            type="button"
-            onClick={onClose}
-            aria-label="Kapat"
-          >
-            <X size={16} />
-          </button>
-        </div>
-        <div className="modal-body">
-          <p>
-            Her saha dosyasında iş sorusu, veri şeması ve izole bir PostgreSQL
-            veritabanı bulunur. Burada ezber değil, doğru karar seti önemlidir.
-          </p>
-          <div className="onboarding-points">
-            <div className="onboarding-point">
-              <span className="onboarding-point-icon">
-                <Database size={16} />
-              </span>
-              <span>
-                <strong>Önce bağlamı ve şemayı incele</strong>
-                <span>Tablo adları, kolonlar ve örnek satırlar solda.</span>
-              </span>
-            </div>
-            <div className="onboarding-point">
-              <span className="onboarding-point-icon">
-                <Code2 size={16} />
-              </span>
-              <span>
-                <strong>Kendi sorgunu kur</strong>
-                <span>
-                  Farklı ama aynı sonucu veren doğru yollar kabul edilir.
-                </span>
-              </span>
-            </div>
-            <div className="onboarding-point">
-              <span className="onboarding-point-icon">
-                <Lightbulb size={16} />
-              </span>
-              <span>
-                <strong>Takılırsan ipucunu kademeli aç</strong>
-                <span>İlk ipucu yön verir; tam cevabı hemen göstermez.</span>
-              </span>
-            </div>
-          </div>
-          <div className="modal-actions">
-            <button className="ghost-button" type="button" onClick={onClose}>
-              Daha sonra
-            </button>
-            <button className="primary-button" type="button" onClick={onStart}>
-              Laboratuvarı hazırla <ArrowRight size={15} />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function CommandDialog({
   onClose,
   onRun,
@@ -207,7 +119,7 @@ export function CommandDialog({
       icon: Save,
       action: onSave,
     },
-    { label: "Görevi sıfırla", key: "—", icon: RotateCcw, action: onReset },
+    { label: "Vakayı sıfırla", key: "—", icon: RotateCcw, action: onReset },
     { label: "Şema panelini aç", key: "—", icon: Database, action: onSchema },
   ];
   return (

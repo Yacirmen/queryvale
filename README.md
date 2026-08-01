@@ -2,14 +2,15 @@
 
 **Turn questions into evidence.**
 
-Queryvale, SQL sözdizimini ezberleten bir kurs değil; kullanıcıyı gerçek bir veri ekibinin içinde çalışıyormuş gibi hissettiren, tarayıcı tabanlı bir **veri analisti kanıt rotasıdır**. Her vaka `Sor → İncele → Sorgula → Doğrula → Anlat` döngüsünü tekrar ettirir: kullanıcı iş sorusunu ve şemayı inceler, sorgusunu gerçek PostgreSQL uyumlu veri üzerinde çalıştırır, sonucu doğrular ve isterse bulgusunu bir karar notuna dönüştürür. Değerlendirme SQL metnini değil, üretilen sonucu ve görevin öğrenme hedefini dikkate alır.
+Queryvale, SQL sözdizimini ezberleten bir kurs değil; gerçek iş sorularını çözerek **veri analisti gibi çalışmayı** öğreten tarayıcı tabanlı bir kanıt rotasıdır. Her vaka `Sor → İncele → Sorgula → Doğrula → Anlat` döngüsünü tekrar ettirir: kullanıcı iş sorusunu ve şemayı inceler, sorgusunu gerçek PostgreSQL uyumlu veri üzerinde çalıştırır, sonucu doğrular ve isterse bulgusunu bir karar notuna dönüştürür. Değerlendirme SQL metnini değil, üretilen sonucu ve vakanın öğrenme hedefini dikkate alır.
 
 > Ürün dili Türkçedir. Tablo, kolon ve SQL adlandırmaları gerçek çalışma ortamlarına uyum için İngilizcedir.
 
 ## Neler sunar?
 
-- Satış, müşteri, şube, sipariş ve veri kalitesi gibi gerçekçi iş görevleri
-- Temeli kur → İş sorusunu çöz → Örüntüyü keşfet → Karara dönüştür biçiminde dört kariyer bölümü
+- Satış, müşteri, şube, sipariş ve veri kalitesi gibi gerçekçi iş vakaları
+- Kullanıcı arayüzünde tek sözlük: Rota → Bölüm → Vaka
+- Temeli kur → İş sorusunu çöz → Örüntüyü keşfet → Karara dönüştür biçiminde dört bölüm
 - Tarayıcı içinde çalışan PGlite tabanlı SQL motoru
 - Alternatif doğru sorguları kabul eden sonuç odaklı değerlendirme
 - Kolon, satır, sıralama, `NULL`, duplicate ve zorunlu kavram kontrolleri
@@ -17,6 +18,7 @@ Queryvale, SQL sözdizimini ezberleten bir kurs değil; kullanıcıyı gerçek b
 - Düzenlenebilir kullanıcı adıyla cihaz bazlı kişisel öğrenme paneli
 - Kavram odağı, çıktı tanesi ve doğrulanabilir kabul kontrolleri
 - Hata türüne özel kontrol adımları; başarıda önce sonuç, isteğe bağlı çözümleme ve transfer soruları
+- İlk vaka içinde kapatılabilir 90 saniyelik başlangıç rehberi
 - Yalnız doğru değerlendirilen çalışmadan üretilen sınırlı, yerel kanıt snapshot’ı
 - Bulgu, öneri ve isteğe bağlı çekinceyi saklayan karar notu ile Kanıt Defteri
 - Şema, örnek veri, SQL editörü ve sonuçları bir araya getiren çalışma alanı
@@ -24,7 +26,7 @@ Queryvale, SQL sözdizimini ezberleten bir kurs değil; kullanıcıyı gerçek b
 - Yazarken otomatik kaydedilen SQL taslakları; `⌘/Ctrl+S` ile anında kayıt
 - Açık/koyu tema, editör tercihleri ve reduced-motion desteği
 - Dışa/içe aktarılabilir ilerleme verisi
-- Masaüstü öncelikli, tablet ve mobilde kullanılabilir responsive deneyim
+- Masaüstü öncelikli; mobilde `Vaka | Veri | SQL | Sonuç` sekmeli responsive deneyim
 
 ## Teknoloji yığını
 
@@ -65,7 +67,7 @@ göreli asset yolları nedeniyle proje alt yolu için ek rewrite gerekmez.
 
 Yayın herkese açıktır. Kullanıcı adı, ilerleme ve Kanıt Defteri her tarayıcı +
 web adresinin IndexedDB alanında bağımsız kalır; cihazlar ve origin'ler arası
-canlı eşitleme yapılmaz. Repo veya alan adı değişirse ilerleme önce JSON olarak dışa aktarılmalıdır. Görev
+canlı eşitleme yapılmaz. Repo veya alan adı değişirse ilerleme önce JSON olarak dışa aktarılmalıdır. Vaka
 konumu, denemeler, ipuçları, tamamlanmalar, kanıtlar ve SQL taslakları aynı
 origin içinde otomatik kaydedilir; normal kullanımda `⌘/Ctrl+S` gerekmez.
 
@@ -118,7 +120,7 @@ Alanların tam sözleşmesi, örnek görev ve editoryal standartlar [CONTENT_GUI
 ## Ürün sınırları ve bilinen kısıtlar
 
 - Her tarayıcı kendi adlandırılabilir öğrenen profilini ve ilerlemesini saklar; cihazlar arası canlı senkronizasyon yoktur.
-- Çalışan rota bugün SQL ağırlıklı 10 modül ve 40 vakadır; her modül dörder doğrulanmış görev taşır. Python, elektronik tablo ve BI araçları henüz ürün içinde çalıştırılmaz; ileride aynı kanıt döngüsüne bağlanan köprüler olarak değerlendirilecektir.
+- Çalışan rota bugün SQL ağırlıklı 10 iç modül ve 40 vakadır; her modül dörder doğrulanmış vaka taşır. Kullanıcı arayüzünde bu ara katman “SQL konusu” olarak görünür. Python, elektronik tablo ve BI araçları henüz ürün içinde çalıştırılmaz; ileride aynı kanıt döngüsüne bağlanan köprüler olarak değerlendirilecektir.
 - Tamamlanma, deneme, süre, ipucu ve çalışma serisi pratik bağlamıdır; tek başına mesleki ustalık veya işe hazır olma iddiası değildir.
 - Taşınabilir Mac paketi macOS 11 veya yenisinde, Intel ve Apple Silicon işlemcilerde çalışır. Sabit `127.0.0.1:41739` origin'ini kullanır; Node veya internet gerektirmez ve ilerlemeyi aynı tarayıcı origin'inde korur.
 - Canlı web sürümünün tek kanonik adresi `https://yacirmen.github.io/queryvale/` ve tek yayın hattı GitHub Pages'tir.

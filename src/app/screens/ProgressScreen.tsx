@@ -297,7 +297,7 @@ export function ProgressScreen({
           return [
             {
               task,
-              moduleTitle: curriculumModule?.title ?? "Öğrenme yolu",
+              moduleTitle: curriculumModule?.title ?? "Rota",
               completedAt: taskState.lastCompletedAt,
               attempts: taskState.attempts,
             },
@@ -324,7 +324,7 @@ export function ProgressScreen({
             {
               evidence,
               task,
-              moduleTitle: curriculumModule?.title ?? "Öğrenme yolu",
+              moduleTitle: curriculumModule?.title ?? "Rota",
             },
           ];
         })
@@ -509,7 +509,7 @@ export function ProgressScreen({
             <div
               className="progress-ring"
               role="progressbar"
-              aria-label="Tamamlanan görev oranı"
+              aria-label="Tamamlanan vaka oranı"
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={metrics.completionRate}
@@ -525,11 +525,11 @@ export function ProgressScreen({
             <div className="progress-overview-copy">
               <span>Genel rota</span>
               <strong>
-                {metrics.completed} / {tasks.length} görev
+                {metrics.completed} / {tasks.length} vaka
               </strong>
               <p>
                 {metrics.completed
-                  ? `${modules.filter((module) => module.tasks.every((task) => progress.tasks[task.id]?.completed)).length} modülü tamamen kapattın.`
+                  ? `${modules.filter((module) => module.tasks.every((task) => progress.tasks[task.id]?.completed)).length} SQL konusunu tamamladın.`
                   : "İlk doğru sorguyla kişisel ilerleme haritan oluşacak."}
               </p>
             </div>
@@ -550,7 +550,7 @@ export function ProgressScreen({
             </h2>
             <p>
               {recommendedTask?.subtitle ??
-                "Bütün görevler tamamlandı. İstersen zorlandığın konulara dönüp farklı sorgular deneyebilirsin."}
+                "Bütün vakalar tamamlandı. İstersen zorlandığın konulara dönüp farklı sorgular deneyebilirsin."}
             </p>
           </div>
           {recommendedTask && (
@@ -561,7 +561,7 @@ export function ProgressScreen({
                 onNavigate("workspace", { taskId: recommendedTask.id })
               }
             >
-              Göreve devam et <ArrowRight size={15} />
+              Vakaya devam et <ArrowRight size={15} />
             </button>
           )}
         </section>
@@ -571,7 +571,7 @@ export function ProgressScreen({
             <CheckCircle2 size={16} />
             <span>Tamamlanan</span>
             <strong>{metrics.completed}</strong>
-            <small>{tasks.length} görevden</small>
+            <small>{tasks.length} vakadan</small>
           </article>
           <article>
             <Target size={16} />
@@ -583,7 +583,7 @@ export function ProgressScreen({
             <Clock3 size={16} />
             <span>Ortalama çözüm</span>
             <strong>{formatDuration(metrics.averageTime)}</strong>
-            <small>görev başına</small>
+            <small>vaka başına</small>
           </article>
           <article>
             <Flame size={16} />
@@ -603,6 +603,9 @@ export function ProgressScreen({
                 <div>
                   <span className="section-kicker">Doğrulanmış çalışmalar</span>
                   <h2 id="evidence-notebook-title">Kanıt Defteri</h2>
+                  <p className="evidence-notebook-description">
+                    Doğrulanmış sorguların ve karar notların.
+                  </p>
                 </div>
                 {evidenceRecords.length > 0 && (
                   <span className="module-progress-state complete">
@@ -769,14 +772,14 @@ export function ProgressScreen({
               <div className="progress-section-heading">
                 <div>
                   <span className="section-kicker">Rota görünümü</span>
-                  <h2 id="module-progress-title">Modüller nerede kaldı?</h2>
+                  <h2 id="module-progress-title">SQL konularında neredesin?</h2>
                 </div>
                 <button
                   className="soft-button"
                   type="button"
                   onClick={() => onNavigate("learn")}
                 >
-                  Öğrenme yolunu aç <ArrowRight size={14} />
+                  Rotayı aç <ArrowRight size={14} />
                 </button>
               </div>
 
@@ -811,7 +814,7 @@ export function ProgressScreen({
                           />
                         </div>
                         <span>
-                          {module.completed}/{module.total} görev
+                          {module.completed}/{module.total} vaka
                         </span>
                       </div>
                     </div>
@@ -887,7 +890,7 @@ export function ProgressScreen({
                   <div>
                     <strong>İlk kazanım burada görünecek</strong>
                     <p>
-                      Bir görevi doğru tamamladığında tarihini ve kaç denemede
+                      Bir vakayı doğru tamamladığında tarihini ve kaç denemede
                       çözdüğünü kaydedeceğiz.
                     </p>
                   </div>
@@ -976,7 +979,7 @@ export function ProgressScreen({
                       >
                         {formatConcept(signal.concept)}
                         <small>
-                          {signal.verified} görevde doğrulandı
+                          {signal.verified} vakada doğrulandı
                           {signal.inProgress
                             ? ` · ${signal.inProgress} çalışma sürüyor`
                             : ""}

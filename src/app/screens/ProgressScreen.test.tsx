@@ -33,6 +33,12 @@ describe("ProgressScreen learning signals", () => {
       screen.getByText(/Bu web adresinde henüz çalışma kaydı yok/),
     ).toBeInTheDocument();
     expect(screen.getByText("Henüz kavram sinyali yok")).toBeInTheDocument();
+    const notebookTitle = screen.getByRole("heading", {
+      name: "Kanıt Defteri",
+    });
+    expect(notebookTitle.parentElement).toHaveTextContent(
+      "Doğrulanmış sorguların ve karar notların.",
+    );
     expect(
       screen.getByText(/Localhost’taki kayıt GitHub adresine otomatik gelmez/),
     ).toBeInTheDocument();

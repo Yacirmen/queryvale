@@ -235,6 +235,10 @@ describe("QueryvaleApp", () => {
     sqlEngineHarness.runDelayMs = 0;
     progressPersistenceHarness.loadGate = undefined;
     progressPersistenceHarness.saveDelays = [];
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1024,
+    });
     window.location.hash = "#/";
     document.documentElement.dataset.theme = "";
     await new Promise<void>((resolve) => {
@@ -248,11 +252,22 @@ describe("QueryvaleApp", () => {
   it("keeps engine initialization failures separate from query coaching", async () => {
     sqlEngineHarness.failInitialize = true;
     window.location.hash = "#/lab/m1-t1";
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 800,
+    });
     const user = userEvent.setup();
     render(<QueryvaleApp />);
 
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Bu sistem hatası sorgunla ilgili değil");
+    expect(document.querySelector(".workspace-body")).toHaveAttribute(
+      "data-mobile-view",
+      "results",
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("tab", { name: "Sonuç görünümü" })).toHaveFocus(),
+    );
     expect(
       screen.queryByText(tasks[0].coaching["execution-error"].title),
     ).not.toBeInTheDocument();
@@ -266,15 +281,25 @@ describe("QueryvaleApp", () => {
 
   it("reports reset failures as engine setup errors without query coaching", async () => {
     window.location.hash = "#/lab/m1-t1";
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 800,
+    });
     const user = userEvent.setup();
     render(<QueryvaleApp />);
 
     await screen.findByText("PostgreSQL hazır");
+    await user.click(screen.getByRole("tab", { name: "SQL görünümü" }));
     sqlEngineHarness.failReset = true;
     await user.click(screen.getByRole("button", { name: /Sıfırla/i }));
 
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Görev verisi yeniden hazırlanamadı");
+    expect(alert).toHaveTextContent("Vaka verisi yeniden hazırlanamadı");
+    expect(document.querySelector(".workspace-body")).toHaveAttribute(
+      "data-mobile-view",
+      "results",
+    );
+    expect(screen.getByRole("tab", { name: "Sonuç görünümü" })).toHaveFocus();
     expect(
       screen.queryByText(tasks[0].coaching["execution-error"].title),
     ).not.toBeInTheDocument();
@@ -329,12 +354,14 @@ describe("QueryvaleApp", () => {
     render(<QueryvaleApp />);
 
     expect(
-      screen.getByRole("heading", { name: /Bir sorgu nasıl büyür/i }),
+      screen.getByRole("heading", {
+        name: /Bir iş sorusu nasıl karara dönüşür/i,
+      }),
     ).toBeInTheDocument();
     const previousScrollBehavior =
       document.documentElement.style.getPropertyValue("scroll-behavior");
     document.documentElement.style.setProperty("scroll-behavior", "smooth");
-    await user.click(screen.getByRole("button", { name: /Tanıtıma geç/i }));
+    await user.click(screen.getByRole("button", { name: /Nasıl çalışır/i }));
     expect(
       screen.getByRole("heading", { name: /Şimdi sıra sende/i }),
     ).toBeInTheDocument();
@@ -362,10 +389,15 @@ describe("QueryvaleApp", () => {
       screen.getByRole("button", { name: /İlk vakayı birlikte çöz/i }),
     );
     expect(
-      screen.getByRole("heading", { name: "Masana hoş geldin." }),
+      screen.getByRole("heading", {
+        name: "Bu vakada yalnız üç adımın var.",
+      }),
     ).toBeInTheDocument();
     await user.click(
-      screen.getByRole("button", { name: /Laboratuvarı hazırla/i }),
+      screen.getByRole("button", { name: "Başlangıç rehberini kapat" }),
+    );
+    await waitFor(() =>
+      expect(document.getElementById("m1-t1-brief-panel")).toHaveFocus(),
     );
 
     expect(
@@ -385,7 +417,7 @@ describe("QueryvaleApp", () => {
     );
     await user.click(screen.getByRole("button", { name: "1. ipucunu aç" }));
     expect(
-      screen.getByText(/SELECT görmek istediğin kolonları/i),
+      screen.getByText(/Her ürün sonuçta bir satır olarak kalmalı/i),
     ).toBeInTheDocument();
     await user.type(editor, "SELECT product_name, category FROM products;");
 
@@ -395,6 +427,10 @@ describe("QueryvaleApp", () => {
     expect(runButton).toBeEnabled();
     await user.click(runButton);
     expect(await screen.findByText("Doğru çözüm")).toBeInTheDocument();
+    expect(document.querySelector(".workspace-body")).toHaveAttribute(
+      "data-mobile-view",
+      "results",
+    );
     const resultTable = screen.getByRole("table", { name: "Sorgu sonucu" });
     expect(within(resultTable).getByText("Desk Lamp")).toBeVisible();
     expect(within(resultTable).getByText("Home")).toBeVisible();
@@ -411,7 +447,7 @@ describe("QueryvaleApp", () => {
     expect(within(completion).getByText(tasks[0].explanation)).toBeVisible();
     await user.click(
       within(completion).getByRole("button", {
-        name: "Sonraki göreve geç: Kategori listesini tekilleştir",
+        name: "Sonraki vakaya geç: Kategori listesini tekilleştir",
       }),
     );
     expect(
@@ -423,6 +459,32 @@ describe("QueryvaleApp", () => {
     expect(
       screen.getByRole("textbox", { name: "SQL sorgu editörü" }),
     ).toHaveValue("");
+  });
+
+  it("keeps the first-case guide scoped to the entry case", async () => {
+    const user = userEvent.setup();
+    render(<QueryvaleApp />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "İlk vakaya başla" }),
+    );
+    expect(
+      await screen.findByRole("heading", {
+        name: "Bu vakada yalnız üç adımın var.",
+      }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Sonraki vaka" }));
+    expect(
+      await screen.findByRole("heading", {
+        name: "Kategori listesini tekilleştir",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", {
+        name: "Bu vakada yalnız üç adımın var.",
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it("resumes the stored case from the landing page without resetting progress", async () => {
@@ -442,13 +504,14 @@ describe("QueryvaleApp", () => {
 
     render(<QueryvaleApp />);
 
-    const resumeButton = await screen.findByRole("button", {
+    const resumeButtons = await screen.findAllByRole("button", {
       name: "Kaldığın vakaya devam et",
     });
-    expect(resumeButton).toHaveAttribute(
-      "title",
-      `Son konumun: ${tasks[1].title}`,
-    );
+    expect(resumeButtons).toHaveLength(2);
+    expect(
+      screen.getByTitle(`Son konumun: ${tasks[1].title}`),
+    ).toBeInTheDocument();
+    const resumeButton = resumeButtons[0];
     await user.click(resumeButton);
 
     expect(
@@ -485,13 +548,14 @@ describe("QueryvaleApp", () => {
 
     render(<QueryvaleApp />);
 
-    const resumeButton = await screen.findByRole("button", {
+    const resumeButtons = await screen.findAllByRole("button", {
       name: "Kaldığın vakaya devam et",
     });
-    expect(resumeButton).toHaveAttribute(
-      "title",
-      `Son konumun: ${tasks[2].title}`,
-    );
+    expect(resumeButtons).toHaveLength(2);
+    expect(
+      screen.getByTitle(`Son konumun: ${tasks[2].title}`),
+    ).toBeInTheDocument();
+    const resumeButton = resumeButtons[0];
     await user.click(resumeButton);
     expect(
       await screen.findByRole("heading", { name: tasks[2].title }),
@@ -548,6 +612,7 @@ describe("QueryvaleApp", () => {
       expect(restored.evidenceByTaskId["m1-t1"].note).toBeUndefined();
     });
 
+    await user.click(within(completion).getByText("Karar notu ekle"));
     await user.type(
       within(completion).getByRole("textbox", { name: /^Bulgu/ }),
       finding,
@@ -583,7 +648,7 @@ describe("QueryvaleApp", () => {
 
     await user.click(
       within(
-        screen.getByRole("navigation", { name: "Çalışma bölümleri" }),
+        screen.getByRole("navigation", { name: "Çalışma alanları" }),
       ).getByRole("button", { name: /^Profilim$/ }),
     );
     const notebook = await screen.findByRole("region", {
@@ -637,7 +702,7 @@ describe("QueryvaleApp", () => {
 
     await user.click(
       within(
-        screen.getByRole("navigation", { name: "Çalışma bölümleri" }),
+        screen.getByRole("navigation", { name: "Çalışma alanları" }),
       ).getByRole("button", { name: /^Profilim$/ }),
     );
     const notebook = await screen.findByRole("region", {
@@ -720,7 +785,7 @@ describe("QueryvaleApp", () => {
 
     await user.click(
       within(
-        screen.getByRole("navigation", { name: "Çalışma bölümleri" }),
+        screen.getByRole("navigation", { name: "Çalışma alanları" }),
       ).getByRole("button", { name: /^Profilim$/ }),
     );
     const conceptSection = screen
@@ -792,9 +857,10 @@ describe("QueryvaleApp", () => {
       screen.getByRole("button", { name: "Queryvale ana sayfa" }),
     );
 
-    const resumeButton = await screen.findByRole("button", {
+    const resumeButtons = await screen.findAllByRole("button", {
       name: "Kaldığın vakaya devam et",
     });
+    const resumeButton = resumeButtons[0];
     await waitFor(async () => {
       expect((await loadProgress()).tasks["m1-t1"].lastQuery).toBe(draft);
     });
@@ -815,7 +881,7 @@ describe("QueryvaleApp", () => {
     });
     const draft = "SELECT product_name FROM products;";
     fireEvent.change(editor, { target: { value: draft } });
-    await user.click(screen.getByRole("button", { name: "Sonraki görev" }));
+    await user.click(screen.getByRole("button", { name: "Sonraki vaka" }));
 
     expect(
       await screen.findByRole("heading", { name: tasks[1].title }),
@@ -908,6 +974,10 @@ describe("QueryvaleApp", () => {
 
   it("offers compact, keyboard-accessible mission tools", async () => {
     window.location.hash = "#/lab/m1-t1";
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 800,
+    });
     const user = userEvent.setup();
     const writeClipboard = vi.spyOn(navigator.clipboard, "writeText");
     render(<QueryvaleApp />);
@@ -919,7 +989,7 @@ describe("QueryvaleApp", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("list", { name: "Göreve başlama sırası" }),
+      screen.getByRole("list", { name: "Vakaya başlama sırası" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "İstenen teslim" }),
@@ -938,8 +1008,15 @@ describe("QueryvaleApp", () => {
       screen.queryByRole("button", { name: "1. ipucunu aç" }),
     ).not.toBeInTheDocument();
 
-    const taskTab = screen.getByRole("tab", { name: "Görev" });
-    const schemaTab = screen.getByRole("tab", { name: "Şema & veri" });
+    const earlyMobileSteps = screen.getByRole("tablist", {
+      name: "Vaka çalışma adımları",
+    });
+    const taskTab = within(earlyMobileSteps).getByRole("tab", {
+      name: "Vaka görünümü",
+    });
+    const schemaTab = within(earlyMobileSteps).getByRole("tab", {
+      name: "Veri görünümü",
+    });
     expect(taskTab).toHaveAttribute("aria-controls", "m1-t1-brief-panel");
     fireEvent.keyDown(taskTab, { key: "ArrowRight" });
     await waitFor(() => expect(schemaTab).toHaveFocus());
@@ -977,7 +1054,7 @@ describe("QueryvaleApp", () => {
     expect(screen.getByText("1/3 ipucu")).toBeInTheDocument();
 
     const briefSeparator = screen.getByRole("separator", {
-      name: "Görev panelini yeniden boyutlandır",
+      name: "Vaka panelini yeniden boyutlandır",
     });
     fireEvent.keyDown(briefSeparator, { key: "ArrowRight" });
     expect(briefSeparator).toHaveAttribute("aria-valuenow", "386");
@@ -987,6 +1064,40 @@ describe("QueryvaleApp", () => {
     });
     fireEvent.keyDown(editorSeparator, { key: "ArrowDown" });
     expect(editorSeparator).toHaveAttribute("aria-valuenow", "59");
+
+    const mobileSteps = screen.getByRole("tablist", {
+      name: "Vaka çalışma adımları",
+    });
+    const caseView = within(mobileSteps).getByRole("tab", {
+      name: "Vaka görünümü",
+    });
+    const dataView = within(mobileSteps).getByRole("tab", {
+      name: "Veri görünümü",
+    });
+    const sqlView = within(mobileSteps).getByRole("tab", {
+      name: "SQL görünümü",
+    });
+    const resultsView = within(mobileSteps).getByRole("tab", {
+      name: "Sonuç görünümü",
+    });
+    const controlledPanels = [caseView, dataView, sqlView, resultsView].map(
+      (tab) => tab.getAttribute("aria-controls"),
+    );
+    expect(new Set(controlledPanels).size).toBe(4);
+    for (const panelId of controlledPanels) {
+      expect(document.getElementById(panelId!)).toHaveAttribute(
+        "role",
+        "tabpanel",
+      );
+    }
+    await user.click(sqlView);
+    expect(document.querySelector(".workspace-body")).toHaveAttribute(
+      "data-mobile-view",
+      "editor",
+    );
+    fireEvent.keyDown(sqlView, { key: "ArrowRight" });
+    await waitFor(() => expect(resultsView).toHaveFocus());
+    expect(resultsView).toHaveAttribute("aria-selected", "true");
   });
 
   it("reveals a working solution only on request without changing the editor or completion", async () => {
@@ -1079,7 +1190,7 @@ describe("QueryvaleApp", () => {
     await user.type(editor, "SELECT product_name FROM products;");
     await user.click(screen.getByRole("button", { name: /Kaydet/i }));
 
-    const nextButton = screen.getByRole("button", { name: "Sonraki görev" });
+    const nextButton = screen.getByRole("button", { name: "Sonraki vaka" });
     expect(nextButton).toBeEnabled();
     await user.click(nextButton);
 
@@ -1090,7 +1201,7 @@ describe("QueryvaleApp", () => {
     ).toBeInTheDocument();
     expect(window.location.hash).toBe("#/lab/m1-t2");
     const previousButton = screen.getByRole("button", {
-      name: "Önceki görev",
+      name: "Önceki vaka",
     });
     expect(previousButton).toBeEnabled();
     await user.click(previousButton);
@@ -1104,9 +1215,9 @@ describe("QueryvaleApp", () => {
         screen.getByRole("textbox", { name: "SQL sorgu editörü" }),
       ).toHaveValue(""),
     );
-    await user.click(screen.getByRole("button", { name: "Sonraki görev" }));
+    await user.click(screen.getByRole("button", { name: "Sonraki vaka" }));
     await user.click(
-      await screen.findByRole("button", { name: "Önceki görev" }),
+      await screen.findByRole("button", { name: "Önceki vaka" }),
     );
     expect(
       await screen.findByRole("textbox", { name: "SQL sorgu editörü" }),
@@ -1119,14 +1230,12 @@ describe("QueryvaleApp", () => {
 
     await user.click(
       within(
-        await screen.findByRole("navigation", { name: "Çalışma bölümleri" }),
+        await screen.findByRole("navigation", { name: "Çalışma alanları" }),
       ).getByRole("button", {
-        name: /^Vaka Rotası$/,
+        name: /^Rota$/,
       }),
     );
-    expect(
-      screen.getByRole("heading", { name: "Öğrenme yolu" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Rota" })).toBeInTheDocument();
     expect(screen.getByText("Önerilen başlangıç")).toBeInTheDocument();
     expect(screen.getByText("Buradasın")).toBeInTheDocument();
     expect(screen.getByText("Şu an buradasın")).toBeInTheDocument();
@@ -1164,8 +1273,8 @@ describe("QueryvaleApp", () => {
 
     await user.click(
       within(
-        await screen.findByRole("navigation", { name: "Çalışma bölümleri" }),
-      ).getByRole("button", { name: "Vaka Rotası" }),
+        await screen.findByRole("navigation", { name: "Çalışma alanları" }),
+      ).getByRole("button", { name: "Rota" }),
     );
 
     await waitFor(() => expect(screen.getByRole("main")).toHaveFocus());
@@ -1196,12 +1305,12 @@ describe("QueryvaleApp", () => {
     ).toHaveValue("");
     await user.click(
       within(
-        screen.getByRole("navigation", { name: "Çalışma bölümleri" }),
+        screen.getByRole("navigation", { name: "Çalışma alanları" }),
       ).getByRole("button", { name: /^Profilim$/ }),
     );
     expect(screen.getByText("1 toplam deneme")).toBeInTheDocument();
     const moduleProgressSection = screen
-      .getByRole("heading", { name: "Modüller nerede kaldı?" })
+      .getByRole("heading", { name: "SQL konularında neredesin?" })
       .closest("section");
     expect(moduleProgressSection).not.toBeNull();
     expect(
@@ -1226,7 +1335,7 @@ describe("QueryvaleApp", () => {
 
     await user.click(
       within(
-        await screen.findByRole("navigation", { name: "Çalışma bölümleri" }),
+        await screen.findByRole("navigation", { name: "Çalışma alanları" }),
       ).getByRole("button", { name: "Profilim" }),
     );
     await user.click(
@@ -1244,7 +1353,7 @@ describe("QueryvaleApp", () => {
     ).toBeInTheDocument();
     expect(
       within(
-        screen.getByRole("navigation", { name: "Çalışma bölümleri" }),
+        screen.getByRole("navigation", { name: "Çalışma alanları" }),
       ).getByText("Yasir Usta · İlerleme ve Kanıt Defteri"),
     ).toBeInTheDocument();
 
@@ -1283,7 +1392,7 @@ describe("QueryvaleApp", () => {
 
     await user.click(
       within(
-        await screen.findByRole("navigation", { name: "Çalışma bölümleri" }),
+        await screen.findByRole("navigation", { name: "Çalışma alanları" }),
       ).getByRole("button", { name: "Profilim" }),
     );
     await user.click(
@@ -1501,10 +1610,10 @@ describe("QueryvaleApp", () => {
     render(<QueryvaleApp />);
 
     const overallProgress = await screen.findByRole("progressbar", {
-      name: "Tamamlanan görev oranı",
+      name: "Tamamlanan vaka oranı",
     });
     expect(overallProgress).toHaveAttribute("aria-valuenow", "0");
-    expect(screen.getByText(`0 / ${tasks.length} görev`)).toBeInTheDocument();
+    expect(screen.getByText(`0 / ${tasks.length} vaka`)).toBeInTheDocument();
   });
 
   it("changes the theme from the global header", async () => {

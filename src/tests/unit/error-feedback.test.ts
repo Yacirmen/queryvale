@@ -31,13 +31,12 @@ describe("translateSqlError", () => {
       {
         code: "forbidden-operation",
         operation: "DELETE",
-        message: "DELETE işlemi bu görevde kullanılamaz.",
+        message: "DELETE işlemi bu vakada kullanılamaz.",
       },
     ]);
     expect(translateSqlError(error)).toMatchObject({
       title: "Bu sorguya izin verilmiyor",
-      message: "DELETE işlemi bu görevde kullanılamaz.",
+      message: "DELETE işlemi bu vakada kullanılamaz.",
     });
   });
 });
-

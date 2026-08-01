@@ -256,7 +256,7 @@ export const MODULE_45_LEARNING_CONTENT: Readonly<
         title: "Bölge özetinin üç kolonunu netleştir",
         checks: [
           "Kolon sırasının region, transaction_count, total_revenue olduğunu doğrula.",
-          "Sayım ve toplam ifadelerinin alias'larını görev sözleşmesiyle eşleştir; status veya amount gibi ham kolonları çıkar.",
+          "Sayım ve toplam ifadelerinin alias'larını vaka sözleşmesiyle eşleştir; status veya amount gibi ham kolonları çıkar.",
         ],
       },
       "rows-wrong": {

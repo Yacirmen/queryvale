@@ -2,6 +2,7 @@
 
 import {
   ArrowDown,
+  ArrowRight,
   BarChart3,
   CheckCircle2,
   Database,
@@ -260,7 +261,9 @@ function highlightSqlLine(line: string): ReactNode[] {
 }
 
 interface LandingSqlFilmProps {
+  isReturningLearner: boolean;
   onContinue: () => void;
+  onStart: () => void;
 }
 
 interface FilmLayerPair {
@@ -271,7 +274,11 @@ interface FilmLayerPair {
 const CINEMATIC_MEDIA_QUERY =
   "(min-width: 1100px) and (min-height: 700px) and (prefers-reduced-motion: no-preference)";
 
-export function LandingSqlFilm({ onContinue }: LandingSqlFilmProps) {
+export function LandingSqlFilm({
+  isReturningLearner,
+  onContinue,
+  onStart,
+}: LandingSqlFilmProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isCinematic, setIsCinematic] = useState(false);
   const [layerPair, setLayerPair] = useState<FilmLayerPair>({
@@ -550,13 +557,54 @@ export function LandingSqlFilm({ onContinue }: LandingSqlFilmProps) {
           <header className="landing-sql-film-header">
             <div>
               <p>
-                <span aria-hidden="true" /> QUERYVALE / İLERİ SEVİYE GÖSTERİM
+                <span aria-hidden="true" /> SQL EZBERLEME · ANALİST GİBİ ÇALIŞ
               </p>
-              <h1 id="landing-sql-film-title">Bir sorgu nasıl büyür?</h1>
+              <h1 id="landing-sql-film-title">
+                Bir iş sorusu nasıl karara dönüşür?
+              </h1>
             </div>
-            <button type="button" onClick={onContinue}>
-              Tanıtıma geç <SkipForward size={15} />
-            </button>
+            <div className="landing-sql-film-actions">
+              <button
+                className="landing-sql-film-start"
+                type="button"
+                onClick={onStart}
+                aria-label={
+                  isReturningLearner
+                    ? "Kaldığın vakaya devam et"
+                    : "İlk vakaya başla"
+                }
+              >
+                <span className="landing-sql-film-action-label">
+                  {isReturningLearner
+                    ? "Kaldığın vakaya devam et"
+                    : "İlk vakaya başla"}
+                </span>
+                <span
+                  className="landing-sql-film-action-short"
+                  aria-hidden="true"
+                >
+                  {isReturningLearner ? "Devam et" : "Başla"}
+                </span>
+                <ArrowRight size={15} />
+              </button>
+              <button
+                className="landing-sql-film-explain"
+                type="button"
+                onClick={onContinue}
+                aria-label="Nasıl çalışır?"
+              >
+                <span className="landing-sql-film-action-label">
+                  Nasıl çalışır?
+                </span>
+                <span
+                  className="landing-sql-film-action-short"
+                  aria-hidden="true"
+                >
+                  Nasıl?
+                </span>
+                <SkipForward size={15} />
+              </button>
+            </div>
           </header>
 
           <div

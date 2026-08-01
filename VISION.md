@@ -14,7 +14,7 @@ Queryvale:
 
 - bir video kursu değil; yazarak, çalıştırarak ve düzelterek öğrenilen laboratuvardır,
 - bir kod bulmacası arşivi değil; bağlamı, paydaşı ve çıktı beklentisi olan iş simülasyonudur,
-- bir yönetim paneli değil; görev, şema, editör ve kanıt arasında odaklı bir çalışma alanıdır,
+- bir yönetim paneli değil; vaka, veri, editör ve kanıt arasında odaklı bir çalışma alanıdır,
 - çocukça oyunlaştırma değil; görünür pratik, doğrulanmış kanıt ve giderek gelişen mesleki güven sunar.
 
 ## Analist döngüsü
