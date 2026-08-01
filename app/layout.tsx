@@ -39,10 +39,10 @@ export const metadata: Metadata = {
     locale: "tr_TR",
     images: [
       {
-        url: "https://yacirmen.github.io/queryvale/og-compact-hero.png",
+        url: "https://yacirmen.github.io/queryvale/og-analyst-loop.png",
         width: 1200,
         height: 630,
-        alt: "Queryvale’in üç adımlı SQL editörü ve sonuç paneli",
+        alt: "Queryvale — SQL ezberleme, veri analisti gibi çalış",
       },
     ],
   },
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "SQL ezberleme. Veri analisti gibi çalış.",
     description: "Gerçek iş sorularını sorguya, sonucu kanıta dönüştür.",
-    images: ["https://yacirmen.github.io/queryvale/og-compact-hero.png"],
+    images: ["https://yacirmen.github.io/queryvale/og-analyst-loop.png"],
   },
 };
 

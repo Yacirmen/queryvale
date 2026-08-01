@@ -60,7 +60,6 @@ Tamamlanma yüzdesi, ilk deneme, süre, ipucu ve çalışma serisi mesleki ustal
 - Başarı yalnızca yeşille değil ikon, metin ve şekille anlatılır.
 - Başlıklar kararlı, veri metni okunaklı ve editör alanı sakin olmalıdır.
 - Hareket, neden-sonuç ilişkisini açıklar; sürekli dikkat istemez.
-- Ana sayfa bu ilkeyi tek editör ve sonuç panelinde `Getir → Karşılaştır → Karara dönüştür` dönüşümüyle gösterir; üç kısa adımdan sonra kullanıcıyı doğrudan başlama eylemine ve alt bilgiye bırakır.
 
 ## Uzun vadeli kuzey yıldızı
 

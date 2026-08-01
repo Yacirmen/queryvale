@@ -7,9 +7,8 @@ Bu yol haritası tarih vaadi değil, bağımlılık ve değer sırasıdır. Her 
 ### P0: Temel ürün
 
 - Queryvale kimliği ve responsive uygulama kabuğu
-- Tek editör ve sonuç panelinde `Getir → Karşılaştır → Karara dönüştür` akışını gösteren, üç adımlı ve kısa ana sayfa hero’su
-- Uygun masaüstünde GSAP ScrollTrigger + Lenis ile pinlenen; dar ekran, dokunma ve reduced-motion’da elle seçilebilen eşdeğer ana sayfa akışı
-- İlk vaka içinde kapatılabilir 90 saniyelik rehber ve hero’dan doğrudan vaka/devam eylemi
+- Ana sayfa ve birkaç saniyede anlaşılır değer önerisi
+- İlk vaka içinde kapatılabilir 90 saniyelik rehber ve ana filmden doğrudan vaka/devam eylemi
 - On çalışan SQL konusunu mesleki sonuçlarına göre gruplayan dört bölüm
 - Her vakada `Sor → İncele → Sorgula → Doğrula → Anlat` döngüsü
 - Masaüstü öncelikli vaka çalışma alanı; mobilde `Vaka | Veri | SQL | Sonuç` sekmeleri
@@ -40,7 +39,6 @@ Bu yol haritası tarih vaadi değil, bağımlılık ve değer sırasıdır. Her 
 - Kritik unit/integration/E2E testleri geçer.
 - Typecheck/lint ve production build hatasızdır.
 - İlk vaka, yanlış sorgu, ipucu, tamamlama ve mobil sekmeli akış doğrulanır.
-- Ana sayfada tek editör/sonuç çifti korunur, üç adım ters yönde de çalışır ve son adımın ardından kısa alt bilgiye geçilir.
 - Doğru sorgunun sonucu kullanıcı görmeden kaybolmaz; sonraki vakaya geçiş açık kullanıcı eylemidir.
 - Kanıt snapshot’ı yalnız doğru değerlendirmede oluşur, sınırlarını korur ve karar notuyla birlikte yeniden açılabilir.
 - Çalışmayan eylem veya sahte sonuç yoktur.
