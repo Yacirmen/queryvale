@@ -322,7 +322,7 @@ describe("QueryvaleApp", () => {
     document.documentElement.style.setProperty("scroll-behavior", "smooth");
     await user.click(screen.getByRole("button", { name: /Tanıtıma geç/i }));
     expect(
-      screen.getByRole("heading", { name: /Bir tabloyla başla/i }),
+      screen.getByRole("heading", { name: /Şimdi sıra sende/i }),
     ).toBeInTheDocument();
     expect(document.getElementById("product-introduction")).toHaveFocus();
     expect(
@@ -336,18 +336,16 @@ describe("QueryvaleApp", () => {
     } else {
       document.documentElement.style.removeProperty("scroll-behavior");
     }
-    expect(
-      screen.getByRole("tablist", { name: "Analiz döngüsü aşamaları" }),
-    ).toBeInTheDocument();
-    await user.click(screen.getByRole("tab", { name: /5\. adım: Anlat/i }));
-    expect(
-      screen.getByRole("heading", {
-        name: "Doğrulanmış sonucu kısa bir iş notuna dönüştür.",
-      }),
-    ).toBeInTheDocument();
+    const taskPreview = screen.getByRole("region", {
+      name: "Katalog görünümünü hazırla",
+    });
+    expect(within(taskPreview).getByText("İlk vaka")).toBeInTheDocument();
+    expect(within(taskPreview).getByText("product_name")).toBeInTheDocument();
+    expect(within(taskPreview).getByText("category")).toBeInTheDocument();
+    expect(screen.queryAllByRole("tablist")).toHaveLength(1);
 
     await user.click(
-      screen.getByRole("button", { name: /Rehberli ilk vakayı başlat/i }),
+      screen.getByRole("button", { name: /İlk vakayı birlikte çöz/i }),
     );
     expect(
       screen.getByRole("heading", { name: "Masana hoş geldin." }),
@@ -805,7 +803,10 @@ describe("QueryvaleApp", () => {
     render(<QueryvaleApp />);
 
     expect(
-      await screen.findByRole("heading", { name: tasks[0].title }),
+      await screen.findByRole("heading", {
+        level: 1,
+        name: tasks[0].title,
+      }),
     ).toBeInTheDocument();
     act(() => {
       window.history.pushState(null, "", "#/lab/m1-t2");
@@ -884,6 +885,7 @@ describe("QueryvaleApp", () => {
 
     expect(
       await screen.findByRole("heading", {
+        level: 1,
         name: "Katalog görünümünü hazırla",
       }),
     ).toBeInTheDocument();
@@ -1038,6 +1040,7 @@ describe("QueryvaleApp", () => {
 
     expect(
       await screen.findByRole("heading", {
+        level: 1,
         name: "Katalog görünümünü hazırla",
       }),
     ).toBeInTheDocument();

@@ -98,32 +98,27 @@ test("landing, onboarding and first real SQL task", async ({
   ).toBeVisible();
   await page.getByRole("button", { name: /Tanıtıma geç/i }).click();
   await expect(
-    page.getByRole("heading", { name: /Bir tabloyla başla/i }),
+    page.getByRole("heading", { name: /Şimdi sıra sende/i }),
   ).toBeVisible();
   await expect(page.locator("#product-introduction")).toBeFocused();
-  const journeyDeck = page.getByRole("region", {
-    name: "Queryvale analiz döngüsü",
+  const taskPreview = page.getByRole("region", {
+    name: "Katalog görünümünü hazırla",
   });
-  await expect(journeyDeck).toHaveAttribute("data-scroll-mode", "manual");
-  await expect(journeyDeck).toBeVisible();
-  await page.getByRole("tab", { name: /3\. adım: Sorgula/i }).click();
+  await expect(taskPreview).toBeVisible();
+  await expect(taskPreview.getByText("product_name")).toBeVisible();
+  await expect(taskPreview.getByText("category")).toBeVisible();
   await expect(
-    journeyDeck.getByText(/PostgreSQL uyumlu veri üzerinde/),
-  ).toBeVisible();
-  await page.getByRole("tab", { name: /5\. adım: Anlat/i }).click();
-  await expect(
-    page.getByRole("heading", {
-      name: "Doğrulanmış sonucu kısa bir iş notuna dönüştür.",
+    taskPreview.getByRole("list", {
+      name: "Vakada izleyeceğin üç adım",
     }),
   ).toBeVisible();
+  await expect(page.getByRole("tablist")).toHaveCount(1);
   await expect(page.locator(".app-shell")).toHaveAttribute(
     "aria-busy",
     "false",
   );
 
-  await page
-    .getByRole("button", { name: /Rehberli ilk vakayı başlat/i })
-    .click();
+  await page.getByRole("button", { name: /İlk vakayı birlikte çöz/i }).click();
   await expect(
     page.getByRole("heading", { name: "Masana hoş geldin." }),
   ).toBeVisible();
@@ -388,15 +383,19 @@ test("learning path and settings remain usable on a narrow viewport", async ({
     "aria-busy",
     "false",
   );
-  const journeyDeck = page.getByRole("region", {
-    name: "Queryvale analiz döngüsü",
+  await page.getByRole("button", { name: /Tanıtıma geç/i }).click();
+  const taskPreview = page.getByRole("region", {
+    name: "Katalog görünümünü hazırla",
   });
-  await expect(journeyDeck).toBeVisible();
-  await expect(journeyDeck).toHaveAttribute("data-scroll-mode", "manual");
+  await expect(taskPreview).toBeVisible();
   await expect(
-    journeyDeck.getByRole("tab", { name: /1\. adım: Sor/i }),
-  ).toHaveAttribute("aria-selected", "true");
-  await expect(journeyDeck.getByRole("tabpanel")).toBeVisible();
+    taskPreview.getByRole("list", {
+      name: "Vakada izleyeceğin üç adım",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /İlk vakayı birlikte çöz/i }),
+  ).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,
