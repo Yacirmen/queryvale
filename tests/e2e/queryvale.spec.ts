@@ -143,6 +143,52 @@ test("desktop landing pins the authored role and three-step SQL story", async ({
   );
 
   const studioStage = page.locator(".landing-studio-stage");
+  const readStudioGeometry = () =>
+    page.evaluate(() => {
+      const stage = document.querySelector<HTMLElement>(
+        ".landing-studio-stage",
+      );
+      if (!stage) throw new Error("Landing studio sahnesi bulunamadı.");
+      const stageRect = stage.getBoundingClientRect();
+      const relativeRect = (selector: string) => {
+        const element = document.querySelector<HTMLElement>(selector);
+        if (!element) throw new Error(`${selector} bulunamadı.`);
+        const rect = element.getBoundingClientRect();
+        return {
+          x: rect.x - stageRect.x,
+          y: rect.y - stageRect.y,
+          width: rect.width,
+          height: rect.height,
+        };
+      };
+
+      return {
+        window: relativeRect(".landing-workspace-window"),
+        editor: relativeRect(".landing-reference-editor"),
+        result: relativeRect(".landing-result-area"),
+      };
+    });
+  const expectSameStudioGeometry = (
+    current: Awaited<ReturnType<typeof readStudioGeometry>>,
+    baseline: Awaited<ReturnType<typeof readStudioGeometry>>,
+  ) => {
+    for (const region of ["window", "editor", "result"] as const) {
+      for (const dimension of ["x", "y", "width", "height"] as const) {
+        expect(current[region][dimension]).toBeCloseTo(
+          baseline[region][dimension],
+          1,
+        );
+      }
+    }
+  };
+
+  await scrollToTrackProgress(".landing-studio-track", 0.05);
+  await expect(page.locator(".landing-studio-track")).toHaveAttribute(
+    "data-step",
+    "1",
+  );
+  const initialStudioGeometry = await readStudioGeometry();
+
   await scrollToTrackProgress(".landing-studio-track", 0.5);
   await expect(page.locator(".landing-studio-track")).toHaveAttribute(
     "data-step",
@@ -156,6 +202,7 @@ test("desktop landing pins the authored role and three-step SQL story", async ({
       studioStage.evaluate((element) => element.getBoundingClientRect().top),
     )
     .toBeCloseTo(0, 0);
+  expectSameStudioGeometry(await readStudioGeometry(), initialStudioGeometry);
 
   await scrollToTrackProgress(".landing-studio-track", 0.9);
   await expect(page.locator(".landing-studio-track")).toHaveAttribute(
@@ -165,6 +212,7 @@ test("desktop landing pins the authored role and three-step SQL story", async ({
   await expect(page.locator(".landing-result-table")).toHaveClass(/visible/);
   await expect(page.getByText("damla_data")).toBeVisible();
   await expect(page.getByText("Idle")).toHaveCount(0);
+  expectSameStudioGeometry(await readStudioGeometry(), initialStudioGeometry);
 
   const beforeWheel = await page.evaluate(() => window.scrollY);
   await page.locator(".landing-result-area").hover();
