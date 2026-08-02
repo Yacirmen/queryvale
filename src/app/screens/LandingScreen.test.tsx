@@ -9,12 +9,16 @@ describe("LandingScreen", () => {
   it("keeps the authored role, SQL story and first-case action in one surface", async () => {
     const user = userEvent.setup();
     const onStart = vi.fn();
+    const onContinue = vi.fn();
     render(
       <LandingScreen
         onStart={onStart}
+        onContinue={onContinue}
+        onOpenHelp={vi.fn()}
         resumeTask={tasks[0]}
         isReturningLearner={false}
         hasLocalAccount={false}
+        profileActive={false}
         reducedMotion
       />,
     );
@@ -59,46 +63,81 @@ describe("LandingScreen", () => {
       screen.getByRole("button", { name: /Hesabını Aç & Vaka Çöz/i }),
     );
     expect(onStart).toHaveBeenCalledOnce();
+    expect(onContinue).not.toHaveBeenCalled();
   });
 
   it("resumes the saved case without turning onboarding back on", async () => {
     const user = userEvent.setup();
     const onStart = vi.fn();
+    const onContinue = vi.fn();
     render(
       <LandingScreen
         onStart={onStart}
+        onContinue={onContinue}
+        onOpenHelp={vi.fn()}
         resumeTask={tasks[1]}
         isReturningLearner
         hasLocalAccount
+        profileActive
         reducedMotion
       />,
     );
 
     const resume = screen.getByRole("button", {
-      name: /Profiline Gir & Devam Et/i,
+      name: /Kaldığın Yerden Devam Et/i,
     });
     expect(resume).toHaveAttribute("title", `Son konumun: ${tasks[1].title}`);
     await user.click(resume);
-    expect(onStart).toHaveBeenCalledOnce();
+    expect(onContinue).toHaveBeenCalledOnce();
+    expect(onStart).not.toHaveBeenCalled();
   });
 
   it("labels saved guest progress without pretending that a profile exists", () => {
     render(
       <LandingScreen
         onStart={vi.fn()}
+        onContinue={vi.fn()}
+        onOpenHelp={vi.fn()}
         resumeTask={tasks[1]}
         isReturningLearner
         hasLocalAccount={false}
+        profileActive={false}
         reducedMotion
       />,
     );
 
     expect(
-      screen.getByRole("button", { name: /Kaldığın Vaka ile Devam Et/i }),
+      screen.getByRole("button", {
+        name: /Yerel Profil Oluştur & Devam Et/i,
+      }),
     ).toBeVisible();
     expect(
       screen.queryByRole("button", { name: /Profiline Gir/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("routes a signed-out local profile to sign-in and exposes service help", async () => {
+    const user = userEvent.setup();
+    const onStart = vi.fn();
+    const onOpenHelp = vi.fn();
+    render(
+      <LandingScreen
+        onStart={onStart}
+        onContinue={vi.fn()}
+        onOpenHelp={onOpenHelp}
+        resumeTask={tasks[1]}
+        isReturningLearner
+        hasLocalAccount
+        profileActive={false}
+        reducedMotion
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Profiline Gir/i }));
+    expect(onStart).toHaveBeenCalledOnce();
+
+    await user.click(screen.getByRole("button", { name: "Yardım ve veri" }));
+    expect(onOpenHelp).toHaveBeenCalledOnce();
   });
 
   it("shows only active rows in descending query-count order", async () => {

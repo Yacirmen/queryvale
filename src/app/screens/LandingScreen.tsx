@@ -6,9 +6,12 @@ import type { LessonTask } from "../../types/lesson";
 
 interface LandingScreenProps {
   onStart: () => void;
+  onContinue: () => void;
+  onOpenHelp: () => void;
   resumeTask: LessonTask | undefined;
   isReturningLearner: boolean;
   hasLocalAccount: boolean;
+  profileActive: boolean;
   startDisabled?: boolean;
   reducedMotion: boolean;
 }
@@ -70,9 +73,12 @@ function FormattedQuery() {
 
 export function LandingScreen({
   onStart,
+  onContinue,
+  onOpenHelp,
   resumeTask,
   isReturningLearner,
   hasLocalAccount,
+  profileActive,
   startDisabled = false,
   reducedMotion,
 }: LandingScreenProps) {
@@ -137,14 +143,15 @@ export function LandingScreen({
 
   const activeStep = studioSteps[studioStep];
   const resultVisible = studioStep === 2;
-  const startLabel = isReturningLearner
-    ? "Kaldığın vakaya devam et"
-    : "İlk vakayı birlikte çöz";
-  const visibleStartLabel = hasLocalAccount
-    ? "Profiline Gir & Devam Et"
-    : isReturningLearner
-      ? "Kaldığın Vaka ile Devam Et"
-      : "Hesabını Aç & Vaka Çöz";
+  const visibleStartLabel = profileActive
+    ? isReturningLearner
+      ? "Kaldığın Yerden Devam Et"
+      : "İlk Vakaya Başla"
+    : hasLocalAccount
+      ? "Profiline Gir"
+      : isReturningLearner
+        ? "Yerel Profil Oluştur & Devam Et"
+        : "Hesabını Aç & Vaka Çöz";
 
   return (
     <main id="main-content" className="page landing-reference" tabIndex={-1}>
@@ -348,8 +355,8 @@ export function LandingScreen({
             className="landing-reference-cta-button"
             type="button"
             disabled={startDisabled}
-            onClick={onStart}
-            aria-label={`${visibleStartLabel} — ${startLabel}`}
+            onClick={profileActive ? onContinue : onStart}
+            aria-label={visibleStartLabel}
             title={
               isReturningLearner && resumeTask
                 ? `Son konumun: ${resumeTask.title}`
@@ -363,7 +370,29 @@ export function LandingScreen({
       </section>
 
       <footer className="landing-reference-footer">
-        <p>© 2026 Queryvale. Tüm hakları saklıdır.</p>
+        <nav aria-label="Alt bilgi bağlantıları">
+          <button
+            type="button"
+            onClick={() =>
+              document.getElementById("queryvale-studio")?.scrollIntoView({
+                behavior: shouldUseManualControls() ? "auto" : "smooth",
+              })
+            }
+          >
+            Nasıl çalışır
+          </button>
+          <button type="button" onClick={onOpenHelp}>
+            Yardım ve veri
+          </button>
+          <a
+            href="https://github.com/Yacirmen/queryvale/issues"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Geri bildirim
+          </a>
+        </nav>
+        <p>© 2026 Queryvale. Cihazında çalışan SQL öğrenme stüdyosu.</p>
       </footer>
     </main>
   );

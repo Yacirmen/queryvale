@@ -4,7 +4,7 @@ export type AppScreen =
 export interface NavigateOptions {
   taskId?: string;
   onboarding?: boolean;
-  anchor?: "queryvale-studio";
+  anchor?: "queryvale-studio" | "settings-help";
 }
 
 export type Navigate = (screen: AppScreen, options?: NavigateOptions) => void;

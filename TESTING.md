@@ -41,6 +41,7 @@ Monaco ve PGlite, component testlerinde sözleşme seviyesinde adapter ile kontr
 - iki görev arasında izolasyon,
 - gerçek motor çıktısının evaluator’a aktarılması,
 - IndexedDB kaydetme/geri yükleme/migrasyon.
+- IndexedDB okuması yetkili sonuç üretemezse otomatik kaydın eski veriyi ezmemesi; yalnız açık replace işleminin korumayı kaldırması.
 
 ### Uçtan uca — Playwright
 
@@ -52,21 +53,24 @@ Monaco ve PGlite, component testlerinde sözleşme seviyesinde adapter ile kontr
 - tema/ayar kalıcılığı,
 - klavye kısayolları,
 - mobil viewport’ta temel görev akışı,
-- export/import ve onaylı reset.
+- export/import ve onaylı reset,
+- yerel profil oluşturma → çıkış → yenileme → aynı profile giriş yaşam döngüsü,
+- profil silmede iptal/onay ayrımı ve silinen verinin yeniden görünmemesi.
 
 ## Zorunlu senaryo matrisi
 
-| Alan | Mutlu yol | Kritik edge case |
-|---|---|---|
-| İçerik | geçerli görev kataloğa girer | duplicate ID, bozuk nextTask, eksik hint reddedilir |
-| SQL runtime | setup + SELECT sonuç döndürür | syntax error, timeout, stale run, reset |
-| Kolon | doğru ad/sıra kabul edilir | eksik, fazla, alias/case politikası |
-| Satır | eşit sonuç kabul edilir | duplicate, `NULL`, tarih, float toleransı |
-| Sıra | görev politikasına uyar | aynı satırlar yanlış sırada |
-| Kavram | hedef kavram saptanır | kavram yalnız yorum/string içinde geçer |
-| Progress | başarı kalıcılaşır | tekrar deneme, migration, IndexedDB hatası |
-| UI | yükleniyor→sonuç | motor yükleme hatası, boş sonuç |
-| Responsive | görev tamamlanır | yatay taşma, erişilemeyen eylem |
+| Alan         | Mutlu yol                                              | Kritik edge case                                                       |
+| ------------ | ------------------------------------------------------ | ---------------------------------------------------------------------- |
+| İçerik       | geçerli görev kataloğa girer                           | duplicate ID, bozuk nextTask, eksik hint reddedilir                    |
+| SQL runtime  | setup + SELECT sonuç döndürür                          | syntax error, timeout, stale run, reset                                |
+| Kolon        | doğru ad/sıra kabul edilir                             | eksik, fazla, alias/case politikası                                    |
+| Satır        | eşit sonuç kabul edilir                                | duplicate, `NULL`, tarih, float toleransı                              |
+| Sıra         | görev politikasına uyar                                | aynı satırlar yanlış sırada                                            |
+| Kavram       | hedef kavram saptanır                                  | kavram yalnız yorum/string içinde geçer                                |
+| Progress     | başarı kalıcılaşır                                     | tekrar deneme, migration, IndexedDB hatası                             |
+| Yerel profil | oluşturma, çıkış ve yeniden giriş aynı ilerlemeyi açar | çıkış veriyi silmez; profil silme iptali korur, onayı tamamen temizler |
+| UI           | yükleniyor→sonuç                                       | motor yükleme hatası, boş sonuç                                        |
+| Responsive   | görev tamamlanır                                       | yatay taşma, erişilemeyen eylem                                        |
 
 ## Komutlar
 
@@ -108,6 +112,8 @@ Otomatik testlerden sonra üretim build’inde:
 6. Tema ve editor tercihleri değiştirilir.
 7. Mobil boyutta aynı temel akış tamamlanır.
 8. Export alınır, reset onaylanır, import ile geri yüklenir.
+9. Profil ekranından çıkış yapılır; header'ın misafir durumuna döndüğü, yenilemede çıkışın korunduğu ve yeniden girişte son vakaya dönüldüğü doğrulanır.
+10. Ayarlar'da `İlerlemeyi sıfırla` ile `Profili sil` açıklamaları karşılaştırılır; profil silme önce iptal edilir, sonra onaylanır ve yeni misafir durumu doğrulanır.
 
 ## Hata ayıklama raporu
 

@@ -10,11 +10,13 @@ function renderAccountScreen(
   const props: ComponentProps<typeof AccountScreen> = {
     profileName: "SQL Kaşifi",
     hasLocalAccount: false,
+    profileActive: false,
     hasLearningProgress: false,
     completedCount: 0,
     totalCount: 52,
     persistenceAvailable: true,
     onCreateProfile: vi.fn().mockResolvedValue(true),
+    onSignIn: vi.fn().mockResolvedValue(true),
     onContinue: vi.fn(),
     onGuestContinue: vi.fn(),
     ...overrides,
@@ -83,12 +85,34 @@ describe("AccountScreen", () => {
     expect(screen.getByText("7 / 52 vaka")).toBeInTheDocument();
     expect(screen.getByText("Kritik stokları sırala")).toBeInTheDocument();
     expect(
-      screen.getByText(/Bu bir çevrimiçi oturum değildir/i),
+      screen.getByText(/Bu profil parola ile korunmaz/i),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Profili açmadan Studio’ya geç" }),
+    ).toBeVisible();
+    expect(
+      screen.getByText(/çıkış bir güvenlik kilidi değildir/i),
+    ).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", { name: "Ayşe profiline gir" }),
+    );
+    expect(props.onSignIn).toHaveBeenCalledOnce();
+    expect(props.onContinue).not.toHaveBeenCalled();
+    expect(props.onCreateProfile).not.toHaveBeenCalled();
+  });
+
+  it("continues immediately when the local profile is already active", async () => {
+    const user = userEvent.setup();
+    const props = renderAccountScreen({
+      profileName: "Ayşe",
+      hasLocalAccount: true,
+      profileActive: true,
+    });
 
     await user.click(screen.getByRole("button", { name: "Rotama dön" }));
     expect(props.onContinue).toHaveBeenCalledOnce();
-    expect(props.onCreateProfile).not.toHaveBeenCalled();
+    expect(props.onSignIn).not.toHaveBeenCalled();
   });
 
   it("explains that existing guest work will be preserved during signup", () => {

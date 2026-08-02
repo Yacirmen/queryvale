@@ -27,6 +27,8 @@ Queryvale, SQL sözdizimini ezberleten bir kurs değil; gerçek iş sorularını
 - Şema, örnek veri, SQL editörü ve sonuçları bir araya getiren çalışma alanı
 - `Hemen Başla` ile açılan yerel `Giriş yap / Hesap oluştur` başlangıç kapısı; e-posta, parola, backend veya bulut hesabı olmadan IndexedDB tabanlı cihaz profili
 - Yerel profil oluşturulduktan sonra `Hemen Başla` yerine doğrudan `Profil` ve `Ayarlar` erişimi sunan hesap duyarlı header
+- İlerlemeyi silmeden çıkış, sayfa yenilemeleri arasında korunan yerel profil durumu ve aynı cihazda tek dokunuşla yeniden giriş
+- Başlangıç rehberi, otomatik kayıt/taşıma açıklaması, destek bağlantısı ve profil-veri silme eylemini birleştiren `Yardım ve veri` alanı
 - `Studio` üzerinden profil kapısını zorunlu kılmadan SQL Laboratuvarı’na misafir erişimi
 - Yazarken otomatik kaydedilen SQL taslakları; `⌘/Ctrl+S` ile anında kayıt
 - Açık/koyu tema, editör tercihleri ve reduced-motion desteği
@@ -80,8 +82,14 @@ origin içinde otomatik kaydedilir; normal kullanımda `⌘/Ctrl+S` gerekmez.
 ya da parola toplamaz, backend'e veri göndermez ve başka cihazda oturum açma
 veya bulut senkronizasyonu vaat etmez. Açıkça yerel profil oluşturulduktan sonra header'daki
 `Hemen Başla` eylemi kaldırılır; aynı alanda `Profil` ve `Ayarlar` bağlantıları görünür.
+`Profilden çık`, sorguları ve ilerlemeyi silmeden bu kontrolleri kapatır; sayfa yenilense de
+çıkış durumu korunur ve `Hemen Başla` aynı cihazdaki profili yeniden açar. Bu işlem parola
+kilidi veya yetkilendirme değildir. Profilin tamamen kaldırılması ayrı ve onaylı
+`Ayarlar → Profil ve veri → Profili sil` eylemidir. `İlerlemeyi sıfırla` ise profil adını
+ve çalışma tercihlerini korur.
 Yalnız görev denemiş bir misafir hesap varmış gibi gösterilmez. `Studio` bağlantısı SQL
-Laboratuvarı'na misafir erişimini korur.
+Laboratuvarı'na misafir erişimini korur; çıkış yapılmışken Studio'da üretilen çalışma da
+bu cihazdaki tek çalışma alanına kaydedilir.
 
 ## Komutlar
 
@@ -132,6 +140,7 @@ Alanların tam sözleşmesi, örnek görev ve editoryal standartlar [CONTENT_GUI
 ## Ürün sınırları ve bilinen kısıtlar
 
 - Her tarayıcı kendi adlandırılabilir öğrenen profilini ve ilerlemesini saklar; cihazlar arası canlı senkronizasyon yoktur.
+- Bir origin ve tarayıcı profili tek bir Queryvale çalışma alanı taşır; çoklu kullanıcı hesabı, parola koruması ve aynı cihazda birbirinden yalıtılmış çalışma alanları bu sürümün parçası değildir.
 - Çalışan rota bugün SQL ağırlıklı 11 modül ve 52 çalışmadır: ilk 10 modülde 40 doğrulanmış vaka, son Pazarlama Analitiği Proje Stüdyosu'nda 12 portföy projesi bulunur. SQL konuları sırayla açılır; eski ileri kayıtlar silinmeden ilk eksik modülün arkasında korunur. Python, elektronik tablo ve BI araçları henüz ürün içinde çalıştırılmaz; ileride aynı kanıt döngüsüne bağlanan köprüler olarak değerlendirilecektir.
 - Tamamlanma, Analiz puanı, deneme, süre, ipucu ve çalışma serisi pratik bağlamıdır; tek başına mesleki ustalık veya işe hazır olma iddiası değildir. Puan rekabet veya sertifika değil, ilk doğru sonuçtaki yardım düzeyinin yerel kaydıdır.
 - Taşınabilir Mac paketi macOS 11 veya yenisinde, Intel ve Apple Silicon işlemcilerde çalışır. Sabit `127.0.0.1:41739` origin'ini kullanır; Node veya internet gerektirmez ve ilerlemeyi aynı tarayıcı origin'inde korur.

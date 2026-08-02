@@ -16,6 +16,7 @@ type AccountTab = "login" | "signup";
 interface AccountScreenProps {
   profileName: string;
   hasLocalAccount: boolean;
+  profileActive: boolean;
   hasLearningProgress: boolean;
   completedCount: number;
   totalCount: number;
@@ -23,6 +24,7 @@ interface AccountScreenProps {
   persistenceAvailable: boolean;
   writePending?: boolean;
   onCreateProfile: (name: string) => Promise<boolean>;
+  onSignIn: () => Promise<boolean>;
   onContinue: () => void;
   onGuestContinue: () => void;
 }
@@ -42,6 +44,7 @@ function profileInitials(name: string): string {
 export function AccountScreen({
   profileName,
   hasLocalAccount,
+  profileActive,
   hasLearningProgress,
   completedCount,
   totalCount,
@@ -49,6 +52,7 @@ export function AccountScreen({
   persistenceAvailable,
   writePending = false,
   onCreateProfile,
+  onSignIn,
   onContinue,
   onGuestContinue,
 }: AccountScreenProps) {
@@ -149,7 +153,9 @@ export function AccountScreen({
   const heading =
     activeTab === "login"
       ? hasLocalAccount
-        ? "Kaldığın yer seni bekliyor."
+        ? profileActive
+          ? "Rotan bu cihazda açık."
+          : "Kaldığın yer seni bekliyor."
         : "Önce yerel profilini oluşturalım."
       : hasLocalAccount
         ? "Rotan zaten bu cihazda."
@@ -268,8 +274,9 @@ export function AccountScreen({
                   <div className="account-local-note">
                     <HardDrive size={18} aria-hidden="true" />
                     <p>
-                      Bu bir çevrimiçi oturum değildir. Giriş yap düğmesi yalnız
-                      bu cihazdaki mevcut profilini açar.
+                      Bu profil parola ile korunmaz. Giriş yap düğmesi yalnız bu
+                      cihazdaki mevcut profili görünür hâle getirir; veriler
+                      internete gönderilmez.
                     </p>
                   </div>
 
@@ -283,9 +290,18 @@ export function AccountScreen({
                   <button
                     className="account-primary-action"
                     type="button"
-                    onClick={onContinue}
+                    disabled={interactionLocked}
+                    onClick={() => {
+                      if (profileActive) {
+                        onContinue();
+                        return;
+                      }
+                      void onSignIn();
+                    }}
                   >
-                    Rotama dön
+                    {profileActive
+                      ? "Rotama dön"
+                      : `${profileName} profiline gir`}
                     <ArrowRight size={18} aria-hidden="true" />
                   </button>
                 </div>
@@ -438,12 +454,16 @@ export function AccountScreen({
             disabled={interactionLocked}
             onClick={onGuestContinue}
           >
-            Bu cihazda hesapsız devam et
+            {hasLocalAccount && !profileActive
+              ? "Profili açmadan Studio’ya geç"
+              : "Bu cihazda hesapsız devam et"}
           </button>
           <p className="account-guest-note">
-            {persistenceAvailable
-              ? "İlerlemen yine bu tarayıcıda tutulur; profil adı daha sonra eklenebilir."
-              : "Bu oturumda çalışabilirsin; tarayıcı kapanınca değişiklikler kaybolabilir."}
+            {hasLocalAccount && !profileActive
+              ? "Yeni çalışmalar aynı cihazdaki çalışma alanına kaydedilir. Profilden çıkış bir güvenlik kilidi değildir."
+              : persistenceAvailable
+                ? "İlerlemen yine bu tarayıcıda tutulur; profil adı daha sonra eklenebilir."
+                : "Bu oturumda çalışabilirsin; tarayıcı kapanınca değişiklikler kaybolabilir."}
           </p>
         </section>
       </div>

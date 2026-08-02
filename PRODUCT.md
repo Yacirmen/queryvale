@@ -90,7 +90,7 @@ Bu 11 modül kariyer rotasında **Temeli kur**, **İş sorusunu çöz**, **Örü
 - düzenlenebilir cihaz profili adı ve son tamamlanan vakalar
 
 Bu metrikler cezalandırıcı sıralama değildir; kullanıcının sonraki çalışmasını seçmesine yardım eder. Analiz puanı ilk doğru sonuçtaki yardım düzeyini görünür kılar fakat ilerleme yüzdesi veya ustalık yerine geçmez. İlk deneme, hız, ipucu sayısı, seri, puan veya tamamlanma tek başına mesleki ustalık ya da işe hazır olma kanıtı değildir. Kanıt Defteri de sertifika değil, doğrulanmış çalışmayı ve kullanıcının kendi yorumunu geri çağıran yerel çalışma kaydıdır.
-Profil adı hesap veya kimlik doğrulama değildir; yalnızca o tarayıcıdaki ilerlemeyi kişiselleştirir.
+Profil adı hesap veya kimlik doğrulama değildir; yalnızca o tarayıcıdaki ilerlemeyi kişiselleştirir. Kullanıcı ilerlemeyi silmeden profilden çıkabilir ve aynı cihazdaki profili yeniden açabilir. Bu çıkış bir güvenlik kilidi değildir. İlerlemeyi sıfırlama profil ve tercihleri korurken, ayrı profil silme eylemi ad, sorgular, puanlar, kanıtlar, notlar ve ayarları açık onayla birlikte kaldırır.
 
 ## Kanıt sözleşmesi
 

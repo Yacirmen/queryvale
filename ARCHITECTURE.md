@@ -114,13 +114,15 @@ Değerlendirici örnek SQL ile string equality yapmaz. Kavram denetimi yalnızca
 
 ## Kalıcılık
 
-Fiziksel şema `queryvale` veritabanındaki `workspace` object store’unda, `progress` anahtarı altında tek bir doğrulanmış çalışma alanı kaydı tutar. Veritabanı şema sürümü ile uygulama veri modeli ayrı kavramlardır; güncel uygulama modeli `ProgressState` **v5**’tir:
+Fiziksel şema `queryvale` veritabanındaki `workspace` object store’unda iki ayrı kayıt tutar: `progress` anahtarında tek doğrulanmış çalışma alanı, `local-profile-session` anahtarında ise yalnız sunum erişimini belirleyen `active | signed-out` yerel profil durumu. Veritabanı şema sürümü ile uygulama veri modeli ayrı kavramlardır; güncel uygulama modeli `ProgressState` **v5**’tir:
 
 - `profile`: kararlı yerel profil kimliği ve düzenlenebilir sunum adı
 - `startedAt`, `lastOpenedTaskId`, `lastOpenedTaskIdTrusted`, `activityDates`: çalışma alanı ve bir kezlik devam-konumu migrasyonu metası
 - `tasks`: deneme, tarihler, süre, son sorgu, ipucu, tam çözüm kullanımı, ilk başarıda kilitlenen puan ve tamamlanma
 - `settings`: tema, font, satır yüksekliği, autocomplete ve reduced motion
 - `evidenceByTaskId`: doğrulanmış çalışma snapshot’ı ile isteğe bağlı karar notu
+
+`LocalProfileSession` ilerleme modeline gömülmez ve JSON yedeğine dahil edilmez. Böylece başka cihazda içe alınan adlandırılmış bir çalışma alanı açık profil olarak başlar; çıkış tercihi cihaz/origin yerelinde kalır. Eski adlandırılmış kayıtta oturum anahtarı yoksa geriye uyumluluk için profil açık kabul edilir. Bozuk veya farklı profil kimliğine bağlı oturum kaydı güvenli biçimde `signed-out` olarak yorumlanır.
 
 ### Sınırlı kanıt modeli
 
@@ -146,7 +148,7 @@ Hücreler saklanmadan önce string gösterimine çevrilir; snapshot doğrulamas�
 - İçe aktarma dosyası en fazla 2 MB olabilir; tüm model doğrulanır ve mevcut çalışma alanı değiştirilmeden önce kullanıcıdan açık onay alınır.
 - Uyumsuz bir mevcut kayıt otomatik yazmayla ezilmez. Uygulama durumu bildirir ve kullanıcı açıkça değiştirmedikçe kaydı korur.
 
-Yazmalar tek object-store transaction’ında yapılır. IndexedDB kullanılamazsa kullanıcı bilgilendirilir ve oturum içi state ile devam edebilir; kalıcılık garanti edilmiş gibi gösterilmez. Adlandırılabilir profil tek bir tarayıcı kaydının sunum kimliğidir; hesap, yetkilendirme veya cihazlar arası eşitleme sınırı değildir.
+Çalışma alanı ile profil erişiminin birlikte değiştiği oluşturma, içe aktarma ve silme işlemleri aynı object-store transaction’ında yazılır. Çıkış yalnız oturum anahtarını değiştirir; `progress` kaydını silmez. Tam profil silme yeni bir misafir çalışma alanı ile oturum anahtarını atomik olarak değiştirir. IndexedDB kullanılamazsa kullanıcı bilgilendirilir ve oturum içi state ile devam edebilir; kalıcılık garanti edilmiş gibi gösterilmez. Adlandırılabilir profil tek bir tarayıcı kaydının sunum kimliğidir; hesap, yetkilendirme, güvenlik kilidi veya cihazlar arası eşitleme sınırı değildir. Profil açılmadan Studio kullanılırsa aynı cihaz çalışma alanı güncellenir; ikinci, gizli bir misafir alanı oluşturulmaz.
 
 ## Performans
 

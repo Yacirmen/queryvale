@@ -14,6 +14,7 @@ import {
   Sparkles,
   Target,
   TrendingUp,
+  LogOut,
   X,
 } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -33,6 +34,7 @@ import {
   findFirstAccessibleIncompleteTask,
 } from "../../features/progress/moduleAccess";
 import type { Navigate } from "../appTypes";
+import { ConfirmationDialog } from "../components/Dialogs";
 
 interface ProgressScreenProps {
   modules: CurriculumModule[];
@@ -40,6 +42,9 @@ interface ProgressScreenProps {
   progress: ProgressState;
   profileName: string;
   onProfileNameChange: (name: string) => void;
+  onSignOut: () => Promise<boolean>;
+  canSignOut?: boolean;
+  profileActionPending?: boolean;
   onNavigate: Navigate;
 }
 
@@ -146,12 +151,16 @@ export function ProgressScreen({
   progress,
   profileName,
   onProfileNameChange,
+  onSignOut,
+  canSignOut = false,
+  profileActionPending = false,
   onNavigate,
 }: ProgressScreenProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [draftName, setDraftName] = useState(profileName);
   const [nameError, setNameError] = useState<string>();
   const [nameStatus, setNameStatus] = useState<string>();
+  const [showSignOutDialog, setShowSignOutDialog] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const editNameButtonRef = useRef<HTMLButtonElement>(null);
   const shouldRestoreNameFocusRef = useRef(false);
@@ -520,34 +529,50 @@ export function ProgressScreen({
             </div>
           </div>
 
-          <div className="progress-overview" aria-label="Genel ilerleme">
-            <div
-              className="progress-ring"
-              role="progressbar"
-              aria-label="Tamamlanan çalışma oranı"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={metrics.completionRate}
-              style={{
-                background: `conic-gradient(var(--signal) ${metrics.completionRate * 3.6}deg, var(--surface-muted) 0deg)`,
-              }}
-            >
-              <div className="progress-ring-core">
-                <strong>%{metrics.completionRate}</strong>
-                <span>tamamlandı</span>
+          <div className="progress-hero-actions">
+            <div className="progress-overview" aria-label="Genel ilerleme">
+              <div
+                className="progress-ring"
+                role="progressbar"
+                aria-label="Tamamlanan çalışma oranı"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={metrics.completionRate}
+                style={{
+                  background: `conic-gradient(var(--signal) ${metrics.completionRate * 3.6}deg, var(--surface-muted) 0deg)`,
+                }}
+              >
+                <div className="progress-ring-core">
+                  <strong>%{metrics.completionRate}</strong>
+                  <span>tamamlandı</span>
+                </div>
+              </div>
+              <div className="progress-overview-copy">
+                <span>Genel rota</span>
+                <strong>
+                  {metrics.completed} / {tasks.length} çalışma
+                </strong>
+                <p>
+                  {metrics.completed
+                    ? `${modules.filter((module) => module.tasks.every((task) => progress.tasks[task.id]?.completed)).length} SQL konusunu tamamladın.`
+                    : "İlk doğru sorguyla kişisel ilerleme haritan oluşacak."}
+                </p>
               </div>
             </div>
-            <div className="progress-overview-copy">
-              <span>Genel rota</span>
-              <strong>
-                {metrics.completed} / {tasks.length} çalışma
-              </strong>
-              <p>
-                {metrics.completed
-                  ? `${modules.filter((module) => module.tasks.every((task) => progress.tasks[task.id]?.completed)).length} SQL konusunu tamamladın.`
-                  : "İlk doğru sorguyla kişisel ilerleme haritan oluşacak."}
-              </p>
-            </div>
+            {canSignOut ? (
+              <>
+                <button
+                  className="profile-sign-out-button"
+                  type="button"
+                  disabled={profileActionPending}
+                  onClick={() => setShowSignOutDialog(true)}
+                >
+                  <LogOut size={15} aria-hidden="true" />
+                  Profilden çık
+                </button>
+                <small>İlerlemen silinmez.</small>
+              </>
+            ) : null}
           </div>
         </section>
 
@@ -1099,6 +1124,21 @@ export function ProgressScreen({
           </aside>
         </div>
       </div>
+
+      <ConfirmationDialog
+        open={showSignOutDialog}
+        title="Profilden çıkılsın mı?"
+        description="Profilin ve tüm öğrenme ilerlemen bu cihazda korunacak. Bu bir güvenlik kilidi değildir; aynı tarayıcıyı kullanan biri profili yeniden açabilir."
+        confirmLabel="Profilden çık"
+        cancelLabel="Vazgeç"
+        tone="neutral"
+        busy={profileActionPending}
+        onClose={() => setShowSignOutDialog(false)}
+        onConfirm={async () => {
+          const signedOut = await onSignOut();
+          if (signedOut) setShowSignOutDialog(false);
+        }}
+      />
     </main>
   );
 }

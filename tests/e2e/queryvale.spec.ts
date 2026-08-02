@@ -95,7 +95,7 @@ test("the unified fixed header keeps five controls visible across every route", 
   await expect(page.locator("#queryvale-studio")).toBeFocused();
 });
 
-test("a saved local account replaces Hemen Başla with profile controls", async ({
+test("the local profile survives sign-out and can be deliberately deleted", async ({
   page,
   isMobile,
 }) => {
@@ -158,6 +158,81 @@ test("a saved local account replaces Hemen Başla with profile controls", async 
   ).toBeVisible();
   await expect(
     page.locator(".app-header").getByRole("button", { name: /^Hemen Başla/ }),
+  ).toHaveCount(0);
+
+  await page
+    .locator(".app-header")
+    .getByRole("button", { name: "Profil — Ada Analist" })
+    .click();
+  await page.getByRole("button", { name: "Profilden çık" }).click();
+  let confirmation = page.getByRole("alertdialog", {
+    name: "Profilden çıkılsın mı?",
+  });
+  await expect(confirmation).toContainText("ilerlemen bu cihazda korunacak");
+  await confirmation.getByRole("button", { name: "Profilden çık" }).click();
+
+  await expect(page).toHaveURL(/#\/$/);
+  await expect(
+    page.locator(".app-header").getByRole("button", { name: /^Hemen Başla/ }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(page.locator(".app-shell")).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
+  await expect(
+    page.locator(".app-header").getByRole("button", { name: /^Hemen Başla/ }),
+  ).toBeVisible();
+
+  await page
+    .locator(".app-header")
+    .getByRole("button", { name: /^Hemen Başla/ })
+    .click();
+  await expect(page).toHaveURL(/#\/giris$/);
+  await page
+    .getByRole("button", { name: "Ada Analist profiline gir", exact: true })
+    .click();
+  await expect(page).toHaveURL(/#\/lab\/m1-t1$/);
+  await expect(
+    page
+      .locator(".app-header")
+      .getByRole("button", { name: "Profil — Ada Analist" }),
+  ).toBeVisible();
+
+  await page
+    .locator(".app-header")
+    .getByRole("button", { name: "Ayarlar" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Yardım ve veri" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Profili sil" }).click();
+  confirmation = page.getByRole("alertdialog", {
+    name: "Yerel profil ve tüm veriler silinsin mi?",
+  });
+  await confirmation.getByRole("button", { name: "Vazgeç" }).click();
+  await expect(page.getByRole("button", { name: "Profili sil" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Profili sil" }).click();
+  confirmation = page.getByRole("alertdialog", {
+    name: "Yerel profil ve tüm veriler silinsin mi?",
+  });
+  await confirmation
+    .getByRole("button", { name: "Profili ve verileri sil" })
+    .click();
+  await expect(page).toHaveURL(/#\/$/);
+  await expect(
+    page.locator(".app-header").getByRole("button", { name: /^Hemen Başla/ }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(page.locator(".app-shell")).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
+  await expect(
+    page
+      .locator(".app-header")
+      .getByRole("button", { name: "Profil — Ada Analist" }),
   ).toHaveCount(0);
 });
 
@@ -316,7 +391,7 @@ test("landing, onboarding and first real SQL task", async ({
     "false",
   );
 
-  await page.getByRole("button", { name: /İlk vakayı birlikte çöz/i }).click();
+  await page.getByRole("button", { name: /Hesabını Aç & Vaka Çöz/i }).click();
   await expect(page).toHaveURL(/#\/giris$/);
   await expect(
     page.getByRole("heading", { name: "Analiz rotanı kaydet." }),
@@ -672,7 +747,7 @@ test("learning path and settings remain usable on a narrow viewport", async ({
     .click();
   await expect(page.getByText("damla_data")).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /İlk vakayı birlikte çöz/i }),
+    page.getByRole("button", { name: /Hesabını Aç & Vaka Çöz/i }),
   ).toBeVisible();
   expect(
     await page.evaluate(

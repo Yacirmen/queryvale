@@ -4,17 +4,26 @@ import { CheckCircle2, CircleAlert } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { modules, tasks } from "../content/curriculum";
 import {
+  activateLocalProfileSession,
+  createActiveLocalProfileSession,
+  createSignedOutLocalProfileSession,
   createLocalAccount,
   createDefaultProgress,
+  eraseLocalProfileAndProgress,
   exportProgress,
   getProgressPersistenceIssue,
   hasLocalAccount,
   importProgress,
   isProgressPersistenceAvailable,
+  loadLocalProfileSession,
   loadProgress,
   MAX_PROGRESS_IMPORT_BYTES,
   saveProgress,
+  saveProgressWithLocalProfileSession,
+  signOutLocalProfileSession,
   type EditorSettings,
+  type LocalProfileAccess,
+  type LocalProfileSession,
   type ProgressState,
   updateProfileName,
 } from "../features/progress/progressStore";
@@ -73,6 +82,9 @@ export function QueryvaleApp() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isReplacingProgress, setIsReplacingProgress] = useState(false);
   const [isCreatingLocalAccount, setIsCreatingLocalAccount] = useState(false);
+  const [isUpdatingLocalProfile, setIsUpdatingLocalProfile] = useState(false);
+  const [localProfileAccess, setLocalProfileAccess] =
+    useState<LocalProfileAccess>("guest");
   const [persistenceAvailable, setPersistenceAvailable] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [pendingAnchor, setPendingAnchor] =
@@ -84,9 +96,13 @@ export function QueryvaleApp() {
   const progressRef = useRef(progress);
   const isLoadedRef = useRef(false);
   const isReplacingProgressRef = useRef(false);
+  const localProfileAccessRef = useRef<LocalProfileAccess>("guest");
   const shouldFocusScreenRef = useRef(false);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const localAccountWriteRef = useRef<Promise<boolean> | undefined>(undefined);
+  const profileSessionWriteRef = useRef<Promise<boolean> | undefined>(
+    undefined,
+  );
 
   const activeTask = useMemo(
     () => tasks.find((task) => task.id === activeTaskId) ?? tasks[0],
@@ -109,11 +125,15 @@ export function QueryvaleApp() {
     [progress.tasks],
   );
   const localAccountExists = hasLocalAccount(progress);
+  const localProfileActive =
+    localAccountExists && localProfileAccess === "active";
 
   useEffect(() => {
     let current = true;
-    void loadProgress().then((stored) => {
+    void loadProgress().then(async (stored) => {
+      const loadedProfileSession = await loadLocalProfileSession(stored);
       if (!current) return;
+      const hydratedProfileAccess = loadedProfileSession.access;
       const hashTask = taskIdFromHash(window.location.hash);
       const hashCandidate = tasks.find((task) => task.id === hashTask);
       const resumeCandidate = selectResumeTask(tasks, stored).task;
@@ -154,10 +174,22 @@ export function QueryvaleApp() {
         });
       }
       progressRef.current = hydratedProgress;
+      localProfileAccessRef.current = hydratedProfileAccess;
       isLoadedRef.current = true;
       setProgress(hydratedProgress);
+      setLocalProfileAccess(hydratedProfileAccess);
       setActiveTaskId(candidateTask?.id ?? "");
-      setScreen(screenFromHash(window.location.hash));
+      const requestedScreen = screenFromHash(window.location.hash);
+      const hydratedScreen =
+        requestedScreen === "progress" && hydratedProfileAccess === "signed-out"
+          ? "account"
+          : requestedScreen === "account" && hydratedProfileAccess === "active"
+            ? "progress"
+            : requestedScreen;
+      if (hydratedScreen !== requestedScreen) {
+        window.history.replaceState(null, "", routeFor(hydratedScreen));
+      }
+      setScreen(hydratedScreen);
       setIsLoaded(true);
       const canPersist = isProgressPersistenceAvailable();
       setPersistenceAvailable(canPersist);
@@ -194,7 +226,10 @@ export function QueryvaleApp() {
   }, [progress.settings.reducedMotion, progress.settings.theme]);
 
   useEffect(() => {
-    if (!isLoaded || screen !== "home" || !pendingAnchor) return;
+    if (!isLoaded || !pendingAnchor) return;
+    const anchorScreen =
+      pendingAnchor === "settings-help" ? "settings" : "home";
+    if (screen !== anchorScreen) return;
     const frame = window.requestAnimationFrame(() => {
       const target = document.getElementById(pendingAnchor);
       if (!target) return;
@@ -235,9 +270,31 @@ export function QueryvaleApp() {
     [],
   );
 
+  const enqueueSaveWithProfileSession = useCallback(
+    (
+      next: ProgressState,
+      session: LocalProfileSession | undefined,
+      options: { replaceIncompatible?: boolean } = {},
+    ): Promise<void> => {
+      const write = saveQueueRef.current
+        .catch(() => undefined)
+        .then(() =>
+          saveProgressWithLocalProfileSession(next, session, options),
+        );
+      saveQueueRef.current = write.catch(() => undefined);
+      return write;
+    },
+    [],
+  );
+
   const persist = useCallback(
     (next: ProgressState) => {
-      if (!isLoadedRef.current || isReplacingProgressRef.current) return;
+      if (
+        !isLoadedRef.current ||
+        isReplacingProgressRef.current ||
+        profileSessionWriteRef.current
+      )
+        return;
       progressRef.current = next;
       setProgress(next);
       void enqueueSave(next)
@@ -255,7 +312,23 @@ export function QueryvaleApp() {
 
   useEffect(() => {
     const listener = () => {
-      const nextScreen = screenFromHash(window.location.hash);
+      // Initial hydration resolves the current hash against persisted module
+      // access. A queued hashchange must not evaluate that route against the
+      // temporary empty progress state and incorrectly send returning users
+      // back to the first case.
+      if (!isLoadedRef.current) return;
+      const requestedScreen = screenFromHash(window.location.hash);
+      const nextScreen =
+        requestedScreen === "progress" &&
+        localProfileAccessRef.current === "signed-out"
+          ? "account"
+          : requestedScreen === "account" &&
+              localProfileAccessRef.current === "active"
+            ? "progress"
+            : requestedScreen;
+      if (nextScreen !== requestedScreen) {
+        window.history.replaceState(null, "", routeFor(nextScreen));
+      }
       const hashTask = taskIdFromHash(window.location.hash);
       const requestedTask = tasks.find((task) => task.id === hashTask);
       if (requestedTask) {
@@ -289,7 +362,7 @@ export function QueryvaleApp() {
           }
         }
       }
-      if (isLoadedRef.current) shouldFocusScreenRef.current = true;
+      shouldFocusScreenRef.current = true;
       setScreen(nextScreen);
     };
     window.addEventListener("hashchange", listener);
@@ -314,30 +387,56 @@ export function QueryvaleApp() {
   );
 
   const replaceProgress = useCallback(
-    async (next: ProgressState): Promise<void> => {
+    async (
+      next: ProgressState,
+      nextProfileAccess: LocalProfileAccess = hasLocalAccount(next)
+        ? localProfileAccessRef.current
+        : "guest",
+    ): Promise<void> => {
       const previous = progressRef.current;
+      const previousProfileAccess = localProfileAccessRef.current;
+      const nextSession =
+        nextProfileAccess === "active"
+          ? createActiveLocalProfileSession(next)
+          : nextProfileAccess === "signed-out"
+            ? createSignedOutLocalProfileSession(next)
+            : undefined;
       isReplacingProgressRef.current = true;
       setIsReplacingProgress(true);
       progressRef.current = next;
       setProgress(next);
       try {
-        await enqueueSave(next, { replaceIncompatible: true });
+        await enqueueSaveWithProfileSession(next, nextSession, {
+          replaceIncompatible: true,
+        });
+        localProfileAccessRef.current = nextProfileAccess;
+        setLocalProfileAccess(nextProfileAccess);
         setPersistenceAvailable(isProgressPersistenceAvailable());
       } catch (error) {
         setPersistenceAvailable(false);
         progressRef.current = previous;
+        localProfileAccessRef.current = previousProfileAccess;
         setProgress(previous);
+        setLocalProfileAccess(previousProfileAccess);
         throw error;
       } finally {
         isReplacingProgressRef.current = false;
         setIsReplacingProgress(false);
       }
     },
-    [enqueueSave],
+    [enqueueSaveWithProfileSession],
   );
 
   const navigate = useCallback<Navigate>(
-    (nextScreen: AppScreen, options?: NavigateOptions) => {
+    (requestedScreen: AppScreen, options?: NavigateOptions) => {
+      const nextScreen =
+        requestedScreen === "progress" &&
+        localProfileAccessRef.current === "signed-out"
+          ? "account"
+          : requestedScreen === "account" &&
+              localProfileAccessRef.current === "active"
+            ? "progress"
+            : requestedScreen;
       let nextTaskId = activeTaskId || tasks[0]?.id;
       if (nextScreen === "workspace") {
         const requested = tasks.find((task) => task.id === options?.taskId);
@@ -390,8 +489,39 @@ export function QueryvaleApp() {
 
   const handleProfileNameChange = useCallback(
     (name: string) => {
+      if (profileSessionWriteRef.current) return;
       try {
-        const next = updateProfileName(progressRef.current, name);
+        const current = progressRef.current;
+        const next = updateProfileName(current, name);
+        if (!hasLocalAccount(current) && hasLocalAccount(next)) {
+          progressRef.current = next;
+          setProgress(next);
+          setIsUpdatingLocalProfile(true);
+          void enqueueSaveWithProfileSession(
+            next,
+            createActiveLocalProfileSession(next),
+          )
+            .then(() => {
+              localProfileAccessRef.current = "active";
+              setLocalProfileAccess("active");
+              setPersistenceAvailable(isProgressPersistenceAvailable());
+              setNotice({
+                tone: "success",
+                message: `Profil adı ${next.profile.displayName} olarak kaydedildi.`,
+              });
+            })
+            .catch(() => {
+              progressRef.current = current;
+              setProgress(current);
+              setPersistenceAvailable(isProgressPersistenceAvailable());
+              setNotice({
+                tone: "error",
+                message: "Profil adı bu cihazda kalıcı olarak kaydedilemedi.",
+              });
+            })
+            .finally(() => setIsUpdatingLocalProfile(false));
+          return;
+        }
         persist(next);
         setNotice({
           tone: "success",
@@ -407,7 +537,7 @@ export function QueryvaleApp() {
         });
       }
     },
-    [persist],
+    [enqueueSaveWithProfileSession, persist],
   );
 
   const openResumeWorkspace = useCallback(() => {
@@ -419,6 +549,7 @@ export function QueryvaleApp() {
 
   const handleCreateLocalProfile = useCallback(
     (name: string): Promise<boolean> => {
+      if (profileSessionWriteRef.current) return Promise.resolve(false);
       if (localAccountWriteRef.current) {
         return localAccountWriteRef.current;
       }
@@ -427,7 +558,10 @@ export function QueryvaleApp() {
         try {
           const accountBase = progressRef.current;
           const accountSnapshot = createLocalAccount(accountBase, name);
-          await enqueueSave(accountSnapshot);
+          await enqueueSaveWithProfileSession(
+            accountSnapshot,
+            createActiveLocalProfileSession(accountSnapshot),
+          );
 
           let finalProgress = accountSnapshot;
           if (progressRef.current !== accountBase) {
@@ -435,7 +569,10 @@ export function QueryvaleApp() {
             for (let attempt = 0; attempt < 4; attempt += 1) {
               const current = progressRef.current;
               const merged = { ...current, profile: accountSnapshot.profile };
-              await enqueueSave(merged);
+              await enqueueSaveWithProfileSession(
+                merged,
+                createActiveLocalProfileSession(merged),
+              );
               if (progressRef.current === current) {
                 finalProgress = merged;
                 mergedWithoutLosingActivity = true;
@@ -455,7 +592,9 @@ export function QueryvaleApp() {
             );
           }
           progressRef.current = finalProgress;
+          localProfileAccessRef.current = "active";
           setProgress(finalProgress);
+          setLocalProfileAccess("active");
           setPersistenceAvailable(true);
           setNotice({
             tone: "success",
@@ -483,8 +622,88 @@ export function QueryvaleApp() {
       });
       return operation;
     },
-    [enqueueSave],
+    [enqueueSaveWithProfileSession],
   );
+
+  const handleLocalProfileSignIn = useCallback((): Promise<boolean> => {
+    if (profileSessionWriteRef.current) {
+      return profileSessionWriteRef.current;
+    }
+    setIsUpdatingLocalProfile(true);
+    const operation = (async () => {
+      try {
+        const current = progressRef.current;
+        if (!hasLocalAccount(current)) {
+          throw new Error("Bu cihazda açılabilecek bir yerel profil yok.");
+        }
+        await activateLocalProfileSession(current);
+        localProfileAccessRef.current = "active";
+        setLocalProfileAccess("active");
+        setPersistenceAvailable(isProgressPersistenceAvailable());
+        setNotice({
+          tone: "success",
+          message: `${current.profile.displayName} profili açıldı.`,
+        });
+        openResumeWorkspace();
+        return true;
+      } catch (error) {
+        setPersistenceAvailable(isProgressPersistenceAvailable());
+        setNotice({
+          tone: "error",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Yerel profil bu cihazda açılamadı.",
+        });
+        return false;
+      }
+    })();
+    profileSessionWriteRef.current = operation;
+    void operation.finally(() => {
+      if (profileSessionWriteRef.current === operation) {
+        profileSessionWriteRef.current = undefined;
+        setIsUpdatingLocalProfile(false);
+      }
+    });
+    return operation;
+  }, [openResumeWorkspace]);
+
+  const handleLocalProfileSignOut = useCallback((): Promise<boolean> => {
+    if (profileSessionWriteRef.current) {
+      return profileSessionWriteRef.current;
+    }
+    setIsUpdatingLocalProfile(true);
+    const operation = (async () => {
+      try {
+        const current = progressRef.current;
+        await signOutLocalProfileSession(current);
+        localProfileAccessRef.current = "signed-out";
+        setLocalProfileAccess("signed-out");
+        setPersistenceAvailable(isProgressPersistenceAvailable());
+        setNotice({
+          tone: "success",
+          message: "Profilden çıktın; ilerlemen bu cihazda korunuyor.",
+        });
+        navigate("home");
+        return true;
+      } catch {
+        setPersistenceAvailable(isProgressPersistenceAvailable());
+        setNotice({
+          tone: "error",
+          message: "Profilden çıkış kaydedilemedi; profil açık kalıyor.",
+        });
+        return false;
+      }
+    })();
+    profileSessionWriteRef.current = operation;
+    void operation.finally(() => {
+      if (profileSessionWriteRef.current === operation) {
+        profileSessionWriteRef.current = undefined;
+        setIsUpdatingLocalProfile(false);
+      }
+    });
+    return operation;
+  }, [navigate]);
 
   const handleExport = () => {
     const currentProgress = progressRef.current;
@@ -511,6 +730,13 @@ export function QueryvaleApp() {
   };
 
   const handleImport = async (file: File) => {
+    if (profileSessionWriteRef.current || isReplacingProgressRef.current) {
+      setNotice({
+        tone: "error",
+        message: "Profil işlemi tamamlandıktan sonra yedeği tekrar seç.",
+      });
+      return;
+    }
     if (file.size > MAX_PROGRESS_IMPORT_BYTES) {
       setNotice({
         tone: "error",
@@ -566,7 +792,10 @@ export function QueryvaleApp() {
         lastOpenedTaskId: importedAccess.task?.id ?? imported.lastOpenedTaskId,
         lastOpenedTaskIdTrusted: true,
       };
-      await replaceProgress(normalizedImport);
+      await replaceProgress(
+        normalizedImport,
+        hasLocalAccount(normalizedImport) ? "active" : "guest",
+      );
       setActiveTaskId(
         tasks.some((task) => task.id === normalizedImport.lastOpenedTaskId)
           ? normalizedImport.lastOpenedTaskId
@@ -588,6 +817,8 @@ export function QueryvaleApp() {
   };
 
   const handleReset = async () => {
+    if (profileSessionWriteRef.current || isReplacingProgressRef.current)
+      return;
     const confirmed = window.confirm(
       "Tüm vaka geçmişi ve sorgular kalıcı olarak sıfırlansın mı? Profil adın ve çalışma tercihlerin korunacak.",
     );
@@ -599,7 +830,7 @@ export function QueryvaleApp() {
       settings: currentProgress.settings,
     };
     try {
-      await replaceProgress(reset);
+      await replaceProgress(reset, localProfileAccessRef.current);
       setActiveTaskId(tasks[0]?.id ?? "");
       setNotice({
         tone: "success",
@@ -613,17 +844,84 @@ export function QueryvaleApp() {
     }
   };
 
+  const handleShowFirstGuide = () => {
+    navigate("workspace", {
+      taskId: resumeSelection.task?.id ?? tasks[0]?.id,
+      onboarding: true,
+    });
+  };
+
+  const handleDeleteLocalProfile = (): Promise<boolean> => {
+    if (profileSessionWriteRef.current) return profileSessionWriteRef.current;
+    setIsUpdatingLocalProfile(true);
+    const operation = (async () => {
+      const previous = progressRef.current;
+      isReplacingProgressRef.current = true;
+      try {
+        const deletion = saveQueueRef.current
+          .catch(() => undefined)
+          .then(() => eraseLocalProfileAndProgress());
+        saveQueueRef.current = deletion
+          .then(() => undefined)
+          .catch(() => undefined);
+        const guestProgress = await deletion;
+        progressRef.current = guestProgress;
+        localProfileAccessRef.current = "guest";
+        setProgress(guestProgress);
+        setLocalProfileAccess("guest");
+        setActiveTaskId(tasks[0]?.id ?? "");
+        setPersistenceAvailable(isProgressPersistenceAvailable());
+        setNotice({
+          tone: "success",
+          message:
+            "Yerel profil ve bu cihaza ait tüm Queryvale verileri silindi.",
+        });
+        navigate("home");
+        return true;
+      } catch (error) {
+        progressRef.current = previous;
+        setProgress(previous);
+        setPersistenceAvailable(isProgressPersistenceAvailable());
+        setNotice({
+          tone: "error",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Yerel profil silinemedi; mevcut verilerin korunuyor.",
+        });
+        return false;
+      } finally {
+        isReplacingProgressRef.current = false;
+        setIsUpdatingLocalProfile(false);
+      }
+    })();
+    profileSessionWriteRef.current = operation;
+    void operation.finally(() => {
+      if (profileSessionWriteRef.current === operation) {
+        profileSessionWriteRef.current = undefined;
+      }
+    });
+    return operation;
+  };
+
   return (
     <>
-      {isCreatingLocalAccount ? (
+      {isCreatingLocalAccount || isUpdatingLocalProfile ? (
         <span className="sr-only" role="status" aria-live="polite" aria-atomic>
-          Yerel profil hazırlanıyor ve güvenle kaydediliyor.
+          {isCreatingLocalAccount
+            ? "Yerel profil hazırlanıyor ve güvenle kaydediliyor."
+            : "Yerel profil işlemi güvenle kaydediliyor."}
         </span>
       ) : null}
       <div
         className="app-shell"
         data-screen={screen}
-        aria-busy={!isLoaded || isReplacingProgress || isCreatingLocalAccount}
+        aria-busy={
+          !isLoaded ||
+          isReplacingProgress ||
+          isCreatingLocalAccount ||
+          isUpdatingLocalProfile
+        }
         inert={!isLoaded || isReplacingProgress || isCreatingLocalAccount}
       >
         <AppHeader
@@ -633,13 +931,18 @@ export function QueryvaleApp() {
           onHowItWorks={() => navigate("home", { anchor: "queryvale-studio" })}
           onStart={() => navigate("account")}
           accountStatus={
-            !isLoaded ? "loading" : localAccountExists ? "local" : "guest"
+            !isLoaded ? "loading" : localProfileActive ? "local" : "guest"
           }
           profileName={progress.profile.displayName}
-          disabled={!isLoaded || isReplacingProgress || isCreatingLocalAccount}
+          disabled={
+            !isLoaded ||
+            isReplacingProgress ||
+            isCreatingLocalAccount ||
+            isUpdatingLocalProfile
+          }
           startLabel={
-            localAccountExists
-              ? "Profiline gir ve kaldığın vakaya devam et"
+            localProfileAccess === "signed-out"
+              ? `${progress.profile.displayName} profiline gir`
               : resumeSelection.isReturningLearner
                 ? "Yerel profil oluştur veya kaldığın vakaya devam et"
                 : "Hesap oluştur ve ilk vakaya başla"
@@ -649,10 +952,13 @@ export function QueryvaleApp() {
         {screen === "home" && (
           <LandingScreen
             onStart={() => navigate("account")}
+            onContinue={openResumeWorkspace}
+            onOpenHelp={() => navigate("settings", { anchor: "settings-help" })}
             resumeTask={resumeSelection.task}
             isReturningLearner={resumeSelection.isReturningLearner}
             hasLocalAccount={localAccountExists}
-            startDisabled={isCreatingLocalAccount}
+            profileActive={localProfileActive}
+            startDisabled={isCreatingLocalAccount || isUpdatingLocalProfile}
             reducedMotion={progress.settings.reducedMotion}
           />
         )}
@@ -660,13 +966,15 @@ export function QueryvaleApp() {
           <AccountScreen
             profileName={progress.profile.displayName}
             hasLocalAccount={localAccountExists}
+            profileActive={localProfileActive}
             hasLearningProgress={resumeSelection.isReturningLearner}
             completedCount={completedTaskCount}
             totalCount={tasks.length}
             resumeTaskTitle={resumeSelection.task?.title}
             persistenceAvailable={persistenceAvailable}
-            writePending={isCreatingLocalAccount}
+            writePending={isCreatingLocalAccount || isUpdatingLocalProfile}
             onCreateProfile={handleCreateLocalProfile}
+            onSignIn={handleLocalProfileSignIn}
             onContinue={openResumeWorkspace}
             onGuestContinue={openResumeWorkspace}
           />
@@ -701,6 +1009,9 @@ export function QueryvaleApp() {
             progress={progress}
             profileName={progress.profile.displayName}
             onProfileNameChange={handleProfileNameChange}
+            onSignOut={handleLocalProfileSignOut}
+            canSignOut={localProfileActive}
+            profileActionPending={isUpdatingLocalProfile}
             onNavigate={navigate}
           />
         )}
@@ -711,6 +1022,11 @@ export function QueryvaleApp() {
             onExport={handleExport}
             onImport={handleImport}
             onReset={handleReset}
+            hasLocalAccount={localAccountExists}
+            profileName={progress.profile.displayName}
+            onShowFirstGuide={handleShowFirstGuide}
+            onDeleteLocalProfile={handleDeleteLocalProfile}
+            isDeletingProfile={isUpdatingLocalProfile}
           />
         )}
 

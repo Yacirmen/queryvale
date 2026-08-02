@@ -2,14 +2,19 @@ import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createVerifiedRunSnapshot } from "../evidence/evidenceSnapshot";
 import {
+  activateLocalProfileSession,
   calculateStreak,
+  createActiveLocalProfileSession,
   createLocalAccount,
   createDefaultProgress,
+  createSignedOutLocalProfileSession,
   DEFAULT_PROFILE_DISPLAY_NAME,
+  eraseLocalProfileAndProgress,
   exportProgress,
   getProgressPersistenceIssue,
   hasLocalAccount,
   importProgress,
+  loadLocalProfileSession,
   loadProgress,
   localDateKey,
   MAX_DECISION_NOTE_FIELD_CHARS,
@@ -19,8 +24,11 @@ import {
   recordPracticeActivity,
   recordSolutionReveal,
   recordVerifiedRun,
+  resolveLocalProfileAccess,
   saveProgress,
+  saveProgressWithLocalProfileSession,
   saveDecisionNote,
+  signOutLocalProfileSession,
   updateProfileName,
   validateProfileName,
 } from "./progressStore";
@@ -61,6 +69,17 @@ async function readRawProgress(): Promise<unknown> {
   });
   database.close();
   return value;
+}
+
+function replaceIndexedDB(value: IDBFactory | undefined): () => void {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, "indexedDB");
+  Object.defineProperty(globalThis, "indexedDB", {
+    configurable: true,
+    value,
+  });
+  return () => {
+    if (descriptor) Object.defineProperty(globalThis, "indexedDB", descriptor);
+  };
 }
 
 function createLegacyV1Progress() {
@@ -412,6 +431,44 @@ describe("progressStore", () => {
     expect(getProgressPersistenceIssue()).toBeUndefined();
   });
 
+  it("does not overwrite a real record after a non-authoritative read failure", async () => {
+    const preserved = recordAttempt(
+      createDefaultProgress(),
+      "m1-t1",
+      "SELECT product_name FROM products",
+      true,
+      21,
+    );
+    await saveProgress(preserved);
+
+    const restoreIndexedDB = replaceIndexedDB({
+      open: () => {
+        throw new Error("temporary read failure");
+      },
+    } as unknown as IDBFactory);
+    const fallback = await loadProgress();
+    restoreIndexedDB();
+
+    expect(getProgressPersistenceIssue()).toBe("unavailable");
+    await expect(saveProgress(fallback)).rejects.toThrow(
+      /okunamadığı için korunuyor/,
+    );
+    expect(await readRawProgress()).toEqual(preserved);
+
+    await saveProgress(fallback, { replaceIncompatible: true });
+    expect(await readRawProgress()).toEqual(fallback);
+  });
+
+  it("does not mark progress storage healthy after only a session write succeeds", async () => {
+    const account = createLocalAccount(createDefaultProgress(), "Ada Analist");
+    const restoreIndexedDB = replaceIndexedDB(undefined);
+    await loadProgress();
+    restoreIndexedDB();
+
+    await activateLocalProfileSession(account);
+    expect(getProgressPersistenceIssue()).toBe("unavailable");
+  });
+
   it("records only completed-task evidence and preserves the first verified run", () => {
     const initial = createDefaultProgress();
     const firstSnapshot = createFirstTaskSnapshot();
@@ -629,6 +686,165 @@ describe("progressStore", () => {
     expect(renamedToDefault.profile.localAccountCreatedAt).toEqual(
       expect.any(String),
     );
+  });
+
+  it("resolves guest, legacy active, signed-out and mismatched profile sessions", () => {
+    const guest = createDefaultProgress();
+    const account = createLocalAccount(guest, "Ada Analist");
+
+    expect(resolveLocalProfileAccess(guest, undefined)).toBe("guest");
+    expect(resolveLocalProfileAccess(account, undefined)).toBe("active");
+
+    const active = createActiveLocalProfileSession(account);
+    const signedOut = createSignedOutLocalProfileSession(account);
+    expect(resolveLocalProfileAccess(account, active)).toBe("active");
+    expect(resolveLocalProfileAccess(account, signedOut)).toBe("signed-out");
+    expect(
+      resolveLocalProfileAccess(account, {
+        ...active,
+        profileId: crypto.randomUUID(),
+      }),
+    ).toBe("signed-out");
+    expect(resolveLocalProfileAccess(account, { status: "active" })).toBe(
+      "signed-out",
+    );
+  });
+
+  it("keeps a legacy local profile active until an explicit sign-out persists", async () => {
+    const progressed = recordAttempt(
+      createLocalAccount(createDefaultProgress(), "Ada Analist"),
+      "m1-t1",
+      "SELECT product_name FROM products",
+      true,
+      16,
+    );
+    await saveProgress(progressed);
+
+    expect(await loadLocalProfileSession(progressed)).toEqual({
+      access: "active",
+    });
+
+    const signedOut = await signOutLocalProfileSession(progressed);
+    expect(signedOut).toMatchObject({
+      version: 1,
+      status: "signed-out",
+      profileId: progressed.profile.id,
+    });
+
+    const reloadedProgress = await loadProgress();
+    expect(await loadLocalProfileSession(reloadedProgress)).toMatchObject({
+      access: "signed-out",
+      session: signedOut,
+    });
+    expect(reloadedProgress.tasks).toEqual(progressed.tasks);
+
+    const active = await activateLocalProfileSession(reloadedProgress);
+    expect(active.status).toBe("active");
+    expect(await loadLocalProfileSession(reloadedProgress)).toMatchObject({
+      access: "active",
+      session: active,
+    });
+    expect((await loadProgress()).tasks).toEqual(progressed.tasks);
+  });
+
+  it("atomically replaces progress together with an explicit profile session", async () => {
+    const importedAccount = createLocalAccount(
+      recordAttempt(
+        createDefaultProgress(),
+        "m1-t1",
+        "SELECT product_name, category FROM products",
+        true,
+        28,
+      ),
+      "Ayşe Analist",
+    );
+    const importedSession = createActiveLocalProfileSession(importedAccount);
+
+    await saveProgressWithLocalProfileSession(importedAccount, importedSession);
+
+    expect(await loadProgress()).toEqual(importedAccount);
+    expect(await loadLocalProfileSession(importedAccount)).toMatchObject({
+      access: "active",
+      session: importedSession,
+    });
+    expect(exportProgress(importedAccount)).not.toContain(
+      "local-profile-session",
+    );
+
+    const guestImport = recordAttempt(
+      createDefaultProgress(),
+      "m1-t2",
+      "SELECT DISTINCT category FROM products",
+      false,
+      9,
+    );
+    await saveProgressWithLocalProfileSession(guestImport, undefined);
+
+    expect(await loadProgress()).toEqual(guestImport);
+    expect(await loadLocalProfileSession(guestImport)).toEqual({
+      access: "guest",
+    });
+  });
+
+  it("rejects profile and session combinations that cannot describe one workspace", async () => {
+    const account = createLocalAccount(createDefaultProgress(), "Ada Analist");
+    const active = createActiveLocalProfileSession(account);
+
+    await expect(
+      saveProgressWithLocalProfileSession(account, undefined),
+    ).rejects.toThrow(/oturum bilgisi olmadan/);
+    await expect(
+      saveProgressWithLocalProfileSession(createDefaultProgress(), active),
+    ).rejects.toThrow(/Misafir çalışma alanına/);
+    await expect(
+      saveProgressWithLocalProfileSession(account, {
+        ...active,
+        profileId: crypto.randomUUID(),
+      }),
+    ).rejects.toThrow(/eşleşmiyor/);
+
+    await saveProgressWithLocalProfileSession(account, active);
+    const otherAccount = createLocalAccount(
+      createDefaultProgress(),
+      "Başka Analist",
+    );
+    await saveProgress(otherAccount);
+    expect(await loadLocalProfileSession(otherAccount)).toMatchObject({
+      access: "signed-out",
+    });
+  });
+
+  it("erases the profile, session and learning data as one guest transition", async () => {
+    const account = createLocalAccount(
+      recordAttempt(
+        createDefaultProgress(),
+        "m1-t1",
+        "SELECT product_name FROM products",
+        true,
+        14,
+      ),
+      "Ada Analist",
+    );
+    const personalized = {
+      ...account,
+      settings: { ...account.settings, theme: "light" as const },
+    };
+    await saveProgressWithLocalProfileSession(
+      personalized,
+      createActiveLocalProfileSession(personalized),
+    );
+
+    const emptyGuest = await eraseLocalProfileAndProgress();
+    const reloaded = await loadProgress();
+
+    expect(reloaded).toEqual(emptyGuest);
+    expect(hasLocalAccount(reloaded)).toBe(false);
+    expect(reloaded.tasks).toEqual({});
+    expect(reloaded.evidenceByTaskId).toEqual({});
+    expect(reloaded.settings).not.toEqual(personalized.settings);
+    expect(await loadLocalProfileSession(reloaded)).toEqual({
+      access: "guest",
+    });
   });
 
   it("rejects unsafe or out-of-range profile names", () => {

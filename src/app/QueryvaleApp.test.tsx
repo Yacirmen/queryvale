@@ -12,13 +12,17 @@ import { useEffect, useRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { modules, tasks } from "../content";
 import {
+  createActiveLocalProfileSession,
   createLocalAccount,
   createDefaultProgress,
   exportProgress,
+  hasLocalAccount,
+  loadLocalProfileSession,
   loadProgress,
   localDateKey,
   recordAttempt,
   saveProgress,
+  saveProgressWithLocalProfileSession,
   updateProfileName,
 } from "../features/progress/progressStore";
 import { buildModuleAccessStates } from "../features/progress/moduleAccess";
@@ -52,8 +56,27 @@ const progressPersistenceHarness = vi.hoisted(() => ({
   loadGate: undefined as Promise<void> | undefined,
   loadOverride: undefined as unknown,
   saveDelays: [] as number[],
-  pendingSaves: new Set<Promise<void>>(),
+  pendingSaves: new Set<Promise<unknown>>(),
 }));
+
+async function drainPendingProgressPersistence() {
+  for (let pass = 0; pass < 20; pass += 1) {
+    await Promise.resolve();
+    const pending = [...progressPersistenceHarness.pendingSaves];
+    if (pending.length > 0) {
+      await Promise.allSettled(pending);
+      continue;
+    }
+
+    // Queryvale serializes writes through promise chains. Give a settled
+    // queue one macrotask to enqueue its next repository write before
+    // declaring the previous render fully drained.
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+    if (progressPersistenceHarness.pendingSaves.size === 0) return;
+  }
+
+  throw new Error("Test ilerleme yazma kuyruğu zamanında boşalmadı.");
+}
 
 function progressWithCompletedModulesBefore(moduleId: string) {
   const targetIndex = modules.findIndex((module) => module.id === moduleId);
@@ -84,6 +107,19 @@ function getThemeChoice(name: "Açık" | "Koyu") {
 vi.mock("../features/progress/progressStore", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("../features/progress/progressStore")>();
+  const trackPersistence = <T,>(operation: () => Promise<T>): Promise<T> => {
+    const tracked = (async () => {
+      const delay = progressPersistenceHarness.saveDelays.shift() ?? 0;
+      if (delay) {
+        await new Promise((resolve) => window.setTimeout(resolve, delay));
+      }
+      return operation();
+    })();
+    progressPersistenceHarness.pendingSaves.add(tracked);
+    return tracked.finally(() => {
+      progressPersistenceHarness.pendingSaves.delete(tracked);
+    });
+  };
   return {
     ...actual,
     loadProgress: async () => {
@@ -99,19 +135,25 @@ vi.mock("../features/progress/progressStore", async (importOriginal) => {
     saveProgress: (
       state: Parameters<typeof actual.saveProgress>[0],
       options?: Parameters<typeof actual.saveProgress>[1],
-    ) => {
-      const operation = (async () => {
-        const delay = progressPersistenceHarness.saveDelays.shift() ?? 0;
-        if (delay) {
-          await new Promise((resolve) => window.setTimeout(resolve, delay));
-        }
-        await actual.saveProgress(state, options);
-      })();
-      progressPersistenceHarness.pendingSaves.add(operation);
-      return operation.finally(() => {
-        progressPersistenceHarness.pendingSaves.delete(operation);
-      });
-    },
+    ) => trackPersistence(() => actual.saveProgress(state, options)),
+    saveProgressWithLocalProfileSession: (
+      state: Parameters<typeof actual.saveProgressWithLocalProfileSession>[0],
+      session: Parameters<typeof actual.saveProgressWithLocalProfileSession>[1],
+      options?: Parameters<
+        typeof actual.saveProgressWithLocalProfileSession
+      >[2],
+    ) =>
+      trackPersistence(() =>
+        actual.saveProgressWithLocalProfileSession(state, session, options),
+      ),
+    activateLocalProfileSession: (
+      state: Parameters<typeof actual.activateLocalProfileSession>[0],
+    ) => trackPersistence(() => actual.activateLocalProfileSession(state)),
+    signOutLocalProfileSession: (
+      state: Parameters<typeof actual.signOutLocalProfileSession>[0],
+    ) => trackPersistence(() => actual.signOutLocalProfileSession(state)),
+    eraseLocalProfileAndProgress: () =>
+      trackPersistence(() => actual.eraseLocalProfileAndProgress()),
   };
 });
 
@@ -271,7 +313,7 @@ vi.mock("./components/LocalMonacoEditor", () => {
 describe("QueryvaleApp", () => {
   beforeEach(async () => {
     cleanup();
-    await Promise.allSettled([...progressPersistenceHarness.pendingSaves]);
+    await drainPendingProgressPersistence();
     editorShortcutHarness.actions.clear();
     sqlEngineHarness.failInitialize = false;
     sqlEngineHarness.failReset = false;
@@ -454,12 +496,6 @@ describe("QueryvaleApp", () => {
     expect(
       buildModuleAccessStates(modules, tasks, unlockedProgress.tasks).at(-1),
     ).toMatchObject({ isUnlocked: true });
-    await saveProgress(unlockedProgress);
-    expect(
-      buildModuleAccessStates(modules, tasks, (await loadProgress()).tasks).at(
-        -1,
-      ),
-    ).toMatchObject({ isUnlocked: true });
     progressPersistenceHarness.loadOverride = unlockedProgress;
     window.history.replaceState(null, "", `#/lab/${projectTask.id}`);
 
@@ -566,7 +602,7 @@ describe("QueryvaleApp", () => {
     expect(screen.getAllByText("Active")).toHaveLength(3);
 
     await user.click(
-      screen.getByRole("button", { name: /İlk vakayı birlikte çöz/i }),
+      screen.getByRole("button", { name: /Hesabını Aç & Vaka Çöz/i }),
     );
     expect(window.location.hash).toBe("#/giris");
     expect(
@@ -741,6 +777,129 @@ describe("QueryvaleApp", () => {
     );
   });
 
+  it("signs out without losing work and reopens the same profile after reload", async () => {
+    let stored = recordAttempt(
+      createDefaultProgress(),
+      "m1-t1",
+      "SELECT product_name, category FROM products;",
+      true,
+      18,
+    );
+    stored = recordAttempt(
+      stored,
+      "m1-t2",
+      "SELECT DISTINCT category FROM products;",
+      false,
+      7,
+    );
+    stored = createLocalAccount(stored, "Ada Analist");
+    stored = {
+      ...stored,
+      lastOpenedTaskId: "m1-t2",
+      lastOpenedTaskIdTrusted: true,
+    };
+    await saveProgressWithLocalProfileSession(
+      stored,
+      createActiveLocalProfileSession(stored),
+    );
+    window.location.hash = "#/progress";
+    const user = userEvent.setup();
+
+    render(<QueryvaleApp />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Profilden çık" }),
+    );
+    const signOutDialog = screen.getByRole("alertdialog", {
+      name: "Profilden çıkılsın mı?",
+    });
+    expect(signOutDialog).toHaveTextContent(/ilerlemen bu cihazda korunacak/i);
+    await user.click(
+      within(signOutDialog).getByRole("button", { name: "Profilden çık" }),
+    );
+
+    await screen.findByRole("button", { name: "Profiline Gir" });
+    expect(window.location.hash).toBe("#/");
+    expect(
+      within(screen.getByRole("banner")).getByRole("button", {
+        name: /^Hemen Başla/,
+      }),
+    ).toBeVisible();
+    expect(await loadLocalProfileSession(await loadProgress())).toMatchObject({
+      access: "signed-out",
+    });
+
+    cleanup();
+    window.history.replaceState(null, "", "#/progress");
+    render(<QueryvaleApp />);
+
+    const signIn = await screen.findByRole("button", {
+      name: "Ada Analist profiline gir",
+    });
+    expect(window.location.hash).toBe("#/giris");
+    expect(
+      within(screen.getByRole("banner")).queryByRole("button", {
+        name: "Profil — Ada Analist",
+      }),
+    ).not.toBeInTheDocument();
+
+    await user.click(signIn);
+    expect(
+      await screen.findByRole("heading", { name: tasks[1].title }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("banner")).getByRole("button", {
+        name: "Profil — Ada Analist",
+      }),
+    ).toBeVisible();
+    expect((await loadProgress()).tasks["m1-t1"].completed).toBe(true);
+    expect(await loadLocalProfileSession(await loadProgress())).toMatchObject({
+      access: "active",
+    });
+  });
+
+  it("deletes the local profile separately from resetting learning history", async () => {
+    const stored = createLocalAccount(
+      recordAttempt(
+        createDefaultProgress(),
+        "m1-t1",
+        "SELECT product_name, category FROM products;",
+        true,
+        18,
+      ),
+      "Ada Analist",
+    );
+    await saveProgressWithLocalProfileSession(
+      stored,
+      createActiveLocalProfileSession(stored),
+    );
+    window.location.hash = "#/settings";
+    const user = userEvent.setup();
+
+    render(<QueryvaleApp />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Profili sil" }),
+    );
+    const deleteDialog = screen.getByRole("alertdialog", {
+      name: "Yerel profil ve tüm veriler silinsin mi?",
+    });
+    await user.click(
+      within(deleteDialog).getByRole("button", {
+        name: "Profili ve verileri sil",
+      }),
+    );
+
+    await screen.findByRole("button", { name: /Hesabını Aç & Vaka Çöz/i });
+    const restored = await loadProgress();
+    expect(hasLocalAccount(restored)).toBe(false);
+    expect(restored.tasks).toEqual({});
+    expect(restored.evidenceByTaskId).toEqual({});
+    expect(await loadLocalProfileSession(restored)).toEqual({
+      access: "guest",
+    });
+  });
+
   it("resumes the stored case from the landing page without resetting progress", async () => {
     const firstQuery = "SELECT product_name, category FROM products;";
     const resumeQuery = "SELECT DISTINCT category FROM products;";
@@ -776,7 +935,7 @@ describe("QueryvaleApp", () => {
     ).toBeVisible();
 
     const resumeButtons = await screen.findAllByRole("button", {
-      name: /Profiline Gir & Devam Et/i,
+      name: /Kaldığın Yerden Devam Et/i,
     });
     expect(resumeButtons).toHaveLength(1);
     expect(
@@ -784,8 +943,7 @@ describe("QueryvaleApp", () => {
     ).toBeInTheDocument();
     const resumeButton = resumeButtons[0];
     await user.click(resumeButton);
-    expect(window.location.hash).toBe("#/giris");
-    await user.click(screen.getByRole("button", { name: "Rotama dön" }));
+    expect(window.location.hash).toBe("#/lab/m1-t2");
 
     expect(
       await screen.findByRole("heading", { name: tasks[1].title }),
@@ -846,7 +1004,7 @@ describe("QueryvaleApp", () => {
     render(<QueryvaleApp />);
 
     const resumeButtons = await screen.findAllByRole("button", {
-      name: /Kaldığın Vaka ile Devam Et/i,
+      name: /Yerel Profil Oluştur & Devam Et/i,
     });
     expect(resumeButtons).toHaveLength(1);
     expect(
@@ -1160,7 +1318,7 @@ describe("QueryvaleApp", () => {
     );
 
     const resumeButtons = await screen.findAllByRole("button", {
-      name: /Kaldığın Vaka ile Devam Et/i,
+      name: /Yerel Profil Oluştur & Devam Et/i,
     });
     const resumeButton = resumeButtons[0];
     await waitFor(async () => {
@@ -1317,7 +1475,7 @@ describe("QueryvaleApp", () => {
       screen.queryByRole("button", { name: "1. ipucunu aç" }),
     ).not.toBeInTheDocument();
 
-    const earlyMobileSteps = screen.getByRole("tablist", {
+    const earlyMobileSteps = await screen.findByRole("tablist", {
       name: "Vaka çalışma adımları",
     });
     const taskTab = within(earlyMobileSteps).getByRole("tab", {
@@ -1688,9 +1846,15 @@ describe("QueryvaleApp", () => {
     const user = userEvent.setup();
     render(<QueryvaleApp />);
 
+    await waitFor(() =>
+      expect(document.querySelector(".app-shell")).toHaveAttribute(
+        "aria-busy",
+        "false",
+      ),
+    );
     navigateToRoute("progress");
     await user.click(
-      screen.getByRole("button", {
+      await screen.findByRole("button", {
         name: "SQL Kaşifi kullanıcı adını düzenle",
       }),
     );
@@ -1741,9 +1905,15 @@ describe("QueryvaleApp", () => {
     const user = userEvent.setup();
     render(<QueryvaleApp />);
 
+    await waitFor(() =>
+      expect(document.querySelector(".app-shell")).toHaveAttribute(
+        "aria-busy",
+        "false",
+      ),
+    );
     navigateToRoute("progress");
     await user.click(
-      screen.getByRole("button", {
+      await screen.findByRole("button", {
         name: "SQL Kaşifi kullanıcı adını düzenle",
       }),
     );

@@ -40,6 +40,20 @@ export interface ProgressProfile {
   localAccountCreatedAt?: string;
 }
 
+export type LocalProfileAccess = "guest" | "signed-out" | "active";
+
+export interface LocalProfileSession {
+  version: 1;
+  status: "active" | "signed-out";
+  profileId: string;
+  updatedAt: string;
+}
+
+export interface LoadedLocalProfileSession {
+  access: LocalProfileAccess;
+  session?: LocalProfileSession;
+}
+
 export interface DecisionNote {
   finding: string;
   recommendation: string;
@@ -116,6 +130,7 @@ export interface AttemptAssistanceSnapshot {
 const DATABASE_NAME = "queryvale";
 const STORE_NAME = "workspace";
 const STATE_KEY = "progress";
+const LOCAL_PROFILE_SESSION_KEY = "local-profile-session";
 export const MAX_PROGRESS_IMPORT_BYTES = 2_000_000;
 export const MAX_DECISION_NOTE_FIELD_CHARS = 2_000;
 const MAX_EVIDENCE_ENTRIES = 500;
@@ -129,6 +144,7 @@ const PROFILE_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 let persistenceAvailable = true;
 let persistenceIssue: "unavailable" | "incompatible" | undefined;
+let progressRecordReadFailed = false;
 
 export const DEFAULT_PROFILE_DISPLAY_NAME = "SQL Kaşifi";
 
@@ -223,6 +239,62 @@ export function hasLocalAccount(state: ProgressState): boolean {
   );
 }
 
+function isLocalProfileSession(value: unknown): value is LocalProfileSession {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const candidate = value as Partial<LocalProfileSession>;
+  return (
+    candidate.version === 1 &&
+    (candidate.status === "active" || candidate.status === "signed-out") &&
+    typeof candidate.profileId === "string" &&
+    PROFILE_ID_PATTERN.test(candidate.profileId) &&
+    typeof candidate.updatedAt === "string" &&
+    Number.isFinite(Date.parse(candidate.updatedAt))
+  );
+}
+
+/**
+ * Resolves presentation access for the single device workspace. An absent
+ * session keeps existing named profiles open for backwards compatibility,
+ * while malformed or profile-mismatched session data fails closed.
+ */
+export function resolveLocalProfileAccess(
+  state: ProgressState,
+  storedSession: unknown,
+): LocalProfileAccess {
+  if (!hasLocalAccount(state)) return "guest";
+  if (storedSession === undefined) return "active";
+  if (!isLocalProfileSession(storedSession)) return "signed-out";
+  if (storedSession.profileId !== state.profile.id) return "signed-out";
+  return storedSession.status;
+}
+
+function createLocalProfileSession(
+  state: ProgressState,
+  status: LocalProfileSession["status"],
+): LocalProfileSession {
+  if (!hasLocalAccount(state)) {
+    throw new Error("Bu cihazda açılabilecek bir yerel profil bulunamadı.");
+  }
+  return {
+    version: 1,
+    status,
+    profileId: state.profile.id,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function createActiveLocalProfileSession(
+  state: ProgressState,
+): LocalProfileSession {
+  return createLocalProfileSession(state, "active");
+}
+
+export function createSignedOutLocalProfileSession(
+  state: ProgressState,
+): LocalProfileSession {
+  return createLocalProfileSession(state, "signed-out");
+}
+
 export function createLocalAccount(
   state: ProgressState,
   name: string,
@@ -310,6 +382,82 @@ async function writeStoredState(state: ProgressState): Promise<void> {
     transaction.onerror = () => {
       database.close();
       reject(transaction.error);
+    };
+  });
+}
+
+async function readStoredLocalProfileSession(): Promise<unknown> {
+  const database = await openDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(STORE_NAME, "readonly");
+    const request = transaction
+      .objectStore(STORE_NAME)
+      .get(LOCAL_PROFILE_SESSION_KEY);
+    let storedSession: unknown;
+    request.onsuccess = () => {
+      storedSession = request.result as unknown;
+    };
+    transaction.oncomplete = () => {
+      database.close();
+      resolve(storedSession);
+    };
+    transaction.onerror = () => {
+      database.close();
+      reject(transaction.error ?? request.error);
+    };
+    transaction.onabort = () => {
+      database.close();
+      reject(transaction.error ?? new Error("Profil oturumu okunamadı."));
+    };
+  });
+}
+
+async function writeStoredLocalProfileSession(
+  session: LocalProfileSession,
+): Promise<void> {
+  const database = await openDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(STORE_NAME, "readwrite");
+    transaction.objectStore(STORE_NAME).put(session, LOCAL_PROFILE_SESSION_KEY);
+    transaction.oncomplete = () => {
+      database.close();
+      resolve();
+    };
+    transaction.onerror = () => {
+      database.close();
+      reject(transaction.error);
+    };
+    transaction.onabort = () => {
+      database.close();
+      reject(transaction.error ?? new Error("Profil oturumu kaydedilemedi."));
+    };
+  });
+}
+
+async function writeStoredProgressWithLocalProfileSession(
+  state: ProgressState,
+  session: LocalProfileSession | undefined,
+): Promise<void> {
+  const database = await openDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(STORE_NAME, "readwrite");
+    const store = transaction.objectStore(STORE_NAME);
+    store.put(state, STATE_KEY);
+    if (session) store.put(session, LOCAL_PROFILE_SESSION_KEY);
+    else store.delete(LOCAL_PROFILE_SESSION_KEY);
+    transaction.oncomplete = () => {
+      database.close();
+      resolve();
+    };
+    transaction.onerror = () => {
+      database.close();
+      reject(transaction.error);
+    };
+    transaction.onabort = () => {
+      database.close();
+      reject(
+        transaction.error ?? new Error("Yerel çalışma alanı kaydedilemedi."),
+      );
     };
   });
 }
@@ -729,10 +877,12 @@ export async function loadProgress(): Promise<ProgressState> {
   if (typeof indexedDB === "undefined") {
     persistenceAvailable = false;
     persistenceIssue = "unavailable";
+    progressRecordReadFailed = true;
     return createDefaultProgress();
   }
   try {
     const stored = await readStoredState();
+    progressRecordReadFailed = false;
     persistenceAvailable = true;
     persistenceIssue = undefined;
     if (stored === undefined) return createDefaultProgress();
@@ -763,8 +913,138 @@ export async function loadProgress(): Promise<ProgressState> {
   } catch {
     persistenceAvailable = false;
     persistenceIssue = "unavailable";
+    progressRecordReadFailed = true;
     return createDefaultProgress();
   }
+}
+
+export async function loadLocalProfileSession(
+  state: ProgressState,
+): Promise<LoadedLocalProfileSession> {
+  if (typeof indexedDB === "undefined") {
+    persistenceAvailable = false;
+    persistenceIssue = "unavailable";
+    return {
+      access: resolveLocalProfileAccess(state, null),
+    };
+  }
+
+  try {
+    const storedSession = await readStoredLocalProfileSession();
+    const access = resolveLocalProfileAccess(state, storedSession);
+    const sessionMatchesProfile =
+      hasLocalAccount(state) &&
+      isLocalProfileSession(storedSession) &&
+      storedSession.profileId === state.profile.id;
+    return {
+      access,
+      ...(sessionMatchesProfile ? { session: storedSession } : {}),
+    };
+  } catch {
+    if (persistenceIssue !== "incompatible") {
+      persistenceAvailable = false;
+      persistenceIssue = "unavailable";
+    }
+    return {
+      access: resolveLocalProfileAccess(state, null),
+    };
+  }
+}
+
+async function saveValidatedLocalProfileSession(
+  session: LocalProfileSession,
+): Promise<void> {
+  if (!isLocalProfileSession(session)) {
+    throw new Error("Yerel profil oturumu geçerli değil.");
+  }
+  if (typeof indexedDB === "undefined") {
+    persistenceAvailable = false;
+    persistenceIssue = "unavailable";
+    throw new Error("Yerel profil oturumu bu cihazda kaydedilemedi.");
+  }
+
+  try {
+    await writeStoredLocalProfileSession(session);
+  } catch (error) {
+    persistenceAvailable = false;
+    if (persistenceIssue !== "incompatible") persistenceIssue = "unavailable";
+    throw error;
+  }
+}
+
+export async function activateLocalProfileSession(
+  state: ProgressState,
+): Promise<LocalProfileSession> {
+  const session = createActiveLocalProfileSession(state);
+  await saveValidatedLocalProfileSession(session);
+  return session;
+}
+
+export async function signOutLocalProfileSession(
+  state: ProgressState,
+): Promise<LocalProfileSession> {
+  const session = createSignedOutLocalProfileSession(state);
+  await saveValidatedLocalProfileSession(session);
+  return session;
+}
+
+/**
+ * Atomically replaces learning progress and its local profile presentation
+ * state. Account-marked progress must always carry an explicit session;
+ * guest progress must not carry one.
+ */
+export async function saveProgressWithLocalProfileSession(
+  state: ProgressState,
+  session: LocalProfileSession | undefined,
+  options: { replaceIncompatible?: boolean } = {},
+): Promise<void> {
+  const accountExists = hasLocalAccount(state);
+  if (accountExists && !session) {
+    throw new Error("Yerel profil durumu oturum bilgisi olmadan kaydedilemez.");
+  }
+  if (!accountExists && session) {
+    throw new Error("Misafir çalışma alanına profil oturumu bağlanamaz.");
+  }
+  if (
+    session &&
+    (!isLocalProfileSession(session) || session.profileId !== state.profile.id)
+  ) {
+    throw new Error("Yerel profil oturumu bu çalışma alanıyla eşleşmiyor.");
+  }
+  if (typeof indexedDB === "undefined") {
+    persistenceAvailable = false;
+    persistenceIssue = "unavailable";
+    throw new Error("Yerel çalışma alanı bu cihazda kaydedilemedi.");
+  }
+  if (progressRecordReadFailed && !options.replaceIncompatible) {
+    throw new Error(
+      "Mevcut ilerleme kaydı okunamadığı için korunuyor; açıkça sıfırlamadan veya içe aktarmadan üzerine yazılmayacak.",
+    );
+  }
+  if (persistenceIssue === "incompatible" && !options.replaceIncompatible) {
+    throw new Error(
+      "Mevcut ilerleme kaydı bu sürümle uyumlu olmadığı için korunuyor.",
+    );
+  }
+
+  try {
+    await writeStoredProgressWithLocalProfileSession(state, session);
+    progressRecordReadFailed = false;
+    persistenceAvailable = true;
+    persistenceIssue = undefined;
+  } catch (error) {
+    persistenceAvailable = false;
+    persistenceIssue = "unavailable";
+    throw error;
+  }
+}
+
+export async function eraseLocalProfileAndProgress(): Promise<ProgressState> {
+  const next = createDefaultProgress();
+  await saveProgressWithLocalProfileSession(next, undefined, {
+    replaceIncompatible: true,
+  });
+  return next;
 }
 
 export async function saveProgress(
@@ -776,6 +1056,11 @@ export async function saveProgress(
     persistenceIssue = "unavailable";
     return;
   }
+  if (progressRecordReadFailed && !options.replaceIncompatible) {
+    throw new Error(
+      "Mevcut ilerleme kaydı okunamadığı için korunuyor; açıkça sıfırlamadan veya içe aktarmadan üzerine yazılmayacak.",
+    );
+  }
   if (persistenceIssue === "incompatible" && !options.replaceIncompatible) {
     throw new Error(
       "Mevcut ilerleme kaydı bu sürümle uyumlu olmadığı için korunuyor.",
@@ -783,6 +1068,7 @@ export async function saveProgress(
   }
   try {
     await writeStoredState(state);
+    progressRecordReadFailed = false;
     persistenceAvailable = true;
     persistenceIssue = undefined;
   } catch (error) {

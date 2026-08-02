@@ -17,6 +17,7 @@ function renderProgress(progress: ProgressState) {
       progress={progress}
       profileName={progress.profile.displayName}
       onProfileNameChange={vi.fn()}
+      onSignOut={vi.fn().mockResolvedValue(true)}
       onNavigate={onNavigate}
     />,
   );

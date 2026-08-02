@@ -6929,6 +6929,282 @@ button {
   }
 }
 
+/* Local profile lifecycle and service footer */
+.progress-hero-actions {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+}
+
+.profile-sign-out-button {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-soft);
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  font: inherit;
+  font-size: var(--font-size-caption);
+  font-weight: 680;
+  cursor: pointer;
+  transition:
+    color 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease;
+}
+
+.profile-sign-out-button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  color: var(--text);
+  background: var(--surface);
+}
+
+.profile-sign-out-button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.progress-hero-actions > small {
+  color: var(--text-faint);
+  font-size: var(--font-size-caption);
+}
+
+.landing-reference-footer {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+}
+
+.landing-reference-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 22px;
+}
+
+.landing-reference-footer nav button,
+.landing-reference-footer nav a {
+  min-height: 44px;
+  border: 0;
+  padding: 0 3px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-soft);
+  background: transparent;
+  font: inherit;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.landing-reference-footer nav button:hover,
+.landing-reference-footer nav a:hover {
+  color: var(--text);
+}
+
+#settings-help {
+  scroll-margin-top: calc(var(--header-h) + 24px);
+}
+
+#settings-help:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 72%, transparent);
+  outline-offset: 4px;
+}
+
+@media (max-width: 820px) {
+  .progress-hero-actions {
+    width: 100%;
+    justify-items: stretch;
+    border-top: 1px solid var(--line);
+    padding-top: 24px;
+  }
+
+  .progress-hero-actions .progress-overview {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .profile-sign-out-button {
+    width: 100%;
+    min-height: 46px;
+  }
+
+  .progress-hero-actions > small {
+    text-align: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-sign-out-button {
+    transition: none;
+  }
+}
+
+[data-reduced-motion="true"] .profile-sign-out-button {
+  transition: none;
+}
+
+@media (forced-colors: active) {
+  .profile-sign-out-button {
+    border: 1px solid ButtonText;
+  }
+}
+
+.confirmation-dialog-backdrop {
+  background:
+    radial-gradient(
+      circle at 50% 40%,
+      color-mix(in srgb, var(--brand-end) 11%, transparent),
+      transparent 28rem
+    ),
+    rgb(4 7 14 / 78%);
+}
+
+.confirmation-dialog {
+  width: min(480px, 100%);
+  border-color: color-mix(in srgb, var(--brand-start) 24%, var(--line));
+  padding: 28px;
+  overflow-y: auto;
+}
+
+.confirmation-dialog--danger {
+  border-color: color-mix(in srgb, var(--danger) 36%, var(--line));
+}
+
+.confirmation-dialog-head {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
+}
+
+.confirmation-dialog-tone-icon {
+  width: 44px;
+  height: 44px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--line));
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+}
+
+.confirmation-dialog--danger .confirmation-dialog-tone-icon {
+  border-color: color-mix(in srgb, var(--danger) 36%, var(--line));
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 9%, var(--surface));
+}
+
+.confirmation-dialog .confirmation-dialog-title {
+  margin: 2px 0 8px;
+  font-size: clamp(24px, 4vw, 31px);
+  line-height: 1.08;
+}
+
+.confirmation-dialog .confirmation-dialog-description {
+  font-size: var(--font-size-small);
+  line-height: 1.65;
+}
+
+.confirmation-dialog-content {
+  margin: 20px 0 0 60px;
+}
+
+.confirmation-dialog-actions {
+  margin-top: 28px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.confirmation-dialog-cancel,
+.confirmation-dialog-confirm {
+  min-height: 46px;
+  border-radius: 11px;
+  padding: 0 16px;
+  font: inherit;
+  font-size: var(--font-size-small);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.confirmation-dialog-cancel {
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+  background: var(--surface-muted);
+}
+
+.confirmation-dialog-confirm {
+  border: 0;
+  color: #ffffff;
+  background: var(--action-primary-bg);
+  box-shadow: var(--action-primary-shadow);
+}
+
+.confirmation-dialog--danger .confirmation-dialog-confirm {
+  background: var(--danger);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--danger) 22%, transparent);
+}
+
+.confirmation-dialog-cancel:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 44%, var(--line));
+  background: var(--surface);
+}
+
+.confirmation-dialog-confirm:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.confirmation-dialog-cancel:disabled,
+.confirmation-dialog-confirm:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+@media (max-width: 520px) {
+  .confirmation-dialog-backdrop {
+    padding: 16px;
+  }
+
+  .confirmation-dialog {
+    border-radius: 20px;
+    padding: 22px;
+  }
+
+  .confirmation-dialog-head {
+    grid-template-columns: 38px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .confirmation-dialog-tone-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+  }
+
+  .confirmation-dialog-content {
+    margin-left: 0;
+  }
+
+  .confirmation-dialog-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (forced-colors: active) {
+  .confirmation-dialog,
+  .confirmation-dialog-tone-icon,
+  .confirmation-dialog-cancel,
+  .confirmation-dialog-confirm {
+    border: 1px solid CanvasText;
+  }
+}
+
 /* User-authored 2026 landing direction: one dark/light system, two pinned acts. */
 .app-header-landing {
   position: fixed;
