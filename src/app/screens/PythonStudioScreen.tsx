@@ -7,12 +7,10 @@ import {
   Braces,
   Check,
   CheckCircle2,
-  ChevronDown,
   CircleAlert,
   Clock3,
   Copy,
   Database,
-  Layers3,
   Lightbulb,
   LoaderCircle,
   Play,
@@ -61,10 +59,7 @@ import {
   type EditorSettings,
   type ProgressState,
 } from "../../features/progress/progressStore";
-import {
-  buildModuleAccessStates,
-  type ModuleAccessState,
-} from "../../features/progress/moduleAccess";
+import { buildModuleAccessStates } from "../../features/progress/moduleAccess";
 import { isPythonTaskAccessible } from "../../features/progress/pythonAccess";
 import {
   getAwardedCaseScore,
@@ -72,6 +67,7 @@ import {
   MAX_CASE_SCORE,
 } from "../../features/progress/scoring";
 import { ConfirmationDialog } from "../components/Dialogs";
+import { StudioCurriculumMenu } from "../components/StudioCurriculumMenu";
 
 const MonacoEditor = lazy(() => import("../components/LocalMonacoEditor"));
 
@@ -205,9 +201,37 @@ export function PythonStudioScreen({
   const completedCount = tasks.filter(
     (candidate) => progress.pythonTasks[candidate.id]?.completed,
   ).length;
-  const completionRate = tasks.length
-    ? Math.round((completedCount / tasks.length) * 100)
-    : 0;
+  const curriculumMenuModules = useMemo(
+    () =>
+      modules.map((module) => {
+        const access = moduleAccessById.get(module.id);
+        const completed = module.tasks.filter(
+          (candidate) => progress.pythonTasks[candidate.id]?.completed,
+        ).length;
+        return {
+          id: module.id,
+          order: module.order,
+          title: module.title,
+          status: access?.isUnlocked
+            ? `${completed}/${module.tasks.length} vaka`
+            : `Önce ${access?.blockingModule?.title ?? "önceki modül"}`,
+          complete: Boolean(access?.isComplete),
+          tasks: module.tasks.map((candidate) => ({
+            id: candidate.id,
+            title: candidate.title,
+            meta: `${candidate.estimatedMinutes} dk`,
+            accessible: isPythonTaskAccessible(
+              candidate,
+              modules,
+              tasks,
+              progress.pythonTasks,
+            ),
+            complete: Boolean(progress.pythonTasks[candidate.id]?.completed),
+          })),
+        };
+      }),
+    [moduleAccessById, modules, progress.pythonTasks, tasks],
+  );
   const taskProgress = progress.pythonTasks[task.id];
   const taskCompleted = Boolean(taskProgress?.completed);
   const score = taskCompleted
@@ -534,45 +558,17 @@ export function PythonStudioScreen({
             <strong>{task.title}</strong>
           </div>
 
-          <details className="python-curriculum-menu">
-            <summary>
-              <Layers3 size={15} aria-hidden="true" />
-              <span>Python rotası</span>
-              <small>
-                {completedCount}/{tasks.length}
-              </small>
-              <ChevronDown size={14} aria-hidden="true" />
-            </summary>
-            <div className="python-curriculum-popover">
-              <div className="python-curriculum-head">
-                <div>
-                  <strong>Analist Python rotası</strong>
-                  <span>EDA’dan örüntü analizine</span>
-                </div>
-                <b>{completionRate}%</b>
-              </div>
-              <div
-                className="python-curriculum-progress"
-                aria-label={`Python rotası yüzde ${completionRate} tamamlandı`}
-              >
-                <span style={{ width: `${completionRate}%` }} />
-              </div>
-              <div className="python-module-list">
-                {modules.map((module) => (
-                  <PythonModuleGroup
-                    key={module.id}
-                    module={module}
-                    access={moduleAccessById.get(module.id)}
-                    activeTaskId={task.id}
-                    progress={progress}
-                    modules={modules}
-                    tasks={tasks}
-                    onSelectTask={onSelectTask}
-                  />
-                ))}
-              </div>
-            </div>
-          </details>
+          <StudioCurriculumMenu
+            variant="python"
+            label="Python rotası"
+            title="Analist Python rotası"
+            subtitle="EDA’dan örüntü analizine"
+            completedCount={completedCount}
+            totalCount={tasks.length}
+            activeTaskId={task.id}
+            modules={curriculumMenuModules}
+            onSelectTask={onSelectTask}
+          />
 
           <div className="python-studio-top-actions">
             <span className="python-mission-counter">
@@ -1114,73 +1110,6 @@ export function PythonStudioScreen({
         onClose={() => setSolutionConfirmVisible(false)}
       />
     </>
-  );
-}
-
-interface PythonModuleGroupProps {
-  module: PythonCurriculumModule;
-  access?: ModuleAccessState;
-  activeTaskId: string;
-  progress: ProgressState;
-  modules: PythonCurriculumModule[];
-  tasks: PythonLessonTask[];
-  onSelectTask: (taskId: string) => void;
-}
-
-function PythonModuleGroup({
-  module,
-  access,
-  activeTaskId,
-  progress,
-  modules,
-  tasks,
-  onSelectTask,
-}: PythonModuleGroupProps) {
-  const completed = module.tasks.filter(
-    (task) => progress.pythonTasks[task.id]?.completed,
-  ).length;
-  return (
-    <details open={module.tasks.some((task) => task.id === activeTaskId)}>
-      <summary>
-        <span>{String(module.order).padStart(2, "0")}</span>
-        <div>
-          <strong>{module.title}</strong>
-          <small>
-            {access?.isUnlocked
-              ? `${completed}/${module.tasks.length} vaka`
-              : `Önce ${access?.blockingModule?.title ?? "önceki modül"}`}
-          </small>
-        </div>
-        {access?.isComplete ? <CheckCircle2 size={15} /> : null}
-      </summary>
-      <div>
-        {module.tasks.map((task) => {
-          const accessible = isPythonTaskAccessible(
-            task,
-            modules,
-            tasks,
-            progress.pythonTasks,
-          );
-          const complete = Boolean(progress.pythonTasks[task.id]?.completed);
-          return (
-            <button
-              key={task.id}
-              type="button"
-              className={task.id === activeTaskId ? "active" : ""}
-              disabled={!accessible}
-              onClick={() => onSelectTask(task.id)}
-              aria-current={task.id === activeTaskId ? "page" : undefined}
-            >
-              <span>{complete ? <Check size={12} /> : <Play size={10} />}</span>
-              <div>
-                <strong>{task.title}</strong>
-                <small>{task.estimatedMinutes} dk</small>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </details>
   );
 }
 

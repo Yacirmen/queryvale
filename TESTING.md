@@ -56,6 +56,8 @@ Monaco, PGlite ve Pyodide Worker component testlerinde sözleşme seviyesinde ad
 - tema/ayar kalıcılığı,
 - klavye kısayolları,
 - mobil viewport’ta temel görev akışı,
+- header'da yalnız iki Studio hedefi ve her iki çalışma alanında klavye/mobil uyumlu rota menüsü,
+- SQL rota menüsünde 11 modül/52 çalışma, aktif vaka, tamamlanma ve modül bazlı kilit davranışı,
 - Python Studio’ya header’dan giriş, dört mobil panel, gerçek DataFrame çalıştırma ve sonuçtan sonra açık sonraki-vaka eylemi,
 - export/import ve onaylı reset,
 - yerel profil oluşturma → çıkış → yenileme → aynı profile giriş yaşam döngüsü,
@@ -121,6 +123,7 @@ Otomatik testlerden sonra üretim build’inde:
 9. Profil ekranından çıkış yapılır; header'ın misafir durumuna döndüğü, yenilemede çıkışın korunduğu ve yeniden girişte son vakaya dönüldüğü doğrulanır.
 10. Ayarlar'da `İlerlemeyi sıfırla` ile `Profili sil` açıklamaları karşılaştırılır; profil silme önce iptal edilir, sonra onaylanır ve yeni misafir durumu doğrulanır.
 11. Python Studio ilk EDA vakasında çalıştırılır; gerçek tablo, geri bildirim, ipucu/çözüm puanı, sonraki vaka kilidi ve yenileme sonrası taslak kontrol edilir.
+12. SQL Studio rota menüsü açılır; aktif vaka, 11 modül/52 çalışma, sonraki modül kilidi ve açık modül içindeki vaka geçişi kontrol edilir. Mobilde menünün yatay taşmadığı ve `Escape` ile kapandığı doğrulanır.
 
 ## Hata ayıklama raporu
 

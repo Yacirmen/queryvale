@@ -14,6 +14,7 @@ import { pythonModules, pythonTasks } from "../../content/pythonCurriculum";
 import {
   MAX_PYTHON_CODE_CHARS,
   createDefaultProgress,
+  recordPythonAttempt,
   type ProgressState,
 } from "../../features/progress/progressStore";
 import {
@@ -194,14 +195,17 @@ function installMatchMedia(matches: boolean) {
 function renderStudio(
   options: {
     mobile?: boolean;
+    task?: PythonLessonTask;
+    modules?: PythonCurriculumModule[];
     tasks?: PythonLessonTask[];
     progress?: ProgressState;
   } = {},
 ) {
   installMatchMedia(Boolean(options.mobile));
   let progress = options.progress ?? createDefaultProgress();
+  const activeTask = options.task ?? task;
   const taskList = options.tasks ?? [task];
-  const modules = [
+  const modules = options.modules ?? [
     {
       ...moduleFixture,
       tasks: taskList.filter(
@@ -219,7 +223,7 @@ function renderStudio(
 
   const view = render(
     <PythonStudioScreen
-      task={task}
+      task={activeTask}
       modules={modules}
       tasks={taskList}
       runtime={runtime}
@@ -273,6 +277,48 @@ describe("PythonStudioScreen", () => {
     expect(
       screen.queryByRole("table", { name: /üretilen result DataFrame/ }),
     ).not.toBeInTheDocument();
+  });
+
+  it("projects real Python prerequisites into the shared route menu", async () => {
+    const user = userEvent.setup();
+    const routeModules = pythonModules.slice(0, 2);
+    const routeTasks = routeModules.flatMap((module) => module.tasks);
+    const progress = recordPythonAttempt(
+      createDefaultProgress(),
+      routeTasks[0]!.id,
+      routeTasks[0]!.starterCode,
+      true,
+      4,
+    );
+    const { onSelectTask } = renderStudio({
+      task: routeTasks[1]!,
+      modules: routeModules,
+      tasks: routeTasks,
+      progress,
+    });
+
+    const trigger = screen.getByText("Python rotası").closest("summary");
+    await user.click(trigger!);
+    const menu = within(trigger!.closest("details")!);
+    expect(
+      menu.getByRole("button", {
+        name: new RegExp(routeTasks[1]!.title, "i"),
+      }),
+    ).toHaveAttribute("aria-current", "page");
+
+    await user.click(menu.getByText(routeModules[1]!.title));
+    expect(
+      menu.getByRole("button", {
+        name: new RegExp(routeModules[1]!.tasks[0]!.title, "i"),
+      }),
+    ).toBeDisabled();
+
+    await user.click(
+      menu.getByRole("button", {
+        name: new RegExp(routeTasks[0]!.title, "i"),
+      }),
+    );
+    expect(onSelectTask).toHaveBeenCalledWith(routeTasks[0]!.id);
   });
 
   it("renders a correct real table before its success feedback", async () => {

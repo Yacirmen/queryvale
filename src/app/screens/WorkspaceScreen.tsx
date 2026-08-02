@@ -68,6 +68,7 @@ import type { Navigate } from "../appTypes";
 import { CommandDialog } from "../components/Dialogs";
 import { FirstCaseGuide } from "../components/FirstCaseGuide";
 import { ResultCompletion } from "../components/ResultCompletion";
+import { StudioCurriculumMenu } from "../components/StudioCurriculumMenu";
 
 const MonacoEditor = lazy(() => import("../components/LocalMonacoEditor"));
 
@@ -220,11 +221,14 @@ export function WorkspaceScreen({
     task.nextTaskId !== null
       ? tasks.find((candidate) => candidate.id === task.nextTaskId)
       : tasks[taskIndex + 1];
-  const moduleAccessById = new Map(
-    buildModuleAccessStates(modules, tasks, progress.tasks).map((state) => [
-      state.moduleId,
-      state,
-    ]),
+  const moduleAccess = useMemo(
+    () => buildModuleAccessStates(modules, tasks, progress.tasks),
+    [modules, progress.tasks, tasks],
+  );
+  const moduleAccessById = useMemo(
+    () =>
+      new Map(moduleAccess.map((state) => [state.moduleId, state] as const)),
+    [moduleAccess],
   );
   const nextTask =
     requestedNextTask &&
@@ -233,6 +237,36 @@ export function WorkspaceScreen({
       : undefined;
   const currentModule = modules.find((module) => module.id === task.moduleId);
   const isProject = currentModule?.contentKind === "projects";
+  const completedTaskCount = tasks.filter(
+    (candidate) => progress.tasks[candidate.id]?.completed,
+  ).length;
+  const curriculumMenuModules = useMemo(
+    () =>
+      modules.map((module) => {
+        const access = moduleAccessById.get(module.id);
+        const completed = module.tasks.filter(
+          (candidate) => progress.tasks[candidate.id]?.completed,
+        ).length;
+        const itemLabel = module.contentKind === "projects" ? "proje" : "vaka";
+        return {
+          id: module.id,
+          order: module.order,
+          title: module.title,
+          status: access?.isUnlocked
+            ? `${completed}/${module.tasks.length} ${itemLabel}`
+            : `Önce ${access?.blockingModule?.title ?? "önceki modül"}`,
+          complete: Boolean(access?.isComplete),
+          tasks: module.tasks.map((candidate) => ({
+            id: candidate.id,
+            title: candidate.title,
+            meta: `${candidate.estimatedMinutes} dk`,
+            accessible: Boolean(access?.isUnlocked),
+            complete: Boolean(progress.tasks[candidate.id]?.completed),
+          })),
+        };
+      }),
+    [moduleAccessById, modules, progress.tasks],
+  );
   const projectModuleIds = new Set(
     modules
       .filter((module) => module.contentKind === "projects")
@@ -877,10 +911,21 @@ export function WorkspaceScreen({
     <main id="main-content" className="workspace-page" tabIndex={-1}>
       <div className="workspace-topbar">
         <div className="workspace-breadcrumb">
-          <span>Rota</span>
+          <span>{currentModule?.title}</span>
           <ArrowRight size={11} />
           <strong>{task.title}</strong>
         </div>
+        <StudioCurriculumMenu
+          variant="sql"
+          label="SQL rotası"
+          title="Analist SQL rotası"
+          subtitle="Temelden portföy projelerine"
+          completedCount={completedTaskCount}
+          totalCount={tasks.length}
+          activeTaskId={task.id}
+          modules={curriculumMenuModules}
+          onSelectTask={(taskId) => onNavigate("workspace", { taskId })}
+        />
         <div className="workspace-topbar-actions">
           <span className="mission-counter">
             {isProject ? "Proje" : "Vaka"}{" "}

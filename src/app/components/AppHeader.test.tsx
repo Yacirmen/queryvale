@@ -4,15 +4,14 @@ import { describe, expect, it, vi } from "vitest";
 import { AppHeader } from "./AppHeader";
 
 describe("AppHeader", () => {
-  it("shows the route and both studios with the CTA", () => {
+  it("shows both studios without a separate route button", () => {
     const { rerender } = render(
-      <AppHeader screen="learn" onNavigate={vi.fn()} />,
+      <AppHeader screen="workspace" onNavigate={vi.fn()} />,
     );
 
     const navigation = screen.getByRole("navigation", {
       name: "Ana bölümler",
     });
-    const route = within(navigation).getByRole("button", { name: "Rota" });
     const sqlStudio = within(navigation).getByRole("button", {
       name: "SQL Studio — SQL Laboratuvarı",
     });
@@ -23,24 +22,19 @@ describe("AppHeader", () => {
       name: "Hemen Başla — hesap aç veya giriş yap",
     });
 
-    expect(route).toBeVisible();
     expect(sqlStudio).toBeVisible();
     expect(sqlStudio).toHaveTextContent("SQL Studio");
     expect(pythonStudio).toBeVisible();
     expect(start).toBeVisible();
-    expect(within(navigation).getAllByRole("button")).toHaveLength(3);
+    expect(within(navigation).getAllByRole("button")).toHaveLength(2);
+    expect(
+      within(navigation).queryByRole("button", { name: "Rota" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("Dokümanlar")).not.toBeInTheDocument();
     expect(screen.queryByText("Nasıl Çalışır")).not.toBeInTheDocument();
-    expect(route).toHaveAttribute("aria-current", "page");
-    expect(sqlStudio).not.toHaveAttribute("aria-current");
-    expect(pythonStudio).not.toHaveAttribute("aria-current");
-    expect(start).not.toHaveAttribute("aria-current");
-
-    rerender(<AppHeader screen="workspace" onNavigate={vi.fn()} />);
-
-    expect(route).not.toHaveAttribute("aria-current");
     expect(sqlStudio).toHaveAttribute("aria-current", "page");
     expect(pythonStudio).not.toHaveAttribute("aria-current");
+    expect(start).not.toHaveAttribute("aria-current");
 
     rerender(<AppHeader screen="python" onNavigate={vi.fn()} />);
 
@@ -60,7 +54,7 @@ describe("AppHeader", () => {
     }
   });
 
-  it("routes Rota and keeps SQL Studio, Python Studio and CTA callbacks separate", async () => {
+  it("keeps SQL Studio, Python Studio and CTA callbacks separate", async () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
     const onStudio = vi.fn();
@@ -78,7 +72,6 @@ describe("AppHeader", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Rota" }));
     await user.click(
       screen.getByRole("button", {
         name: "SQL Studio — SQL Laboratuvarı",
@@ -91,8 +84,7 @@ describe("AppHeader", () => {
       }),
     );
 
-    expect(onNavigate).toHaveBeenCalledOnce();
-    expect(onNavigate).toHaveBeenCalledWith("learn");
+    expect(onNavigate).not.toHaveBeenCalled();
     expect(onStudio).toHaveBeenCalledOnce();
     expect(onPythonStudio).toHaveBeenCalledOnce();
     expect(onStart).toHaveBeenCalledOnce();

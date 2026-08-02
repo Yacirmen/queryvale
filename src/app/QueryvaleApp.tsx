@@ -308,7 +308,7 @@ export function QueryvaleApp() {
     if (!isLoaded || !shouldFocusScreenRef.current) return;
     shouldFocusScreenRef.current = false;
     document.getElementById("main-content")?.focus({ preventScroll: true });
-  }, [isLoaded, screen]);
+  }, [activePythonTaskId, activeTaskId, isLoaded, screen]);
 
   useEffect(() => {
     if (previousScreenRef.current === "python" && screen !== "python") {

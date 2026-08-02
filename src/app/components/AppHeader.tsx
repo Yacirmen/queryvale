@@ -71,15 +71,6 @@ export function AppHeader({
               className="reference-nav-link"
               type="button"
               disabled={disabled}
-              onClick={() => onNavigate("learn")}
-              aria-current={screen === "learn" ? "page" : undefined}
-            >
-              Rota
-            </button>
-            <button
-              className="reference-nav-link"
-              type="button"
-              disabled={disabled}
               onClick={openStudio}
               aria-label="SQL Studio — SQL Laboratuvarı"
               aria-current={screen === "workspace" ? "page" : undefined}

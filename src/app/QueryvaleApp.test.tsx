@@ -623,9 +623,9 @@ describe("QueryvaleApp", () => {
     await user.click(
       within(
         screen.getByRole("navigation", { name: "Ana bölümler" }),
-      ).getByRole("button", { name: "Rota" }),
+      ).getByRole("button", { name: "SQL Studio — SQL Laboratuvarı" }),
     );
-    await screen.findByRole("heading", { level: 1, name: "Rota" });
+    await screen.findByRole("textbox", { name: "SQL sorgu editörü" });
     await waitFor(() => expect(disposeSpy).toHaveBeenCalledTimes(1));
     disposeSpy.mockRestore();
   });
@@ -1400,7 +1400,7 @@ describe("QueryvaleApp", () => {
         screen.getByRole("textbox", { name: "SQL sorgu editörü" }),
         { target: { value: "SELECT product_name FROM products;" } },
       );
-      await user.click(screen.getByRole("button", { name: /Kaydet/i }));
+      await user.click(screen.getByRole("button", { name: "Kaydet" }));
       expect(
         await screen.findByText("Taslak yalnız bu oturum için tutuldu."),
       ).toBeInTheDocument();
@@ -1540,7 +1540,7 @@ describe("QueryvaleApp", () => {
     );
     await user.click(screen.getByRole("button", { name: "1. ipucunu aç" }));
     await user.clear(editor);
-    await user.click(screen.getByRole("button", { name: /Kaydet/i }));
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
 
     expect(await screen.findByText("Doğru çözüm")).toBeInTheDocument();
     await waitFor(async () => {
@@ -1822,7 +1822,7 @@ describe("QueryvaleApp", () => {
       name: "SQL sorgu editörü",
     });
     await user.type(editor, "SELECT product_name FROM products;");
-    await user.click(screen.getByRole("button", { name: /Kaydet/i }));
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
 
     const nextButton = screen.getByRole("button", { name: "Sonraki vaka" });
     expect(nextButton).toBeEnabled();
@@ -1858,18 +1858,107 @@ describe("QueryvaleApp", () => {
     ).toHaveValue("");
   });
 
-  it("keeps unmet prerequisites clickable as learning-path guidance", async () => {
+  it("opens the complete SQL route inside Studio and preserves module locks", async () => {
+    window.location.hash = "#/lab/m1-t1";
     const user = userEvent.setup();
     render(<QueryvaleApp />);
 
+    const editor = await screen.findByRole("textbox", {
+      name: "SQL sorgu editörü",
+    });
+    const draft = "SELECT product_name, category FROM products;";
+    fireEvent.change(editor, { target: { value: draft } });
+    const routeTrigger = screen.getByText("SQL rotası").closest("summary");
+    const routeMenu = routeTrigger?.closest("details");
+    expect(routeTrigger).not.toBeNull();
+    expect(routeMenu).not.toBeNull();
+
+    await user.click(routeTrigger!);
+    const menu = within(routeMenu!);
+    expect(menu.getByText("Analist SQL rotası")).toBeVisible();
+    expect(menu.getByText("Temelden portföy projelerine")).toBeVisible();
+    expect(menu.getByText(`0/${tasks.length}`)).toBeVisible();
+    expect(
+      routeMenu!.querySelectorAll(".studio-module-list > details"),
+    ).toHaveLength(modules.length);
+
+    const activeTask = menu.getByRole("button", {
+      name: new RegExp(tasks[0].title, "i"),
+    });
+    expect(activeTask).toHaveAttribute("aria-current", "page");
+
+    await user.click(menu.getByText(modules[1].title));
+    expect(
+      menu.getByRole("button", {
+        name: new RegExp(modules[1].tasks[0].title, "i"),
+      }),
+    ).toBeDisabled();
+
     await user.click(
-      within(
-        await screen.findByRole("navigation", { name: "Ana bölümler" }),
-      ).getByRole("button", {
-        name: /^Rota$/,
+      menu.getByRole("button", {
+        name: new RegExp(modules[0].tasks[1].title, "i"),
       }),
     );
-    expect(screen.getByRole("heading", { name: "Rota" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: modules[0].tasks[1].title }),
+    ).toBeInTheDocument();
+    expect(window.location.hash).toBe(`#/lab/${modules[0].tasks[1].id}`);
+    await waitFor(async () => {
+      expect(await loadProgress()).toMatchObject({
+        lastOpenedTaskId: modules[0].tasks[1].id,
+        lastOpenedTaskIdTrusted: true,
+        tasks: {
+          [modules[0].tasks[0].id]: { lastQuery: draft },
+        },
+      });
+      expect(document.getElementById("main-content")).toHaveFocus();
+    });
+
+    const nextRouteTrigger = screen.getByText("SQL rotası").closest("summary");
+    await user.click(nextRouteTrigger!);
+    await user.click(
+      within(nextRouteTrigger!.closest("details")!).getByRole("button", {
+        name: new RegExp(modules[0].tasks[0].title, "i"),
+      }),
+    );
+    expect(
+      await screen.findByRole("textbox", { name: "SQL sorgu editörü" }),
+    ).toHaveValue(draft);
+  });
+
+  it("unlocks the next SQL module in the Studio route without opening later modules", async () => {
+    const unlockedProgress = progressWithCompletedModulesBefore(modules[1].id);
+    progressPersistenceHarness.loadOverride = unlockedProgress;
+    window.location.hash = `#/lab/${modules[1].tasks[0].id}`;
+    const user = userEvent.setup();
+    render(<QueryvaleApp />);
+
+    await screen.findByRole("heading", { name: modules[1].tasks[0].title });
+    const routeTrigger = screen.getByText("SQL rotası").closest("summary");
+    await user.click(routeTrigger!);
+    const menu = within(routeTrigger!.closest("details")!);
+
+    expect(
+      menu.getByRole("button", {
+        name: new RegExp(modules[1].tasks[0].title, "i"),
+      }),
+    ).toBeEnabled();
+    await user.click(menu.getByText(modules[2].title));
+    expect(
+      menu.getByRole("button", {
+        name: new RegExp(modules[2].tasks[0].title, "i"),
+      }),
+    ).toBeDisabled();
+  });
+
+  it("keeps unmet prerequisites clickable as learning-path guidance", async () => {
+    window.location.hash = "#/learn";
+    const user = userEvent.setup();
+    render(<QueryvaleApp />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Rota" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Önerilen başlangıç")).toBeInTheDocument();
     expect(screen.getByText("Buradasın")).toBeInTheDocument();
     expect(screen.getByText("Şu an buradasın")).toBeInTheDocument();
@@ -1908,7 +1997,7 @@ describe("QueryvaleApp", () => {
     await user.click(
       within(
         await screen.findByRole("navigation", { name: "Ana bölümler" }),
-      ).getByRole("button", { name: "Rota" }),
+      ).getByRole("button", { name: "SQL Studio — SQL Laboratuvarı" }),
     );
 
     await waitFor(() => expect(screen.getByRole("main")).toHaveFocus());

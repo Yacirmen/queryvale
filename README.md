@@ -33,6 +33,7 @@ Queryvale, komut ezberleten bir kurs değil; gerçek iş sorularını SQL ve Pyt
 - İlerlemeyi silmeden çıkış, sayfa yenilemeleri arasında korunan yerel profil durumu ve aynı cihazda tek dokunuşla yeniden giriş
 - Başlangıç rehberi, otomatik kayıt/taşıma açıklaması, destek bağlantısı ve profil-veri silme eylemini birleştiren `Yardım ve veri` alanı
 - `SQL Studio` ve `Python Studio` üzerinden profil kapısını zorunlu kılmadan iki çalışma alanına misafir erişimi
+- Header'ı kalabalıklaştırmadan her stüdyonun içinde açılan rota menüsü: SQL'de 11 modül/52 vaka-proje, Python'da 4 modül/12 vaka
 - Yazarken otomatik kaydedilen SQL taslakları; `⌘/Ctrl+S` ile anında kayıt
 - Açık/koyu tema, editör tercihleri ve reduced-motion desteği
 - Dışa/içe aktarılabilir ilerleme verisi
@@ -92,8 +93,10 @@ veya bulut senkronizasyonu vaat etmez. Açıkça yerel profil oluşturulduktan s
 kilidi veya yetkilendirme değildir. Profilin tamamen kaldırılması ayrı ve onaylı
 `Ayarlar → Profil ve veri → Profili sil` eylemidir. `İlerlemeyi sıfırla` ise profil adını
 ve çalışma tercihlerini korur.
-Yalnız görev denemiş bir misafir hesap varmış gibi gösterilmez. `SQL Studio` bağlantısı SQL
-Laboratuvarı'na misafir erişimini korur; çıkış yapılmışken stüdyolarda üretilen çalışma da
+Yalnız görev denemiş bir misafir hesap varmış gibi gösterilmez. Header yalnız `SQL Studio`
+ve `Python Studio` çalışma hedeflerini taşır; iki rotanın modül/vaka görünümü kendi stüdyosundaki
+açılır menüden erişilir. `SQL Studio` bağlantısı SQL Laboratuvarı'na misafir erişimini korur;
+çıkış yapılmışken stüdyolarda üretilen çalışma da
 bu cihazdaki tek çalışma alanına kaydedilir.
 
 ## Komutlar

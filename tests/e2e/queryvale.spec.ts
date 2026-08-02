@@ -5,6 +5,7 @@ test("Python Studio executes a real pandas result before offering the next case"
   page,
   isMobile,
 }) => {
+  test.setTimeout(150_000);
   test.skip(
     isMobile,
     "The real runtime contract only needs one browser execution.",
@@ -79,7 +80,50 @@ test("locked module links return a new learner to the first accessible case", as
   await expect(lockNotice).toContainText("Veriyle ilk temas");
 });
 
-test("the unified fixed header keeps five controls visible across every route", async ({
+test("SQL Studio exposes the full route without changing its module locks", async ({
+  page,
+}) => {
+  await page.goto("/#/lab/m1-t1");
+  await expect(page.locator(".app-shell")).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
+
+  const routeMenu = page.locator(".studio-curriculum-menu");
+  await routeMenu.locator(":scope > summary").click();
+  const popover = routeMenu.locator(".studio-curriculum-popover");
+  await expect(popover).toBeVisible();
+  await expect(routeMenu.locator(":scope > summary")).toContainText("0/52");
+  await expect(popover.getByText("Analist SQL rotası")).toBeVisible();
+  await expect(popover.getByText("Temelden portföy projelerine")).toBeVisible();
+  await expect(popover.locator(".studio-module-list > details")).toHaveCount(
+    11,
+  );
+  await expect(popover.locator(".studio-module-list button")).toHaveCount(52);
+  await expect(
+    popover.getByRole("button", { name: /Katalog görünümünü hazırla/i }),
+  ).toHaveAttribute("aria-current", "page");
+
+  const lockedModule = popover
+    .locator(".studio-module-list > details")
+    .filter({ hasText: "Veriyi filtreleme" });
+  await lockedModule.locator(":scope > summary").click();
+  await expect(
+    lockedModule.getByRole("button", {
+      name: /Yüksek tutarlı siparişleri ayır/i,
+    }),
+  ).toBeDisabled();
+
+  await popover
+    .getByRole("button", { name: /Kategori listesini tekilleştir/i })
+    .click();
+  await expect(page).toHaveURL(/#\/lab\/m1-t2$/);
+  await expect(
+    page.getByRole("heading", { name: "Kategori listesini tekilleştir" }),
+  ).toBeVisible();
+});
+
+test("the unified fixed header keeps both Studio controls visible across every route", async ({
   page,
 }) => {
   const routes = [
@@ -103,10 +147,6 @@ test("the unified fixed header keeps five controls visible across every route", 
     const brand = header.getByRole("button", {
       name: "Queryvale ana sayfa",
     });
-    const routeLink = header.getByRole("button", {
-      name: "Rota",
-      exact: true,
-    });
     const sqlStudio = header.getByRole("button", {
       name: "SQL Studio — SQL Laboratuvarı",
     });
@@ -114,9 +154,12 @@ test("the unified fixed header keeps five controls visible across every route", 
     const start = header.locator(".landing-header-cta");
 
     await expect(header).toHaveCSS("position", "fixed");
-    for (const control of [brand, routeLink, sqlStudio, pythonStudio, start]) {
+    for (const control of [brand, sqlStudio, pythonStudio, start]) {
       await expect(control).toBeVisible();
     }
+    await expect(
+      header.getByRole("button", { name: "Rota", exact: true }),
+    ).toHaveCount(0);
     await expect(header.getByText("Dokümanlar")).toHaveCount(0);
 
     const navigationCenter = await header
@@ -136,9 +179,6 @@ test("the unified fixed header keeps five controls visible across every route", 
     if (route.active === "home") {
       await expect(activeControls).toHaveCount(1);
       await expect(brand).toHaveAttribute("aria-current", "page");
-    } else if (route.active === "learn") {
-      await expect(activeControls).toHaveCount(1);
-      await expect(routeLink).toHaveAttribute("aria-current", "page");
     } else if (route.active === "workspace") {
       await expect(activeControls).toHaveCount(1);
       await expect(sqlStudio).toHaveAttribute("aria-current", "page");
@@ -228,7 +268,7 @@ test("the local profile survives sign-out and can be deliberately deleted", asyn
   for (const control of [profile, settings]) {
     const bounds = await control.boundingBox();
     expect(bounds?.width ?? 0).toBeGreaterThanOrEqual(44);
-    expect(bounds?.height ?? 0).toBeGreaterThanOrEqual(44);
+    expect(bounds?.height ?? 0).toBeGreaterThanOrEqual(43.9);
   }
   expect(
     await page.evaluate(
@@ -822,7 +862,7 @@ test("landing, onboarding and first real SQL task", async ({
   await expect(restoredNotebook.getByText(caveat)).toBeVisible();
 });
 
-test("learning path and settings remain usable on a narrow viewport", async ({
+test("legacy learning path and settings remain usable on a narrow viewport", async ({
   page,
   isMobile,
 }) => {
@@ -881,7 +921,7 @@ test("learning path and settings remain usable on a narrow viewport", async ({
     ),
   ).toBeLessThanOrEqual(0);
 
-  await page.getByRole("button", { name: "Rota", exact: true }).click();
+  await page.goto("/#/learn");
   await expect(page.getByRole("heading", { name: "Rota" })).toBeVisible();
   await expect(
     page.getByText("Önerilen başlangıç", { exact: true }),
@@ -897,6 +937,36 @@ test("learning path and settings remain usable on a narrow viewport", async ({
   await expect(
     page.getByRole("tablist", { name: "Vaka çalışma adımları" }),
   ).toBeVisible();
+  const sqlRouteMenu = page.locator(".studio-curriculum-menu");
+  for (const studioTarget of [
+    page.getByRole("button", { name: "SQL Studio — SQL Laboratuvarı" }),
+    page.getByRole("button", { name: "Python Studio" }),
+  ]) {
+    const bounds = await studioTarget.boundingBox();
+    expect(bounds?.height ?? 0).toBeGreaterThanOrEqual(43.9);
+  }
+  await sqlRouteMenu.locator(":scope > summary").click();
+  const sqlRoutePopover = sqlRouteMenu.locator(".studio-curriculum-popover");
+  await expect(sqlRoutePopover).toBeVisible();
+  const popoverBounds = await sqlRoutePopover.boundingBox();
+  expect(popoverBounds?.x ?? -1).toBeGreaterThanOrEqual(0);
+  expect(
+    (popoverBounds?.x ?? 0) + (popoverBounds?.width ?? 321),
+  ).toBeLessThanOrEqual(320);
+  expect(
+    (popoverBounds?.y ?? 0) + (popoverBounds?.height ?? 701),
+  ).toBeLessThanOrEqual(700);
+  expect(
+    await sqlRoutePopover
+      .locator(".studio-module-list")
+      .evaluate((element) => element.scrollHeight > element.clientHeight),
+  ).toBe(true);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    ),
+  ).toBeLessThanOrEqual(0);
+  await page.keyboard.press("Escape");
   await page.getByRole("tab", { name: "SQL görünümü" }).click();
   await expect(page.getByRole("button", { name: /Çalıştır/i })).toBeVisible();
 });

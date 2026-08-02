@@ -15,7 +15,7 @@
 | Ekran                    | Birincil amaç                                                                   | Birincil eylem                   |
 | ------------------------ | ------------------------------------------------------------------------------- | -------------------------------- |
 | Ana sayfa                | Kanıt rotasının değerini ve tarayıcı içi çalışma biçimini açıklamak             | Başla / kaldığın yerden devam et |
-| Rota                     | Dört bölümü, SQL konularını ve sıradaki vakayı görünür kılmak                   | Devam et                         |
+| Rota                     | İki stüdyo içinden modülleri, kilitleri ve sıradaki vakayı görünür kılmak       | Vakayı seç / devam et            |
 | Vaka alanı               | `Sor → İncele → Sorgula → Doğrula → Anlat` döngüsünü tek vaka üzerinde yürütmek | Sorguyu çalıştır                 |
 | Python Studio            | EDA, temizlik, KPI ve zaman analizini gerçek DataFrame üzerinde uygulamak       | Python kodunu çalıştır           |
 | İlerleme / Kanıt Defteri | Doğrulanmış çalışmaları, karar notlarını ve pratik sinyallerini geri çağırmak   | Vakayı veya kanıtı aç            |
@@ -25,7 +25,7 @@
 
 1. Ana sayfa ürün vaadini ve tarayıcı içi çalışma modelini açıklar.
 2. Yeni kullanıcıda “İlk vakaya başla” ilk vaka içinde kapatılabilir 90 saniyelik rehberi açar; geri dönen kullanıcıda “Kaldığın vakaya devam et” son güvenilir konumu açar.
-3. Rota, çalışan SQL konularını dört mesleki bölüm altında gösterir; yalnız önceki SQL konusu tamamlandığında sıradakini açar ve ilk erişilebilir eksiği önerir.
+3. SQL Studio içindeki rota menüsü çalışan SQL konularını dört mesleki bölüm altında gösterir; yalnız önceki SQL konusu tamamlandığında sıradakini açar ve ilk erişilebilir eksiği önerir. Ayrıntılı eski `#/learn` görünümü geriye uyumluluk için ikincil erişim olarak korunur.
 4. Çalışma alanı önce istenen teslimi ve çıktı sözleşmesini gösterir; kavram, kabul kontrolleri, veri notları ve iş bağlamını ihtiyaç anında açar.
 5. Kullanıcı sorgusunu yazar; taslak otomatik kaydolur ve `Cmd/Ctrl + Enter` ile çalıştırılabilir.
 6. Sonuç tablosu gerçek satırları, yürütme süresini ve satır sayısını gösterir.
@@ -43,6 +43,8 @@
 3. Python kodu ayrı Web Worker’daki gerçek Pyodide/pandas runtime’ında çalışır ve `result` DataFrame’i üretir.
 4. Sonuç tablosu önce görünür; kolon, dtype, satır ve gerekiyorsa sıra sözleşmesi açıklanabilir geri bildirimle değerlendirilir.
 5. Kullanıcı sonuç ekranda kalırken isterse sonraki vakaya geçer. Taslak, yardım, puan, tamamlanma ve sınırlı artifact otomatik kaydedilir.
+
+Her iki stüdyo üst çubuğunda aynı rota menüsü kalıbını kullanır. SQL menüsü modül bazlı erişim sözleşmesini korur; açık modülün vakaları arasında serbestçe dolaşılabilir. Python menüsünde ise mevcut vaka ön koşulları değişmeden kalır.
 
 ## Çalışma alanı gereksinimleri
 

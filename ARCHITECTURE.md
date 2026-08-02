@@ -52,6 +52,8 @@ Servis sonuçları ayrıştırılmış hata türleri döndürür; UI ham bağım
 
 Sayfa kabukları ve feature bileşenleri servisleri hook’lar üzerinden kullanır. Sunum bileşenleri mümkün olduğunca veri alıp olay üretir. Uygulama çapındaki geçici state sade React reducer/context ile; URL’de paylaşılabilir navigasyon state’i rotayla; kalıcı state IndexedDB ile yönetilir.
 
+`StudioCurriculumMenu`, SQL ve Python çalışma alanlarının yalnız sunum sözleşmesini paylaşır. Her ekran modül/vaka görünüm modelini kendi erişim seçicisinden üretir: SQL modül bazlı, Python vaka ön koşulu bazlı kilitleri korur. Menüden seçim ortak uygulama navigasyonuna geri döner; böylece hash çözümleme, güvenli devam konumu, taslak kaydı ve kilit yönlendirmesi ikinci kez uygulanmaz.
+
 ## SQL motoru kararı
 
 Varsayılan motor **PGlite**’tır.
