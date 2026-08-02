@@ -18,12 +18,23 @@ import {
   loadProgress,
   localDateKey,
   MAX_DECISION_NOTE_FIELD_CHARS,
+  MAX_PYTHON_CODE_CHARS,
+  MAX_PYTHON_EVIDENCE_COLUMNS,
+  MAX_PYTHON_EVIDENCE_PREVIEW_ROWS,
+  MAX_PYTHON_EVIDENCE_STDOUT_CHARS,
   normalizeProfileName,
   recordAttempt,
   recordHint,
   recordPracticeActivity,
+  recordPythonAttempt,
+  recordPythonDraft,
+  recordPythonEvidence,
+  recordPythonHint,
+  recordPythonSolutionReveal,
+  recordPythonTaskOpen,
   recordSolutionReveal,
   recordVerifiedRun,
+  resetProgress,
   resolveLocalProfileAccess,
   saveProgress,
   saveProgressWithLocalProfileSession,
@@ -165,6 +176,30 @@ function createLegacyV4Progress() {
   };
 }
 
+function createLegacyV5Progress() {
+  const current = createLocalAccount(
+    recordAttempt(
+      recordHint(createDefaultProgress(), "m1-t2", 0),
+      "m1-t2",
+      "SELECT DISTINCT category FROM products",
+      true,
+      24,
+    ),
+    "Ada Analist",
+  );
+  return {
+    version: 5 as const,
+    profile: current.profile,
+    startedAt: current.startedAt,
+    lastOpenedTaskId: "m1-t2",
+    lastOpenedTaskIdTrusted: true,
+    activityDates: current.activityDates,
+    tasks: current.tasks,
+    settings: current.settings,
+    evidenceByTaskId: current.evidenceByTaskId,
+  };
+}
+
 function withoutV5ScoreFields(
   tasks: ReturnType<typeof createDefaultProgress>["tasks"],
 ) {
@@ -204,6 +239,23 @@ function createFirstTaskSnapshot(query = "SELECT product_name FROM products") {
   );
 }
 
+function createPythonEvidence(taskId = "py-m1-t1") {
+  return {
+    taskId,
+    runtimeVersion: "0.29.4",
+    contentVersion: "2026.08.02",
+    verifiedAt: "2026-08-02T09:00:00.000Z",
+    columns: ["region", "orders", "conversion_rate"],
+    dtypes: ["string", "int64", "float64"],
+    previewRows: [
+      ["Marmara", 42, 0.18],
+      ["Ege", 31, null],
+    ],
+    rowCount: 2,
+    stdout: "2 satır üretildi\n",
+  };
+}
+
 describe("progressStore", () => {
   beforeEach(async () => {
     await new Promise<void>((resolve) => {
@@ -224,13 +276,16 @@ describe("progressStore", () => {
     );
     await saveProgress(state);
     const restored = await loadProgress();
-    expect(restored.version).toBe(5);
+    expect(restored.version).toBe(6);
     expect(restored.lastOpenedTaskIdTrusted).toBe(true);
     expect(restored.profile.id).toBe(state.profile.id);
     expect(restored.profile.displayName).toBe(DEFAULT_PROFILE_DISPLAY_NAME);
     expect(restored.tasks["m1-t1"].completed).toBe(true);
     expect(restored.tasks["m1-t1"].lastQuery).toContain("SELECT");
     expect(restored.evidenceByTaskId).toEqual({});
+    expect(restored.lastOpenedPythonTaskId).toBe("py-m1-t1");
+    expect(restored.pythonTasks).toEqual({});
+    expect(restored.pythonEvidenceByTaskId).toEqual({});
   });
 
   it("exports and validates imported state", () => {
@@ -239,7 +294,7 @@ describe("progressStore", () => {
     expect(importProgress(exportProgress(state)).profile.id).toBe(
       state.profile.id,
     );
-    expect(() => importProgress('{"version":5}')).toThrow(/geçerli/);
+    expect(() => importProgress('{"version":6}')).toThrow(/geçerli/);
     expect(() =>
       importProgress(
         JSON.stringify({
@@ -271,7 +326,7 @@ describe("progressStore", () => {
     const legacy = createLegacyV1Progress();
     const migrated = importProgress(JSON.stringify(legacy));
 
-    expect(migrated.version).toBe(5);
+    expect(migrated.version).toBe(6);
     expect(migrated.lastOpenedTaskIdTrusted).toBe(false);
     expect(migrated.profile.id).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu,
@@ -287,10 +342,13 @@ describe("progressStore", () => {
     });
     expect(migrated.settings).toEqual(legacy.settings);
     expect(migrated.evidenceByTaskId).toEqual({});
-    expect(JSON.parse(exportProgress(migrated))).toMatchObject({ version: 5 });
+    expect(migrated.lastOpenedPythonTaskId).toBe("py-m1-t1");
+    expect(migrated.pythonTasks).toEqual({});
+    expect(migrated.pythonEvidenceByTaskId).toEqual({});
+    expect(JSON.parse(exportProgress(migrated))).toMatchObject({ version: 6 });
   });
 
-  it("loads and persists an IndexedDB v1 record as v5", async () => {
+  it("loads and persists an IndexedDB v1 record as v6", async () => {
     const legacy = createLegacyV1Progress();
     await putRawProgress(legacy);
 
@@ -301,7 +359,7 @@ describe("progressStore", () => {
       tasks?: unknown;
     };
 
-    expect(loaded.version).toBe(5);
+    expect(loaded.version).toBe(6);
     expect(loaded.lastOpenedTaskIdTrusted).toBe(false);
     expect(loaded.tasks["m1-t1"]).toMatchObject({
       completed: true,
@@ -309,7 +367,7 @@ describe("progressStore", () => {
       scoreAwarded: 10,
     });
     expect(loaded.evidenceByTaskId).toEqual({});
-    expect(persisted.version).toBe(5);
+    expect(persisted.version).toBe(6);
     expect(persisted.profile?.id).toBe(loaded.profile.id);
     expect(persisted.profile?.displayName).toBe(DEFAULT_PROFILE_DISPLAY_NAME);
     expect(persisted.tasks).toEqual(loaded.tasks);
@@ -328,7 +386,7 @@ describe("progressStore", () => {
       evidenceByTaskId?: unknown;
     };
 
-    expect(loaded.version).toBe(5);
+    expect(loaded.version).toBe(6);
     expect(loaded.lastOpenedTaskIdTrusted).toBe(false);
     expect(loaded.profile).toEqual(legacy.profile);
     expect(loaded.tasks["m1-t1"]).toMatchObject({
@@ -337,7 +395,7 @@ describe("progressStore", () => {
       scoreAwarded: 10,
     });
     expect(loaded.evidenceByTaskId).toEqual({});
-    expect(persisted.version).toBe(5);
+    expect(persisted.version).toBe(6);
     expect(persisted.profile).toEqual(legacy.profile);
     expect(persisted.tasks).toEqual(loaded.tasks);
     expect(persisted.evidenceByTaskId).toEqual({});
@@ -355,7 +413,7 @@ describe("progressStore", () => {
     };
 
     expect(loaded).toMatchObject({
-      version: 5,
+      version: 6,
       lastOpenedTaskId: "m1-t1",
       lastOpenedTaskIdTrusted: false,
     });
@@ -365,7 +423,7 @@ describe("progressStore", () => {
     });
     expect(loaded.tasks["m1-t3"].scoreAwarded).toBeUndefined();
     expect(persisted).toMatchObject({
-      version: 5,
+      version: 6,
       lastOpenedTaskIdTrusted: false,
       tasks: {
         "m1-t3": {
@@ -402,26 +460,50 @@ describe("progressStore", () => {
       >;
     };
 
-    expect(loaded.version).toBe(5);
+    expect(loaded.version).toBe(6);
     expect(loaded.tasks["m1-t1"]).toMatchObject({
       completed: true,
       hintsUsed: [0],
       solutionRevealed: false,
       scoreAwarded: 7,
     });
-    expect(persisted.version).toBe(5);
+    expect(persisted.version).toBe(6);
     expect(persisted.tasks?.["m1-t1"]).toMatchObject({
       solutionRevealed: false,
       scoreAwarded: 7,
     });
   });
 
+  it("migrates and persists v5 SQL progress without data loss", async () => {
+    const legacy = createLegacyV5Progress();
+    await putRawProgress(legacy);
+
+    const loaded = await loadProgress();
+    const persisted = await readRawProgress();
+
+    expect(loaded).toMatchObject({
+      version: 6,
+      profile: legacy.profile,
+      startedAt: legacy.startedAt,
+      lastOpenedTaskId: legacy.lastOpenedTaskId,
+      lastOpenedTaskIdTrusted: legacy.lastOpenedTaskIdTrusted,
+      activityDates: legacy.activityDates,
+      tasks: legacy.tasks,
+      settings: legacy.settings,
+      evidenceByTaskId: legacy.evidenceByTaskId,
+      lastOpenedPythonTaskId: "py-m1-t1",
+      pythonTasks: {},
+      pythonEvidenceByTaskId: {},
+    });
+    expect(persisted).toEqual(loaded);
+  });
+
   it("preserves an incompatible stored record instead of overwriting it", async () => {
-    const futureRecord = { version: 6, marker: "future-progress" };
+    const futureRecord = { version: 7, marker: "future-progress" };
     await putRawProgress(futureRecord);
 
     const fallback = await loadProgress();
-    expect(fallback.version).toBe(5);
+    expect(fallback.version).toBe(6);
     expect(getProgressPersistenceIssue()).toBe("incompatible");
     await expect(saveProgress(fallback)).rejects.toThrow(/korunuyor/);
     expect(await readRawProgress()).toEqual(futureRecord);
@@ -622,6 +704,287 @@ describe("progressStore", () => {
     );
   });
 
+  it("records Python drafts, attempts and a score locked on first completion", () => {
+    const initial = createDefaultProgress();
+    const opened = recordPythonTaskOpen(initial, "py-m2-t3");
+    const drafted = recordPythonDraft(
+      opened,
+      "py-m2-t3",
+      "orders.groupby('region').size()",
+    );
+    const failed = recordPythonAttempt(
+      drafted,
+      "py-m2-t3",
+      "orders.groupby('region')",
+      false,
+      4,
+      new Date("2026-08-02T09:00:00.000Z"),
+    );
+    const hinted = recordPythonHint(
+      failed,
+      "py-m2-t3",
+      0,
+      new Date("2026-08-02T09:01:00.000Z"),
+    );
+    const completed = recordPythonAttempt(
+      hinted,
+      "py-m2-t3",
+      "orders.groupby('region').size()",
+      true,
+      33,
+      new Date("2026-08-02T09:02:00.000Z"),
+    );
+    const reviewed = recordPythonAttempt(
+      recordPythonHint(completed, "py-m2-t3", 1),
+      "py-m2-t3",
+      "orders.groupby('region').size().sort_values()",
+      true,
+      12,
+    );
+
+    expect(opened.lastOpenedPythonTaskId).toBe("py-m2-t3");
+    expect(opened.lastOpenedTaskId).toBe(initial.lastOpenedTaskId);
+    expect(drafted.pythonTasks["py-m2-t3"].lastCode).toContain("groupby");
+    expect(completed.pythonTasks["py-m2-t3"]).toMatchObject({
+      attempts: 2,
+      completed: true,
+      hintsUsed: [0],
+      solutionRevealed: false,
+      scoreAwarded: 7,
+      solveTimeSeconds: 33,
+      firstTry: false,
+    });
+    expect(reviewed.pythonTasks["py-m2-t3"]).toMatchObject({
+      attempts: 3,
+      hintsUsed: [0, 1],
+      scoreAwarded: 7,
+    });
+    expect(recordPythonSolutionReveal(reviewed, "py-m2-t3")).toBe(reviewed);
+    expect(reviewed.tasks).toBe(initial.tasks);
+
+    expect(() =>
+      recordPythonDraft(
+        initial,
+        "py-m1-t1",
+        "x".repeat(MAX_PYTHON_CODE_CHARS + 1),
+      ),
+    ).toThrow(/en fazla/);
+    expect(() => recordPythonHint(initial, "py-m1-t1", 3)).toThrow(/0 ile 2/);
+  });
+
+  it("awards zero to Python work after the full solution is revealed", () => {
+    const assisted = recordPythonSolutionReveal(
+      createDefaultProgress(),
+      "py-m1-t1",
+    );
+    const completed = recordPythonAttempt(
+      assisted,
+      "py-m1-t1",
+      "print('merhaba')",
+      true,
+      8,
+    );
+
+    expect(completed.pythonTasks["py-m1-t1"]).toMatchObject({
+      completed: true,
+      firstTry: true,
+      solutionRevealed: true,
+      scoreAwarded: 0,
+    });
+  });
+
+  it("accepts only canonical Python hint prefixes during import", () => {
+    const onceHinted = recordPythonHint(createDefaultProgress(), "py-m1-t1", 0);
+    const twiceHinted = recordPythonHint(onceHinted, "py-m1-t1", 1);
+    const fullyHinted = recordPythonHint(twiceHinted, "py-m1-t1", 2);
+
+    for (const state of [
+      recordPythonDraft(createDefaultProgress(), "py-m1-t1", "result = None"),
+      onceHinted,
+      twiceHinted,
+      fullyHinted,
+    ]) {
+      expect(importProgress(exportProgress(state))).toEqual(state);
+    }
+
+    for (const malformedHints of [[1], [2], [0, 2], [1, 0], [0, 1, 1]]) {
+      const malformed = {
+        ...onceHinted,
+        pythonTasks: {
+          ...onceHinted.pythonTasks,
+          "py-m1-t1": {
+            ...onceHinted.pythonTasks["py-m1-t1"],
+            hintsUsed: malformedHints,
+          },
+        },
+      };
+      expect(
+        () => importProgress(JSON.stringify(malformed)),
+        `hintsUsed=${JSON.stringify(malformedHints)}`,
+      ).toThrow(/geçerli/);
+    }
+  });
+
+  it("stores bounded Python evidence only for completed work and clones it", () => {
+    const entry = createPythonEvidence();
+    expect(() => recordPythonEvidence(createDefaultProgress(), entry)).toThrow(
+      /tamamlanan bir görev/,
+    );
+
+    const completed = recordPythonAttempt(
+      createDefaultProgress(),
+      "py-m1-t1",
+      "summary = orders.groupby('region').size()",
+      true,
+      18,
+    );
+    const withEvidence = recordPythonEvidence(completed, entry);
+
+    entry.columns[0] = "mutated";
+    entry.dtypes[0] = "object";
+    entry.previewRows[0][0] = "mutated";
+    expect(withEvidence.pythonEvidenceByTaskId["py-m1-t1"]).toMatchObject({
+      taskId: "py-m1-t1",
+      columns: ["region", "orders", "conversion_rate"],
+      dtypes: ["string", "int64", "float64"],
+      previewRows: [
+        ["Marmara", 42, 0.18],
+        ["Ege", 31, null],
+      ],
+    });
+    expect(recordPythonEvidence(withEvidence, createPythonEvidence())).toBe(
+      withEvidence,
+    );
+  });
+
+  it("round-trips v6 Python data and rejects unsafe evidence limits", () => {
+    const completed = recordPythonAttempt(
+      createDefaultProgress(),
+      "py-m1-t1",
+      "summary = orders.groupby('region').size()",
+      true,
+      18,
+    );
+    const state = recordPythonEvidence(completed, createPythonEvidence());
+
+    expect(importProgress(exportProgress(state))).toEqual(state);
+
+    const oversizedCode = {
+      ...state,
+      pythonTasks: {
+        ...state.pythonTasks,
+        "py-m1-t1": {
+          ...state.pythonTasks["py-m1-t1"],
+          lastCode: "x".repeat(MAX_PYTHON_CODE_CHARS + 1),
+        },
+      },
+    };
+    expect(() => importProgress(JSON.stringify(oversizedCode))).toThrow(
+      /geçerli/,
+    );
+
+    const tooManyColumns = Array.from(
+      { length: MAX_PYTHON_EVIDENCE_COLUMNS + 1 },
+      (_, index) => `c${index}`,
+    );
+    const invalidColumns = {
+      ...state,
+      pythonEvidenceByTaskId: {
+        "py-m1-t1": {
+          ...createPythonEvidence(),
+          columns: tooManyColumns,
+          dtypes: tooManyColumns.map(() => "string"),
+          previewRows: [],
+        },
+      },
+    };
+    expect(() => importProgress(JSON.stringify(invalidColumns))).toThrow(
+      /geçerli/,
+    );
+
+    const invalidRows = {
+      ...state,
+      pythonEvidenceByTaskId: {
+        "py-m1-t1": {
+          ...createPythonEvidence(),
+          previewRows: Array.from(
+            { length: MAX_PYTHON_EVIDENCE_PREVIEW_ROWS + 1 },
+            () => ["Marmara", 42, 0.18],
+          ),
+          rowCount: MAX_PYTHON_EVIDENCE_PREVIEW_ROWS + 1,
+        },
+      },
+    };
+    expect(() => importProgress(JSON.stringify(invalidRows))).toThrow(
+      /geçerli/,
+    );
+
+    const invalidDtype = {
+      ...state,
+      pythonEvidenceByTaskId: {
+        "py-m1-t1": {
+          ...createPythonEvidence(),
+          dtypes: ["string", "int64\n", "float64"],
+        },
+      },
+    };
+    expect(() => importProgress(JSON.stringify(invalidDtype))).toThrow(
+      /geçerli/,
+    );
+
+    const invalidCell = {
+      ...state,
+      pythonEvidenceByTaskId: {
+        "py-m1-t1": {
+          ...createPythonEvidence(),
+          previewRows: [["Marmara", Number.POSITIVE_INFINITY, 0.18]],
+          rowCount: 1,
+        },
+      },
+    };
+    expect(() =>
+      recordPythonEvidence(
+        completed,
+        invalidCell.pythonEvidenceByTaskId["py-m1-t1"],
+      ),
+    ).toThrow(/geçerli/);
+
+    const invalidStdout = {
+      ...state,
+      pythonEvidenceByTaskId: {
+        "py-m1-t1": {
+          ...createPythonEvidence(),
+          stdout: "x".repeat(MAX_PYTHON_EVIDENCE_STDOUT_CHARS + 1),
+        },
+      },
+    };
+    expect(() => importProgress(JSON.stringify(invalidStdout))).toThrow(
+      /geçerli/,
+    );
+  });
+
+  it("resets Python progress and evidence together with the current workspace", async () => {
+    const progressed = recordPythonEvidence(
+      recordPythonAttempt(
+        createDefaultProgress(),
+        "py-m1-t1",
+        "print('hazır')",
+        true,
+        7,
+      ),
+      createPythonEvidence(),
+    );
+    await saveProgress(progressed);
+
+    const reset = await resetProgress();
+    const reloaded = await loadProgress();
+
+    expect(reloaded).toEqual(reset);
+    expect(reset.lastOpenedPythonTaskId).toBe("py-m1-t1");
+    expect(reset.pythonTasks).toEqual({});
+    expect(reset.pythonEvidenceByTaskId).toEqual({});
+  });
+
   it("normalizes, validates and immutably updates the local profile name", () => {
     const state = recordAttempt(
       createDefaultProgress(),
@@ -815,16 +1178,24 @@ describe("progressStore", () => {
   });
 
   it("erases the profile, session and learning data as one guest transition", async () => {
-    const account = createLocalAccount(
-      recordAttempt(
-        createDefaultProgress(),
-        "m1-t1",
-        "SELECT product_name FROM products",
-        true,
-        14,
-      ),
-      "Ada Analist",
+    const withSqlProgress = recordAttempt(
+      createDefaultProgress(),
+      "m1-t1",
+      "SELECT product_name FROM products",
+      true,
+      14,
     );
+    const withPythonProgress = recordPythonEvidence(
+      recordPythonAttempt(
+        withSqlProgress,
+        "py-m1-t1",
+        "print('hazır')",
+        true,
+        9,
+      ),
+      createPythonEvidence(),
+    );
+    const account = createLocalAccount(withPythonProgress, "Ada Analist");
     const personalized = {
       ...account,
       settings: { ...account.settings, theme: "light" as const },
@@ -841,6 +1212,9 @@ describe("progressStore", () => {
     expect(hasLocalAccount(reloaded)).toBe(false);
     expect(reloaded.tasks).toEqual({});
     expect(reloaded.evidenceByTaskId).toEqual({});
+    expect(reloaded.pythonTasks).toEqual({});
+    expect(reloaded.pythonEvidenceByTaskId).toEqual({});
+    expect(reloaded.lastOpenedPythonTaskId).toBe("py-m1-t1");
     expect(reloaded.settings).not.toEqual(personalized.settings);
     expect(await loadLocalProfileSession(reloaded)).toEqual({
       access: "guest",
@@ -959,7 +1333,7 @@ describe("progressStore", () => {
     });
   });
 
-  it("rejects invalid v5 score fields on import", () => {
+  it("rejects invalid v6 score fields on import", () => {
     const completed = recordAttempt(
       createDefaultProgress(),
       "m1-t1",

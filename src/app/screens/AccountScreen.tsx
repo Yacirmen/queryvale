@@ -361,8 +361,8 @@ export function AccountScreen({
                       <strong>Mevcut çalışmaların korunacak</strong>
                       <p>
                         {completedCount > 0
-                          ? `${completedCount} tamamlanmış vakan ve sorguların`
-                          : "Kaydedilmiş sorguların ve ilerlemen"}
+                          ? `${completedCount} tamamlanmış vakan ve çalışmaların`
+                          : "Kaydedilmiş çalışmaların ve ilerlemen"}
                         {resumeTaskTitle
                           ? ` “${resumeTaskTitle}” konumuyla birlikte bu profile bağlanacak.`
                           : " bu profile bağlanacak."}

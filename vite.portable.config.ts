@@ -6,6 +6,7 @@ export default defineConfig({
   publicDir: "../public",
   base: "./",
   plugins: [react()],
+  optimizeDeps: { exclude: ["pyodide"] },
   build: {
     outDir: "../dist-portable",
     emptyOutDir: true,

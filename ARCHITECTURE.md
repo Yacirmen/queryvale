@@ -2,23 +2,24 @@
 
 ## Mimari hedef
 
-Queryvale, statik olarak dağıtılabilen bir uygulama kabuğu içinde tamamen tarayıcıda çalışan SQL, değerlendirme ve ilerleme katmanları kullanır. GitHub Pages taşınabilir istemci dosyalarını sunar; uygulamanın doğruluğu veya kullanıcı verisi için bir backend’e ihtiyaç yoktur.
+Queryvale, statik olarak dağıtılabilen bir uygulama kabuğu içinde tamamen tarayıcıda çalışan SQL, Python, değerlendirme ve ilerleme katmanları kullanır. GitHub Pages taşınabilir istemci ve sabitlenmiş runtime dosyalarını sunar; uygulamanın doğruluğu veya kullanıcı verisi için bir backend’e ihtiyaç yoktur.
 
 ```text
 Vinext/React UI
   ├─ Content catalog ── typed modules/tasks/datasets
   ├─ Workspace state ── plain React reducer/context
   ├─ SQL runtime ────── lazy PGlite + disposable task database
-  ├─ Evaluator ──────── normalization + result/concept checks
+  ├─ Python runtime ─── dedicated Worker + pinned Pyodide/pandas
+  ├─ Evaluators ─────── SQL result/concept + DataFrame artifact checks
   ├─ Evidence ───────── bounded JSON-safe verified-run snapshots
-  └─ Local data ─────── ProgressState v5 + IndexedDB migrations
+  └─ Local data ─────── ProgressState v6 + IndexedDB migrations
 ```
 
 ## Katmanlar ve bağımlılık yönü
 
 ### 1. İçerik
 
-Modül, görev ve veri setleri koddan ayrılmış tip güvenli tanımlardır. İçerik çalışma zamanı servislerini import etmez. Bir build/test doğrulayıcısı ID benzersizliği, görev zinciri, ön koşul, SQL kurulum ve beklenen sonuç sözleşmelerini kontrol eder.
+SQL ve Python modülleri ayrı tip güvenli sözleşmelerle component kodundan ayrılır. İçerik çalışma zamanı servislerini import etmez. Build/test doğrulayıcıları ID benzersizliği, görev zinciri, ön koşul, SQL kurulum veya Python fixture’ı ile beklenen artifact sözleşmesini kontrol eder.
 
 ### 2. Domain
 
@@ -34,14 +35,15 @@ Framework bağımsız tip ve saf fonksiyonlar:
 - tamamlanma kayıtlarından türetilen sıralı modül erişimi ve güvenli görev yönlendirmesi,
 - import/export şema doğrulaması.
 
-Domain katmanı React, Monaco, IndexedDB veya PGlite bilmez.
+Domain katmanı React, Monaco, IndexedDB, PGlite veya Pyodide bilmez.
 
 ### 3. Servisler
 
 - `sql-engine`: PGlite yükleme, görev ortamı hazırlama, çalıştırma, iptal ve reset
-- `validation`: yürütme çıktısını görev politikasına göre değerlendirme
+- `python-engine`: aynı origin’deki Pyodide/pandas dosyalarını ayrı module Worker’da lazy-load etme, çalıştırma, timeout, iptal ve reset
+- `validation` / `python-validation`: yürütme çıktısını kendi görev politikasına göre değerlendirme
 - `evidence`: doğru yürütmeyi sınırlı, JSON-güvenli bir görüntüleme kaydına dönüştürme
-- `progress`: IndexedDB repository, v5 sürümleme, devam konumu, kilitli puan, kanıt/not kalıcılığı ve import/export
+- `progress`: IndexedDB repository, v6 sürümleme, iki stüdyonun ayrı devam konumları, kilitli puan, kanıt/not kalıcılığı ve import/export
 - `settings`: tema ve editör tercihleri
 
 Servis sonuçları ayrıştırılmış hata türleri döndürür; UI ham bağımlılık hatalarına bağlanmaz.
@@ -78,10 +80,28 @@ Varsayılan motor **PGlite**’tır.
 10. İlk `correct` değerlendirmede sorgu gönderim anındaki yardım snapshot’ı 10/7/4/1 veya tam çözümde 0 puana çevrilip bir kez kilitlenir; sonradan gelen yardım veya tekrar çözme bu değeri değiştirmez.
 11. Yalnız değerlendirme `correct` ise sınırlı bir `VerifiedRunSnapshot` oluşturulur ve tamamlanan görevin kanıt kaydına eklenir.
 12. Kullanıcı isterse bu kayda bulgu, öneri ve isteğe bağlı çekince içeren bir karar notu ekler; not evaluator tarafından puanlanmaz.
-13. `ProgressState` v5 tek transaction ile IndexedDB’ye yazılır. SQL taslağı 700 ms debounce ile ve görevden ayrılırken kaydedilir; sonuç paneli açık kalır, sonraki göreve geçiş ayrı kullanıcı eylemidir.
+13. `ProgressState` v6 tek transaction ile IndexedDB’ye yazılır. SQL taslağı 700 ms debounce ile ve görevden ayrılırken kaydedilir; sonuç paneli açık kalır, sonraki göreve geçiş ayrı kullanıcı eylemidir.
 14. Rota erişimi ayrıca persist edilmez: saf modül erişim seçicisi mevcut tamamlanmalardan ilk eksik modülü bulur; UI ve hash yönlendirmesi sonraki modülleri aynı kararla kilitler, eski ileri kayıtları değiştirmez.
 
 Görev değişimi, reset ve timeout eski oturumun çıktısını geçersiz kılan bir generation/run kimliği kullanır; geç gelen sonuç yeni göreve yazılamaz.
+
+## Python motoru kararı
+
+Python Studio, `pyodide@0.29.4` ve pandas’ı ana UI thread’inden ayrı bir module Web Worker’da çalıştırır. Worker ve Monaco yalnız Python rotası açıldığında yüklenir. Hazırlanmış Worker vaka bileşeninden bir üst uygulama sınırında tutulur; Python vakaları arasında yeniden kullanılır, Studio’dan çıkışta veya süren çalışmanın iptalinde sonlandırılır. Build öncesi hazırlık betiği Pyodide çekirdeğini npm paketinden kopyalar; pandas ve bağımlı wheel dosyalarını resmi lockfile’daki SHA-256 değerleriyle doğrulayarak `public/vendor/pyodide/0.29.4` altında toplar. Üretim çalışması üçüncü taraf CDN çağrısı yapmaz; bütün runtime aynı GitHub Pages origin’inden gelir.
+
+Her çalıştırma temiz bir Python globals sözlüğü ve içerikteki küçük JSON fixture’lardan yeni DataFrame’ler kurar. Kullanıcı `result` adlı DataFrame’i üretir; Worker yalnız sınırlı kolon/satır, dtype, stdout ve traceback içeren JSON-güvenli artifact döndürür. Evaluator kolon → dtype → satır → sıra katmanlarını karşılaştırır; kaynak kod eşitliği aramaz. İlk hazırlık için 90 saniye, kullanıcı kodu için 10 saniye sınırı vardır. Timeout, durdurma, reset ve görev değişimi Worker’ı sonlandırır; generation/request kimliği geç sonuçları reddeder.
+
+Web Worker UI kararlılığı ve iptal edilebilirlik sınırıdır, kötü amaçlı kod için güvenlik sandbox’ı değildir. Bu nedenle Python Studio kullanıcı dosyası, gizli veri, keyfi paket kurulumu veya uzak veri erişimi sunmaz; yalnız paketlenmiş öğrenme fixture’ları ve izinli pandas paketiyle çalışır.
+
+### Python vaka yaşam döngüsü
+
+1. Sıralı erişim seçicisi ilk açık Python vakasını çözer.
+2. Kullanıcı vaka ve deterministik DataFrame önizlemesini inceler; taslak 700 ms debounce ile yerel kayda yazılır.
+3. Runtime ve pandas gerektiğinde aynı origin’den yüklenir, fixture’lar yeni globals alanına kurulur.
+4. Kullanıcı kodu çalışır ve `result` artifact’ı UI’a döner.
+5. Gerçek sonuç tablosu değerlendirme ile birlikte gösterilir; kullanıcı otomatik olarak sonraki vakaya geçirilmez.
+6. İlk doğru artifact yardım snapshot’ına göre 10/7/4/1 veya tam çözümde 0 puanı kilitler ve sınırlı Python kanıtı oluşturur.
+7. Python devam konumu, taslak, deneme, ipucu, tamamlanma ve kanıt `ProgressState` v6 içinde SQL alanlarından ayrı saklanır.
 
 ## Sorgu güvenliği ve kaynak sınırları
 
@@ -114,13 +134,15 @@ Değerlendirici örnek SQL ile string equality yapmaz. Kavram denetimi yalnızca
 
 ## Kalıcılık
 
-Fiziksel şema `queryvale` veritabanındaki `workspace` object store’unda iki ayrı kayıt tutar: `progress` anahtarında tek doğrulanmış çalışma alanı, `local-profile-session` anahtarında ise yalnız sunum erişimini belirleyen `active | signed-out` yerel profil durumu. Veritabanı şema sürümü ile uygulama veri modeli ayrı kavramlardır; güncel uygulama modeli `ProgressState` **v5**’tir:
+Fiziksel şema `queryvale` veritabanındaki `workspace` object store’unda iki ayrı kayıt tutar: `progress` anahtarında tek doğrulanmış çalışma alanı, `local-profile-session` anahtarında ise yalnız sunum erişimini belirleyen `active | signed-out` yerel profil durumu. Veritabanı şema sürümü ile uygulama veri modeli ayrı kavramlardır; güncel uygulama modeli `ProgressState` **v6**’dır:
 
 - `profile`: kararlı yerel profil kimliği ve düzenlenebilir sunum adı
-- `startedAt`, `lastOpenedTaskId`, `lastOpenedTaskIdTrusted`, `activityDates`: çalışma alanı ve bir kezlik devam-konumu migrasyonu metası
+- `startedAt`, SQL için `lastOpenedTaskId`, Python için `lastOpenedPythonTaskId`, `lastOpenedTaskIdTrusted`, `activityDates`: çalışma alanı ve devam-konumu metası
 - `tasks`: deneme, tarihler, süre, son sorgu, ipucu, tam çözüm kullanımı, ilk başarıda kilitlenen puan ve tamamlanma
+- `pythonTasks`: deneme, tarihler, süre, son kod, ipucu, tam çözüm, kilitlenen puan ve tamamlanma
 - `settings`: tema, font, satır yüksekliği, autocomplete ve reduced motion
 - `evidenceByTaskId`: doğrulanmış çalışma snapshot’ı ile isteğe bağlı karar notu
+- `pythonEvidenceByTaskId`: runtime/content sürümü, kolon/dtype, sınırlı satır önizlemesi ve stdout taşıyan doğrulanmış DataFrame artifact’ı
 
 `LocalProfileSession` ilerleme modeline gömülmez ve JSON yedeğine dahil edilmez. Böylece başka cihazda içe alınan adlandırılmış bir çalışma alanı açık profil olarak başlar; çıkış tercihi cihaz/origin yerelinde kalır. Eski adlandırılmış kayıtta oturum anahtarı yoksa geriye uyumluluk için profil açık kabul edilir. Bozuk veya farklı profil kimliğine bağlı oturum kaydı güvenli biçimde `signed-out` olarak yorumlanır.
 
@@ -139,12 +161,9 @@ Hücreler saklanmadan önce string gösterimine çevrilir; snapshot doğrulamas�
 
 ### Migrasyon ve içe aktarma
 
-- Geçerli v1 kayıtları görev/ayar verisini koruyarak v5’e taşınır, yeni bir yerel profil kazanır ve boş Kanıt Defteri ile başlar.
-- Geçerli v2 kayıtları profili dahil mevcut veriyi koruyarak v5’e taşınır ve boş Kanıt Defteri ile başlar.
+- Geçerli v1–v5 kayıtları mevcut SQL görevlerini, profili, ayarları ve kanıtları kayıpsız koruyarak v6’ya taşınır; Python alanları ilk açık vakayla boş başlar.
 - Eski tamamlanma kayıtlarından kanıt uydurulmaz; kanıt ancak yeni bir doğru değerlendirmeden doğar.
-- Geçerli v3 kaydı v5’e taşınırken tüm kanıt/not sözleşmesi doğrulanır ve eski landing hatasının ezmiş olabileceği `lastOpenedTaskId` yalnız bir kez daha ileri anlamlı etkinlikten kurtarılır. Sonraki kullanıcı navigasyonları güvenilir konum olarak işaretlenir.
-- Geçerli v4 kaydı v5’e taşınırken tamamlanmış vakaların puanı kayıtlı benzersiz ipuçlarından hesaplanır; eski sürüm tam çözüm görünümünü saklamadığı için çözüm kullanımı uydurulmaz ve `solutionRevealed` false başlar.
-- Geçerli v5 kaydı iç içe dizileri kopyalanarak ve tüm sözleşme doğrulanarak yüklenir.
+- Geçerli v3 kaydında eski landing hatasının ezmiş olabileceği `lastOpenedTaskId` yalnız bir kez daha ileri anlamlı etkinlikten kurtarılır. Geçerli v4 kaydında tamamlanmış SQL vakalarının puanı kayıtlı benzersiz ipuçlarından hesaplanır; bilinmeyen tam çözüm kullanımı uydurulmaz. Geçerli v5 kaydı iç içe dizileri kopyalanarak doğrulanır ve boş Python alanları kazanır.
 - İçe aktarma dosyası en fazla 2 MB olabilir; tüm model doğrulanır ve mevcut çalışma alanı değiştirilmeden önce kullanıcıdan açık onay alınır.
 - Uyumsuz bir mevcut kayıt otomatik yazmayla ezilmez. Uygulama durumu bildirir ve kullanıcı açıkça değiştirmedikçe kaydı korur.
 
@@ -153,6 +172,7 @@ Hücreler saklanmadan önce string gösterimine çevrilir; snapshot doğrulamas�
 ## Performans
 
 - Monaco ve PGlite ilk sayfa paketinden ayrılır.
+- Pyodide Worker ve pandas ilk sayfa paketinden ayrılır; ilk kullanımda yaklaşık 19,4 MiB aynı-origin asset yüklenir ve tarayıcı önbelleğine bırakılır.
 - İçerik modül/görev bazında yüklenebilir.
 - Editor her tuşta tüm uygulama state’ini güncellemez; draft sınırı korunur.
 - Büyük sonuçlar kesilir; tablo yalnızca gerekli satırları render eder.
@@ -161,7 +181,7 @@ Hücreler saklanmadan önce string gösterimine çevrilir; snapshot doğrulamas�
 
 ## Dağıtım
 
-`main` dalına yapılan push, GitHub Actions kalite kapılarından sonra `dist-portable` çıktısını GitHub Pages'e dağıtır. Uygulama göreli asset yolları ve hash routing kullanır; kullanıcı ilerlemesi veya SQL yürütme sunucuya taşınmaz. Başka bir canlı yayın hedefi tutulmaz.
+`main` dalına yapılan push, GitHub Actions kalite kapılarından sonra `dist-portable` çıktısını GitHub Pages'e dağıtır. Uygulama göreli asset yolları ve hash routing kullanır; PGlite ile Pyodide/pandas runtime dosyaları aynı statik pakette sunulur, kullanıcı ilerlemesi veya kod yürütme sunucuya taşınmaz. Başka bir canlı yayın hedefi tutulmaz.
 
 ## Gözlemlenebilirlik
 

@@ -44,6 +44,17 @@ jobs:
       - name: Build portable site
         run: pnpm run build:portable
 
+      - name: Install Chromium for portable E2E
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Verify portable production site in Chromium
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4173
+          PLAYWRIGHT_WEB_SERVER_COMMAND: >-
+            pnpm exec vite preview --config vite.portable.config.ts
+            --host 127.0.0.1 --port 4173 --strictPort
+        run: pnpm run test:e2e
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 

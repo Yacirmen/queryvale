@@ -8,6 +8,7 @@
 - “Hesap açmadan kaldığım yerden devam etmek ve verimi kendim taşıyabilmek istiyorum.”
 - “Kendi adımla ilerlememi, sıradaki işimi ve zorlandığım alanları tek bakışta görmek istiyorum.”
 - “Doğru sorgunun çıktısını yalnız görmek değil; bulgu, öneri ve çekincesiyle açıklamak istiyorum.”
+- “SQL’de kurduğum analitik düşünceyi gerçek pandas DataFrame’leri üzerinde EDA’dan örüntü analizine taşımak istiyorum.”
 
 ## Bilgi mimarisi
 
@@ -16,6 +17,7 @@
 | Ana sayfa                | Kanıt rotasının değerini ve tarayıcı içi çalışma biçimini açıklamak             | Başla / kaldığın yerden devam et |
 | Rota                     | Dört bölümü, SQL konularını ve sıradaki vakayı görünür kılmak                   | Devam et                         |
 | Vaka alanı               | `Sor → İncele → Sorgula → Doğrula → Anlat` döngüsünü tek vaka üzerinde yürütmek | Sorguyu çalıştır                 |
+| Python Studio            | EDA, temizlik, KPI ve zaman analizini gerçek DataFrame üzerinde uygulamak       | Python kodunu çalıştır           |
 | İlerleme / Kanıt Defteri | Doğrulanmış çalışmaları, karar notlarını ve pratik sinyallerini geri çağırmak   | Vakayı veya kanıtı aç            |
 | Ayarlar                  | Deneyimi ve yerel veriyi yönetmek                                               | Tercihi kaydet/aktar             |
 
@@ -32,12 +34,21 @@
 9. Doğru değerlendirmede sınırlı bir yerel kanıt snapshot’ı oluşturulur; kullanıcı çıktıyı görmeden otomatik olarak sonraki vakaya geçirilmez.
 10. Kullanıcı isterse bulgu, öneri ve çekincesini karar notu olarak yazar; not otomatik puanlanmaz.
 11. İlk doğru sorguda bağımsız çözüm düzeyini gösteren Analiz puanı kilitlenir: 10 başlangıç, benzersiz ipucu başına −3, ilk doğrulamadan önce tam çözüm açıldıysa 0.
-12. Sorgu, deneme, ilerleme, puan ve kanıt kaydı v5 yerel çalışma alanına yazılır.
+12. SQL ve Python taslakları, denemeleri, ilerlemesi, puanı ve kanıtları v6 yerel çalışma alanına ayrı alanlar olarak yazılır.
+
+### Python Studio akışı
+
+1. Header’daki `Python Studio`, ilk erişilebilir eksik Python vakasını veya güvenli son konumu açar.
+2. Kullanıcı iş sorusunu ve küçük deterministik DataFrame’i inceler; sonraki vaka mevcut vaka tamamlanana kadar kilitlidir.
+3. Python kodu ayrı Web Worker’daki gerçek Pyodide/pandas runtime’ında çalışır ve `result` DataFrame’i üretir.
+4. Sonuç tablosu önce görünür; kolon, dtype, satır ve gerekiyorsa sıra sözleşmesi açıklanabilir geri bildirimle değerlendirilir.
+5. Kullanıcı sonuç ekranda kalırken isterse sonraki vakaya geçer. Taslak, yardım, puan, tamamlanma ve sınırlı artifact otomatik kaydedilir.
 
 ## Çalışma alanı gereksinimleri
 
 - Masaüstünde vaka/veri ile editör/sonuç arasında yeniden boyutlandırılabilir alanlar
 - Dar ekranda `Vaka | Veri | SQL | Sonuç` sekmeleri ve dokunma hedefleri; sorgu çalışınca Sonuç açılır, yatay taşmaya dayalı ana akış yok
+- Python Studio’da aynı bilgi önceliğini koruyan `Vaka | Veri | Python | Sonuç` sekmeleri
 - Açılır/kapanır şema; tablo ilişkileri ve örnek satırlar
 - Monaco Editor için belirgin yükleniyor ve hata durumu
 - Çalıştır, sıfırla, otomatik taslak kaydı ve anında manuel kayıt eylemleri
@@ -59,6 +70,8 @@
 5. `required-concept-missing`: sonuç doğru, hedeflenen SQL kavramı yok.
 6. `correct`: sonuç ve öğrenme hedefi doğru.
 
+Python evaluator aynı kullanıcı diliyle `execution-error`, yanlış artifact, kolon, dtype, satır, sıra ve `correct` durumlarını ayırır. Python kaynak kodu tam çözümle metin eşitliği üzerinden puanlanmaz.
+
 Geri bildirim kullanıcıya sonraki kontrol edilebilir eylemi söylemelidir. Tam çözüm varsayılan olarak editöre yerleştirilmez; üç hazırlık adımından sonra açık bir eylem ve puan etkisini anlatan ikinci onayla gösterilir. Çözüm ilk doğru değerlendirmeden önce açılırsa vaka puanı 0 olur; vaka tamamlanması, kanıt ve rota erişimi etkilenmez. Tamamlanmış bir vakada sonradan yardım incelemek kilitli puanı değiştirmez.
 
 ## Öğrenme yolu
@@ -79,12 +92,15 @@ Geri bildirim kullanıcıya sonraki kontrol edilebilir eylemi söylemelidir. Tam
 
 Bu 11 modül kariyer rotasında **Temeli kur**, **İş sorusunu çöz**, **Örüntüyü keşfet** ve **Karara dönüştür** adlı dört bölüm altında sunulur. Bölümler ayrı ilerleme üretmez. İlk modül açıktır; her sonraki modül yalnız önceki bütün modüllerin çalışmaları tamamlandığında açılır. Kilitli modüller gizlenmez, açılma koşulunu gösterir; mevcut ileri ilerleme ve kanıtlar silinmez.
 
+Python Studio ayrı ve bağımsız bir rota taşır: **Veriyi tanı — EDA**, **Veriyi güvenilir hâle getir**, **KPI ve segment analizi**, **Zaman ve örüntü**. Her modül üç çalışan pandas vakası içerir; hem modüller hem vakalar ön koşul sırasıyla açılır. SQL ilerlemesi Python’a, Python ilerlemesi SQL’e erişim engeli koymaz.
+
 ## İlerleme sinyalleri
 
 - tamamlanan vaka ve rota yüzdesi
 - doğrulanmış kanıt, karar notu ve yorumu bekleyen çalışma sayısı
 - karar notlarındaki bulgu, öneri ve isteğe bağlı çekince
 - çalışılan SQL kavramları ve önerilen sonraki vaka
+- tamamlanan Python vakaları, son Python çalışma konumu ve doğrulanan DataFrame kanıtları
 - vaka başına deneme, çözüm süresi ve kullanılan ipuçları gibi ikincil pratik bağlamı
 - takvim günü bazlı ölçülü çalışma serisi
 - düzenlenebilir cihaz profili adı ve son tamamlanan vakalar
@@ -97,7 +113,7 @@ Profil adı hesap veya kimlik doğrulama değildir; yalnızca o tarayıcıdaki i
 - Kanıt kaydı yalnız evaluator `correct` sonucunu verdiğinde oluşturulur.
 - Snapshot sorguyu, sınırlı kolon listesini, en fazla 10 önizleme satırını ve toplam satır sayısı/kesilme bilgisini taşır; veritabanı dökümü değildir.
 - Karar notu bulgu ve öneriyi, isteğe bağlı olarak da çekinceyi saklar. Not kullanıcının düşünme alanıdır; doğruluk veya ustalık puanı üretmez.
-- Kanıtlar ve ilk başarıda kilitlenen puanlar v5 yerel çalışma alanının parçasıdır ve doğrulanmış içe/dışa aktarma akışına dahildir.
+- SQL ve Python kanıtları ile ilk başarıda kilitlenen puanlar v6 yerel çalışma alanının parçasıdır ve doğrulanmış içe/dışa aktarma akışına dahildir.
 - Tek bir doğru çalıştırma ya da yazılmış not, kavramın kalıcı öğrenildiğini veya bir mesleki yeterliliği kanıtladığı iddiasıyla sunulmaz.
 
 ## Tasarım sistemi

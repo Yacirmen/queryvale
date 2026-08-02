@@ -3,6 +3,7 @@
 import { CheckCircle2, CircleAlert } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { modules, tasks } from "../content/curriculum";
+import { pythonModules, pythonTasks } from "../content/pythonCurriculum";
 import {
   activateLocalProfileSession,
   createActiveLocalProfileSession,
@@ -32,12 +33,15 @@ import {
   type TaskAccessResolution,
 } from "../features/progress/moduleAccess";
 import { selectResumeTask } from "../features/progress/resumeTask";
+import { resolveAccessiblePythonTask } from "../features/progress/pythonAccess";
+import { PythonRuntimeClient } from "../features/python-engine";
 import type { AppScreen, Navigate, NavigateOptions } from "./appTypes";
 import { AppHeader } from "./components/AppHeader";
 import { AccountScreen } from "./screens/AccountScreen";
 import { LandingScreen } from "./screens/LandingScreen";
 import { LearningPathScreen } from "./screens/LearningPathScreen";
 import { ProgressScreen } from "./screens/ProgressScreen";
+import { PythonStudioScreen } from "./screens/PythonStudioScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { WorkspaceScreen } from "./screens/WorkspaceScreen";
 
@@ -45,16 +49,24 @@ function routeFor(screen: AppScreen, taskId?: string): string {
   if (screen === "home") return "#/";
   if (screen === "account") return "#/giris";
   if (screen === "workspace") return `#/lab/${taskId ?? tasks[0]?.id ?? ""}`;
+  if (screen === "python")
+    return `#/python/${taskId ?? pythonTasks[0]?.id ?? ""}`;
   return `#/${screen}`;
 }
 
 function screenFromHash(hash: string): AppScreen {
   if (hash.startsWith("#/lab/")) return "workspace";
+  if (hash.startsWith("#/python/")) return "python";
   if (hash === "#/giris") return "account";
   if (hash === "#/learn") return "learn";
   if (hash === "#/progress") return "progress";
   if (hash === "#/settings") return "settings";
   return "home";
+}
+
+function pythonTaskIdFromHash(hash: string): string | undefined {
+  if (!hash.startsWith("#/python/")) return undefined;
+  return decodeURIComponent(hash.slice("#/python/".length));
 }
 
 function taskIdFromHash(hash: string): string | undefined {
@@ -73,12 +85,25 @@ function moduleLockMessage(
   }” modülündeki tüm vakaları tamamla. Seni ilk açık eksik vakaya yönlendirdik.`;
 }
 
+function pythonLockMessage(
+  resolution: ReturnType<typeof resolveAccessiblePythonTask>,
+): string {
+  if (resolution.blockingTask) {
+    return `“${resolution.requestedTask?.title ?? "Bu vaka"}” henüz kilitli. Önce “${resolution.blockingTask.title}” vakasını tamamla. Seni açık olan vakaya yönlendirdik.`;
+  }
+  return `“${resolution.requestedTask?.title ?? "Bu Python modülü"}” henüz kilitli. Önce “${resolution.blockingModule?.title ?? "önceki"}” modülünü tamamla. Seni ilk açık Python vakasına yönlendirdik.`;
+}
+
 export function QueryvaleApp() {
   const [screen, setScreen] = useState<AppScreen>("home");
   const [progress, setProgress] = useState<ProgressState>(() =>
     createDefaultProgress(),
   );
   const [activeTaskId, setActiveTaskId] = useState(tasks[0]?.id ?? "");
+  const [activePythonTaskId, setActivePythonTaskId] = useState(
+    pythonTasks[0]?.id ?? "",
+  );
+  const [pythonRuntime] = useState(() => new PythonRuntimeClient());
   const [isLoaded, setIsLoaded] = useState(false);
   const [isReplacingProgress, setIsReplacingProgress] = useState(false);
   const [isCreatingLocalAccount, setIsCreatingLocalAccount] = useState(false);
@@ -103,10 +128,17 @@ export function QueryvaleApp() {
   const profileSessionWriteRef = useRef<Promise<boolean> | undefined>(
     undefined,
   );
+  const previousScreenRef = useRef<AppScreen>("home");
 
   const activeTask = useMemo(
     () => tasks.find((task) => task.id === activeTaskId) ?? tasks[0],
     [activeTaskId],
+  );
+  const activePythonTask = useMemo(
+    () =>
+      pythonTasks.find((task) => task.id === activePythonTaskId) ??
+      pythonTasks[0],
+    [activePythonTaskId],
   );
   const resumeSelection = useMemo(() => {
     const selection = selectResumeTask(tasks, progress);
@@ -120,9 +152,36 @@ export function QueryvaleApp() {
       ? { ...selection, task: access.task }
       : selection;
   }, [progress]);
+  const resumePythonTask = useMemo(
+    () =>
+      resolveAccessiblePythonTask(
+        progress.lastOpenedPythonTaskId,
+        pythonModules,
+        pythonTasks,
+        progress.pythonTasks,
+      ).task,
+    [progress.lastOpenedPythonTaskId, progress.pythonTasks],
+  );
+  const hasPythonLearningProgress = useMemo(
+    () =>
+      Object.values(progress.pythonTasks).some(
+        (task) =>
+          task.completed ||
+          task.attempts > 0 ||
+          task.hintsUsed.length > 0 ||
+          task.solutionRevealed ||
+          task.lastCode.trim().length > 0,
+      ),
+    [progress.pythonTasks],
+  );
+  const hasAnyLearningProgress =
+    resumeSelection.isReturningLearner || hasPythonLearningProgress;
   const completedTaskCount = useMemo(
-    () => tasks.filter((task) => progress.tasks[task.id]?.completed).length,
-    [progress.tasks],
+    () =>
+      tasks.filter((task) => progress.tasks[task.id]?.completed).length +
+      pythonTasks.filter((task) => progress.pythonTasks[task.id]?.completed)
+        .length,
+    [progress.pythonTasks, progress.tasks],
   );
   const localAccountExists = hasLocalAccount(progress);
   const localProfileActive =
@@ -152,7 +211,29 @@ export function QueryvaleApp() {
           routeFor("workspace", candidateTask.id),
         );
       }
-      const hydratedProgress =
+      const hashPythonTask = pythonTaskIdFromHash(window.location.hash);
+      const hashPythonCandidate = pythonTasks.find(
+        (task) => task.id === hashPythonTask,
+      );
+      const pythonAccess = resolveAccessiblePythonTask(
+        hashPythonCandidate?.id ?? stored.lastOpenedPythonTaskId,
+        pythonModules,
+        pythonTasks,
+        stored.pythonTasks,
+      );
+      const candidatePythonTask = pythonAccess.task;
+      if (
+        window.location.hash.startsWith("#/python/") &&
+        (!hashPythonCandidate || pythonAccess.wasRedirected) &&
+        candidatePythonTask
+      ) {
+        window.history.replaceState(
+          null,
+          "",
+          routeFor("python", candidatePythonTask.id),
+        );
+      }
+      const sqlHydratedProgress =
         candidateTask &&
         (!stored.lastOpenedTaskIdTrusted ||
           stored.lastOpenedTaskId !== candidateTask.id)
@@ -162,6 +243,14 @@ export function QueryvaleApp() {
               lastOpenedTaskIdTrusted: true,
             }
           : stored;
+      const hydratedProgress =
+        candidatePythonTask &&
+        sqlHydratedProgress.lastOpenedPythonTaskId !== candidatePythonTask.id
+          ? {
+              ...sqlHydratedProgress,
+              lastOpenedPythonTaskId: candidatePythonTask.id,
+            }
+          : sqlHydratedProgress;
       if (hydratedProgress !== stored) {
         const hydrationWrite = saveProgress(hydratedProgress);
         saveQueueRef.current = hydrationWrite.catch(() => undefined);
@@ -179,6 +268,7 @@ export function QueryvaleApp() {
       setProgress(hydratedProgress);
       setLocalProfileAccess(hydratedProfileAccess);
       setActiveTaskId(candidateTask?.id ?? "");
+      setActivePythonTaskId(candidatePythonTask?.id ?? "");
       const requestedScreen = screenFromHash(window.location.hash);
       const hydratedScreen =
         requestedScreen === "progress" && hydratedProfileAccess === "signed-out"
@@ -203,7 +293,9 @@ export function QueryvaleApp() {
               : "Kalıcı depolama kullanılamıyor; ilerleme bu oturum boyunca bellekte tutulacak.",
         });
       }
-      if (access.wasRedirected) {
+      if (requestedScreen === "python" && pythonAccess.wasRedirected) {
+        setNotice({ tone: "error", message: pythonLockMessage(pythonAccess) });
+      } else if (access.wasRedirected) {
         setNotice({ tone: "error", message: moduleLockMessage(access) });
       }
     });
@@ -217,6 +309,20 @@ export function QueryvaleApp() {
     shouldFocusScreenRef.current = false;
     document.getElementById("main-content")?.focus({ preventScroll: true });
   }, [isLoaded, screen]);
+
+  useEffect(() => {
+    if (previousScreenRef.current === "python" && screen !== "python") {
+      pythonRuntime.dispose();
+    }
+    previousScreenRef.current = screen;
+  }, [pythonRuntime, screen]);
+
+  useEffect(
+    () => () => {
+      pythonRuntime.dispose();
+    },
+    [pythonRuntime],
+  );
 
   useEffect(() => {
     document.documentElement.dataset.theme = progress.settings.theme;
@@ -362,6 +468,39 @@ export function QueryvaleApp() {
           }
         }
       }
+      if (nextScreen === "python") {
+        const hashPythonTask = pythonTaskIdFromHash(window.location.hash);
+        const requestedPythonTask = pythonTasks.find(
+          (task) => task.id === hashPythonTask,
+        );
+        const access = resolveAccessiblePythonTask(
+          requestedPythonTask?.id ?? progressRef.current.lastOpenedPythonTaskId,
+          pythonModules,
+          pythonTasks,
+          progressRef.current.pythonTasks,
+        );
+        const accessibleTask = access.task ?? pythonTasks[0];
+        if ((!requestedPythonTask || access.wasRedirected) && accessibleTask) {
+          window.history.replaceState(
+            null,
+            "",
+            routeFor("python", accessibleTask.id),
+          );
+          if (access.wasRedirected) {
+            setNotice({ tone: "error", message: pythonLockMessage(access) });
+          }
+        }
+        setActivePythonTaskId(accessibleTask?.id ?? "");
+        if (
+          accessibleTask &&
+          progressRef.current.lastOpenedPythonTaskId !== accessibleTask.id
+        ) {
+          persist({
+            ...progressRef.current,
+            lastOpenedPythonTaskId: accessibleTask.id,
+          });
+        }
+      }
       shouldFocusScreenRef.current = true;
       setScreen(nextScreen);
     };
@@ -381,6 +520,22 @@ export function QueryvaleApp() {
         activityDates: next.activityDates,
         tasks: next.tasks,
         evidenceByTaskId: next.evidenceByTaskId,
+      });
+    },
+    [persist],
+  );
+
+  const persistPythonProgress = useCallback(
+    (update: (current: ProgressState) => ProgressState) => {
+      const current = progressRef.current;
+      const next = update(current);
+      if (next.profile.id !== current.profile.id) return;
+      persist({
+        ...current,
+        lastOpenedPythonTaskId: next.lastOpenedPythonTaskId,
+        activityDates: next.activityDates,
+        pythonTasks: next.pythonTasks,
+        pythonEvidenceByTaskId: next.pythonEvidenceByTaskId,
       });
     },
     [persist],
@@ -460,6 +615,30 @@ export function QueryvaleApp() {
           persist(nextProgress);
         }
       }
+      if (nextScreen === "python") {
+        const requested = pythonTasks.find(
+          (task) => task.id === options?.taskId,
+        );
+        const access = resolveAccessiblePythonTask(
+          requested?.id ??
+            activePythonTaskId ??
+            progressRef.current.lastOpenedPythonTaskId,
+          pythonModules,
+          pythonTasks,
+          progressRef.current.pythonTasks,
+        );
+        nextTaskId = access.task?.id ?? pythonTasks[0]?.id;
+        if (access.wasRedirected) {
+          setNotice({ tone: "error", message: pythonLockMessage(access) });
+        }
+        if (nextTaskId) {
+          setActivePythonTaskId(nextTaskId);
+          persist({
+            ...progressRef.current,
+            lastOpenedPythonTaskId: nextTaskId,
+          });
+        }
+      }
       setShowOnboarding(Boolean(options?.onboarding));
       setPendingAnchor(options?.anchor);
       const nextRoute = routeFor(nextScreen, nextTaskId);
@@ -477,7 +656,7 @@ export function QueryvaleApp() {
         });
       }
     },
-    [activeTaskId, persist],
+    [activePythonTaskId, activeTaskId, persist],
   );
 
   const updateSettings = useCallback(
@@ -546,6 +725,25 @@ export function QueryvaleApp() {
       onboarding: resumeSelection.shouldShowOnboarding,
     });
   }, [navigate, resumeSelection]);
+
+  const openResumePythonStudio = useCallback(() => {
+    navigate("python", {
+      taskId: resumePythonTask?.id ?? pythonTasks[0]?.id,
+    });
+  }, [navigate, resumePythonTask?.id]);
+
+  const openResumeLearning = useCallback(() => {
+    if (!resumeSelection.isReturningLearner && hasPythonLearningProgress) {
+      openResumePythonStudio();
+      return;
+    }
+    openResumeWorkspace();
+  }, [
+    hasPythonLearningProgress,
+    openResumePythonStudio,
+    openResumeWorkspace,
+    resumeSelection.isReturningLearner,
+  ]);
 
   const handleCreateLocalProfile = useCallback(
     (name: string): Promise<boolean> => {
@@ -644,7 +842,7 @@ export function QueryvaleApp() {
           tone: "success",
           message: `${current.profile.displayName} profili açıldı.`,
         });
-        openResumeWorkspace();
+        openResumeLearning();
         return true;
       } catch (error) {
         setPersistenceAvailable(isProgressPersistenceAvailable());
@@ -666,7 +864,7 @@ export function QueryvaleApp() {
       }
     });
     return operation;
-  }, [openResumeWorkspace]);
+  }, [openResumeLearning]);
 
   const handleLocalProfileSignOut = useCallback((): Promise<boolean> => {
     if (profileSessionWriteRef.current) {
@@ -760,12 +958,16 @@ export function QueryvaleApp() {
       const imported = importProgress(contents);
       const currentProgress = progressRef.current;
       const sameProfile = imported.profile.id === currentProgress.profile.id;
-      const currentCompleted = tasks.filter(
-        (task) => currentProgress.tasks[task.id]?.completed,
-      ).length;
-      const importedCompleted = tasks.filter(
-        (task) => imported.tasks[task.id]?.completed,
-      ).length;
+      const currentCompleted =
+        tasks.filter((task) => currentProgress.tasks[task.id]?.completed)
+          .length +
+        pythonTasks.filter(
+          (task) => currentProgress.pythonTasks[task.id]?.completed,
+        ).length;
+      const importedCompleted =
+        tasks.filter((task) => imported.tasks[task.id]?.completed).length +
+        pythonTasks.filter((task) => imported.pythonTasks[task.id]?.completed)
+          .length;
       const sourceSummary = sameProfile
         ? `Bu dosya mevcut “${imported.profile.displayName}” profilinin bir yedeği.`
         : `Bu dosya “${imported.profile.displayName}” profiline ait.`;
@@ -787,10 +989,18 @@ export function QueryvaleApp() {
         tasks,
         imported.tasks,
       );
+      const importedPythonAccess = resolveAccessiblePythonTask(
+        imported.lastOpenedPythonTaskId,
+        pythonModules,
+        pythonTasks,
+        imported.pythonTasks,
+      );
       const normalizedImport = {
         ...imported,
         lastOpenedTaskId: importedAccess.task?.id ?? imported.lastOpenedTaskId,
         lastOpenedTaskIdTrusted: true,
+        lastOpenedPythonTaskId:
+          importedPythonAccess.task?.id ?? imported.lastOpenedPythonTaskId,
       };
       await replaceProgress(
         normalizedImport,
@@ -800,6 +1010,13 @@ export function QueryvaleApp() {
         tasks.some((task) => task.id === normalizedImport.lastOpenedTaskId)
           ? normalizedImport.lastOpenedTaskId
           : (tasks[0]?.id ?? ""),
+      );
+      setActivePythonTaskId(
+        pythonTasks.some(
+          (task) => task.id === normalizedImport.lastOpenedPythonTaskId,
+        )
+          ? normalizedImport.lastOpenedPythonTaskId
+          : (pythonTasks[0]?.id ?? ""),
       );
       setNotice({
         tone: "success",
@@ -832,6 +1049,7 @@ export function QueryvaleApp() {
     try {
       await replaceProgress(reset, localProfileAccessRef.current);
       setActiveTaskId(tasks[0]?.id ?? "");
+      setActivePythonTaskId(pythonTasks[0]?.id ?? "");
       setNotice({
         tone: "success",
         message: "İlerleme başlangıç durumuna döndü.",
@@ -870,6 +1088,7 @@ export function QueryvaleApp() {
         setProgress(guestProgress);
         setLocalProfileAccess("guest");
         setActiveTaskId(tasks[0]?.id ?? "");
+        setActivePythonTaskId(pythonTasks[0]?.id ?? "");
         setPersistenceAvailable(isProgressPersistenceAvailable());
         setNotice({
           tone: "success",
@@ -928,7 +1147,7 @@ export function QueryvaleApp() {
           screen={screen}
           onNavigate={navigate}
           onStudio={openResumeWorkspace}
-          onHowItWorks={() => navigate("home", { anchor: "queryvale-studio" })}
+          onPythonStudio={openResumePythonStudio}
           onStart={() => navigate("account")}
           accountStatus={
             !isLoaded ? "loading" : localProfileActive ? "local" : "guest"
@@ -967,16 +1186,22 @@ export function QueryvaleApp() {
             profileName={progress.profile.displayName}
             hasLocalAccount={localAccountExists}
             profileActive={localProfileActive}
-            hasLearningProgress={resumeSelection.isReturningLearner}
+            hasLearningProgress={hasAnyLearningProgress}
             completedCount={completedTaskCount}
-            totalCount={tasks.length}
-            resumeTaskTitle={resumeSelection.task?.title}
+            totalCount={tasks.length + pythonTasks.length}
+            resumeTaskTitle={
+              resumeSelection.isReturningLearner
+                ? resumeSelection.task?.title
+                : hasPythonLearningProgress
+                  ? resumePythonTask?.title
+                  : resumeSelection.task?.title
+            }
             persistenceAvailable={persistenceAvailable}
             writePending={isCreatingLocalAccount || isUpdatingLocalProfile}
             onCreateProfile={handleCreateLocalProfile}
             onSignIn={handleLocalProfileSignIn}
-            onContinue={openResumeWorkspace}
-            onGuestContinue={openResumeWorkspace}
+            onContinue={openResumeLearning}
+            onGuestContinue={openResumeLearning}
           />
         )}
         {screen === "learn" && (
@@ -1002,10 +1227,26 @@ export function QueryvaleApp() {
             onNavigate={navigate}
           />
         )}
+        {screen === "python" && activePythonTask && (
+          <PythonStudioScreen
+            key={activePythonTask.id}
+            task={activePythonTask}
+            modules={pythonModules}
+            tasks={pythonTasks}
+            runtime={pythonRuntime}
+            progress={progress}
+            settings={progress.settings}
+            persistenceAvailable={persistenceAvailable}
+            onProgressChange={persistPythonProgress}
+            onSelectTask={(taskId) => navigate("python", { taskId })}
+          />
+        )}
         {screen === "progress" && (
           <ProgressScreen
             modules={modules}
             tasks={tasks}
+            pythonModules={pythonModules}
+            pythonTasks={pythonTasks}
             progress={progress}
             profileName={progress.profile.displayName}
             onProfileNameChange={handleProfileNameChange}

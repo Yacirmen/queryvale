@@ -8,7 +8,7 @@
 4. Kullanıcı hesabı, backend, ücretli API, AI botu, sosyal özellik, leaderboard ve ödeme eklenmez.
 5. Oyunlaştırma ölçülüdür: ilerleme ve ustalık görünür, dikkat ekonomisi kurulmaz.
 
-## SQL ve içerik
+## SQL, Python ve içerik
 
 1. Kullanıcı sorgusu gerçek SQL motorunda çalışır.
 2. Doğruluk örnek SQL metniyle birebir eşleşmeye bağlanmaz.
@@ -17,6 +17,9 @@
 5. Her görev gerçekçi bağlam, açık hedef, çıktı tanesi, kabul kontrolleri, tutarlı veri, duruma özel koçluk, üç kademeli ipucu, açık talepte gösterilen çalışan örnek çözüm ve transfer odaklı debrief taşır.
 6. İçerik uygulama component’lerine gömülmez; tip güvenli tanımlarda tutulur.
 7. Kullanıcıya gösterilen örnek çözüm, referans sonuç ve alternatif doğru sorgular gerçek SQL motorunda test edilir.
+8. Python vakası gerçek Pyodide/pandas runtime’ında çalışır; sahte tablo veya önceden hazırlanmış kullanıcı çıktısı gösterilmez.
+9. Python doğruluğu kaynak kod metnine değil, `result` DataFrame artifact’ının kolon, dtype, satır ve sıra sözleşmesine bağlanır.
+10. Python fixture’ları küçük ve deterministiktir; runtime yalnız sabitlenmiş, aynı origin’den sunulan izinli paketleri yükler.
 
 ## Mimari
 

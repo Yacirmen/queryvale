@@ -10,9 +10,10 @@ import {
 import userEvent from "@testing-library/user-event";
 import { useEffect, useRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { modules, tasks } from "../content";
+import { modules, pythonTasks, tasks } from "../content";
 import {
   createActiveLocalProfileSession,
+  createSignedOutLocalProfileSession,
   createLocalAccount,
   createDefaultProgress,
   exportProgress,
@@ -21,10 +22,13 @@ import {
   loadProgress,
   localDateKey,
   recordAttempt,
+  recordPythonAttempt,
+  recordPythonDraft,
   saveProgress,
   saveProgressWithLocalProfileSession,
   updateProfileName,
 } from "../features/progress/progressStore";
+import { PythonRuntimeClient } from "../features/python-engine";
 import { buildModuleAccessStates } from "../features/progress/moduleAccess";
 import { QueryvaleApp } from "./QueryvaleApp";
 
@@ -326,6 +330,19 @@ describe("QueryvaleApp", () => {
       configurable: true,
       value: 1024,
     });
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
     window.location.hash = "#/";
     document.documentElement.dataset.theme = "";
     await new Promise<void>((resolve) => {
@@ -536,7 +553,7 @@ describe("QueryvaleApp", () => {
     await user.click(
       within(
         screen.getByRole("navigation", { name: "Ana bölümler" }),
-      ).getByRole("button", { name: "Studio — SQL Laboratuvarı" }),
+      ).getByRole("button", { name: "SQL Studio — SQL Laboratuvarı" }),
     );
 
     await screen.findByRole("textbox", { name: "SQL sorgu editörü" });
@@ -544,6 +561,73 @@ describe("QueryvaleApp", () => {
       screen.getByRole("heading", { name: tasks[0].title }),
     ).toBeInTheDocument();
     expect(window.location.hash).toBe(`#/lab/${tasks[0].id}`);
+  });
+
+  it("opens the first accessible Python case from the header", async () => {
+    window.location.hash = "#/learn";
+    const user = userEvent.setup();
+
+    render(<QueryvaleApp />);
+
+    await screen.findByRole("heading", { level: 1, name: "Rota" });
+    await user.click(
+      within(
+        screen.getByRole("navigation", { name: "Ana bölümler" }),
+      ).getByRole("button", { name: "Python Studio" }),
+    );
+
+    const firstPythonTask = pythonTasks[0];
+    expect(firstPythonTask).toBeDefined();
+    expect(
+      await screen.findByRole("heading", { name: firstPythonTask.title }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("textbox", {
+        name: `Python kod editörü — ${firstPythonTask.title}`,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Python vaka paneli")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Python editörü ve çıktı"),
+    ).toBeInTheDocument();
+    expect(window.location.hash).toBe(`#/python/${firstPythonTask.id}`);
+  });
+
+  it("reuses the Python runtime between cases and disposes it on Studio exit", async () => {
+    const firstPythonTask = pythonTasks[0];
+    const secondPythonTask = pythonTasks[1];
+    expect(firstPythonTask).toBeDefined();
+    expect(secondPythonTask).toBeDefined();
+    await saveProgress(
+      recordPythonAttempt(
+        createDefaultProgress(),
+        firstPythonTask.id,
+        firstPythonTask.solutionCode,
+        true,
+        5,
+      ),
+    );
+    window.location.hash = `#/python/${firstPythonTask.id}`;
+    const disposeSpy = vi.spyOn(PythonRuntimeClient.prototype, "dispose");
+    const user = userEvent.setup();
+
+    render(<QueryvaleApp />);
+
+    await screen.findByRole("heading", { name: firstPythonTask.title });
+    await user.click(
+      screen.getByRole("button", { name: "Sonraki açık Python vakası" }),
+    );
+    await screen.findByRole("heading", { name: secondPythonTask.title });
+    expect(disposeSpy).not.toHaveBeenCalled();
+
+    await user.click(
+      within(
+        screen.getByRole("navigation", { name: "Ana bölümler" }),
+      ).getByRole("button", { name: "Rota" }),
+    );
+    await screen.findByRole("heading", { level: 1, name: "Rota" });
+    await waitFor(() => expect(disposeSpy).toHaveBeenCalledTimes(1));
+    disposeSpy.mockRestore();
   });
 
   it("routes a legacy locked completion CTA without deleting its record", async () => {
@@ -858,6 +942,36 @@ describe("QueryvaleApp", () => {
     });
   });
 
+  it("recognizes Python-only learning and resumes that studio after local sign-in", async () => {
+    let stored = recordPythonDraft(
+      createDefaultProgress(),
+      pythonTasks[0].id,
+      pythonTasks[0].solutionCode,
+    );
+    stored = createLocalAccount(stored, "Ada Analist");
+    await saveProgressWithLocalProfileSession(
+      stored,
+      createSignedOutLocalProfileSession(stored),
+    );
+    progressPersistenceHarness.loadOverride = stored;
+    window.location.hash = "#/giris";
+    const user = userEvent.setup();
+
+    render(<QueryvaleApp />);
+
+    expect(
+      await screen.findByText("İlk veri sağlık kontrolü"),
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Ada Analist profiline gir" }),
+    );
+
+    expect(window.location.hash).toBe(`#/python/${pythonTasks[0].id}`);
+    expect(
+      await screen.findByRole("heading", { name: pythonTasks[0].title }),
+    ).toBeInTheDocument();
+  });
+
   it("deletes the local profile separately from resetting learning history", async () => {
     const stored = createLocalAccount(
       recordAttempt(
@@ -1111,7 +1225,9 @@ describe("QueryvaleApp", () => {
     const scoreCard = screen.getByText("Analiz puanı").closest("article");
     expect(scoreCard).not.toBeNull();
     expect(scoreCard).toHaveTextContent(
-      new RegExp(`10.*${tasks.length * 10} mümkün.*1.*yardımsız`),
+      new RegExp(
+        `10.*${(tasks.length + pythonTasks.length) * 10} mümkün.*1.*yardımsız`,
+      ),
     );
     const firstModuleRow = screen
       .getByRole("heading", { name: modules[0].title })
@@ -2124,7 +2240,9 @@ describe("QueryvaleApp", () => {
       name: "Tamamlanan çalışma oranı",
     });
     expect(overallProgress).toHaveAttribute("aria-valuenow", "0");
-    expect(screen.getByText(`0 / ${tasks.length} çalışma`)).toBeInTheDocument();
+    expect(
+      screen.getByText(`0 / ${tasks.length + pythonTasks.length} çalışma`),
+    ).toBeInTheDocument();
   });
 
   it("changes the theme from the Settings route", async () => {

@@ -28,6 +28,34 @@ export interface TaskProgress {
   firstTry: boolean;
 }
 
+export interface PythonTaskProgress {
+  taskId: string;
+  attempts: number;
+  completed: boolean;
+  firstCompletedAt?: string;
+  lastCompletedAt?: string;
+  lastCode: string;
+  hintsUsed: number[];
+  solutionRevealed: boolean;
+  scoreAwarded?: number;
+  solveTimeSeconds: number;
+  firstTry: boolean;
+}
+
+export type PythonEvidenceCell = string | number | boolean | null;
+
+export interface PythonEvidenceEntry {
+  taskId: string;
+  runtimeVersion: string;
+  contentVersion: string;
+  verifiedAt: string;
+  columns: string[];
+  dtypes: string[];
+  previewRows: PythonEvidenceCell[][];
+  rowCount: number;
+  stdout: string;
+}
+
 type LegacyTaskProgress = Omit<
   TaskProgress,
   "solutionRevealed" | "scoreAwarded"
@@ -74,15 +102,18 @@ export interface EvidenceNotebookEntry {
 }
 
 export interface ProgressState {
-  version: 5;
+  version: 6;
   profile: ProgressProfile;
   startedAt: string;
   lastOpenedTaskId: string;
   lastOpenedTaskIdTrusted: boolean;
+  lastOpenedPythonTaskId: string;
   activityDates: string[];
   tasks: Record<string, TaskProgress>;
+  pythonTasks: Record<string, PythonTaskProgress>;
   settings: EditorSettings;
   evidenceByTaskId: Record<string, EvidenceNotebookEntry>;
+  pythonEvidenceByTaskId: Record<string, PythonEvidenceEntry>;
 }
 
 type ProgressData = Pick<
@@ -112,6 +143,13 @@ interface ProgressStateV4 extends LegacyProgressData {
   evidenceByTaskId: Record<string, EvidenceNotebookEntry>;
 }
 
+interface ProgressStateV5 extends ProgressData {
+  version: 5;
+  profile: ProgressProfile;
+  lastOpenedTaskIdTrusted: boolean;
+  evidenceByTaskId: Record<string, EvidenceNotebookEntry>;
+}
+
 interface ProgressStateV1 extends LegacyProgressData {
   version: 1;
 }
@@ -133,7 +171,21 @@ const STATE_KEY = "progress";
 const LOCAL_PROFILE_SESSION_KEY = "local-profile-session";
 export const MAX_PROGRESS_IMPORT_BYTES = 2_000_000;
 export const MAX_DECISION_NOTE_FIELD_CHARS = 2_000;
+export const MAX_PYTHON_CODE_CHARS = 200_000;
+export const MAX_PYTHON_EVIDENCE_COLUMNS = 32;
+export const MAX_PYTHON_EVIDENCE_PREVIEW_ROWS = 10;
+export const MAX_PYTHON_EVIDENCE_CELL_CHARS = 10_000;
+export const MAX_PYTHON_EVIDENCE_STDOUT_CHARS = 50_000;
+export const MAX_PYTHON_EVIDENCE_ROW_COUNT = 1_000_000;
 const MAX_EVIDENCE_ENTRIES = 500;
+const MAX_PYTHON_TASKS = 500;
+const MAX_PYTHON_EVIDENCE_ENTRIES = 500;
+const MAX_PYTHON_TASK_ID_CHARS = 200;
+const MAX_PYTHON_COLUMN_NAME_CHARS = 256;
+const MAX_PYTHON_DTYPE_CHARS = 64;
+const MAX_PYTHON_VERSION_CHARS = 64;
+const PYTHON_DTYPE_PATTERN = /^[A-Za-z][A-Za-z0-9_.,<>\[\] ()|:+-]{0,63}$/u;
+const PYTHON_VERSION_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$/u;
 const PROFILE_NAME_MIN_LENGTH = 2;
 const PROFILE_NAME_MAX_LENGTH = 32;
 const CONTROL_CHARACTER_PATTERN = /[\u0000-\u001f\u007f-\u009f]/u;
@@ -317,7 +369,7 @@ export function createLocalAccount(
 
 export function createDefaultProgress(): ProgressState {
   return {
-    version: 5,
+    version: 6,
     profile: {
       id: globalThis.crypto.randomUUID(),
       displayName: DEFAULT_PROFILE_DISPLAY_NAME,
@@ -325,10 +377,13 @@ export function createDefaultProgress(): ProgressState {
     startedAt: new Date().toISOString(),
     lastOpenedTaskId: "m1-t1",
     lastOpenedTaskIdTrusted: true,
+    lastOpenedPythonTaskId: "py-m1-t1",
     activityDates: [],
     tasks: {},
+    pythonTasks: {},
     settings: { ...defaultSettings },
     evidenceByTaskId: {},
+    pythonEvidenceByTaskId: {},
   };
 }
 
@@ -536,8 +591,141 @@ function isTaskProgress(value: unknown, key: string): value is TaskProgress {
   );
 }
 
+function isValidPythonTaskId(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    Boolean(value) &&
+    value === value.trim() &&
+    characterCount(value) <= MAX_PYTHON_TASK_ID_CHARS &&
+    !CONTROL_CHARACTER_PATTERN.test(value) &&
+    !BIDI_CONTROL_PATTERN.test(value)
+  );
+}
+
+function isValidPythonHints(value: unknown): value is number[] {
+  if (!Array.isArray(value) || value.length > 3) return false;
+  // The UI reveals hints strictly in order and derives the next hint from the
+  // current length. Persist only canonical prefixes so an imported workspace
+  // cannot skip, reorder or duplicate a rung in that state machine.
+  return value.every((hint, index) => hint === index);
+}
+
+function isPythonTaskProgress(
+  value: unknown,
+  key: string,
+): value is PythonTaskProgress {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const task = value as Partial<PythonTaskProgress>;
+  return (
+    isValidPythonTaskId(key) &&
+    task.taskId === key &&
+    isFiniteNumberInRange(task.attempts, 0, 1_000_000) &&
+    Number.isInteger(task.attempts) &&
+    typeof task.completed === "boolean" &&
+    isOptionalDate(task.firstCompletedAt) &&
+    isOptionalDate(task.lastCompletedAt) &&
+    typeof task.lastCode === "string" &&
+    task.lastCode.length <= MAX_PYTHON_CODE_CHARS &&
+    isValidPythonHints(task.hintsUsed) &&
+    typeof task.solutionRevealed === "boolean" &&
+    (task.completed
+      ? isValidCaseScore(task.scoreAwarded)
+      : task.scoreAwarded === undefined) &&
+    isFiniteNumberInRange(task.solveTimeSeconds, 0, 100_000_000) &&
+    typeof task.firstTry === "boolean"
+  );
+}
+
+function isPythonTaskProgressRecord(
+  value: unknown,
+): value is Record<string, PythonTaskProgress> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const entries = Object.entries(value);
+  return (
+    entries.length <= MAX_PYTHON_TASKS &&
+    entries.every(([key, task]) => isPythonTaskProgress(task, key))
+  );
+}
+
 function characterCount(value: string): number {
   return Array.from(value).length;
+}
+
+function isPythonEvidenceCell(value: unknown): value is PythonEvidenceCell {
+  return (
+    value === null ||
+    typeof value === "boolean" ||
+    (typeof value === "number" && Number.isFinite(value)) ||
+    (typeof value === "string" &&
+      characterCount(value) <= MAX_PYTHON_EVIDENCE_CELL_CHARS)
+  );
+}
+
+function isPythonEvidenceEntry(
+  value: unknown,
+  key: string,
+  tasks: Record<string, { completed: boolean }>,
+): value is PythonEvidenceEntry {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const entry = value as Partial<PythonEvidenceEntry>;
+  if (
+    !isValidPythonTaskId(key) ||
+    entry.taskId !== key ||
+    typeof entry.runtimeVersion !== "string" ||
+    characterCount(entry.runtimeVersion) > MAX_PYTHON_VERSION_CHARS ||
+    !PYTHON_VERSION_PATTERN.test(entry.runtimeVersion) ||
+    typeof entry.contentVersion !== "string" ||
+    characterCount(entry.contentVersion) > MAX_PYTHON_VERSION_CHARS ||
+    !PYTHON_VERSION_PATTERN.test(entry.contentVersion) ||
+    typeof entry.verifiedAt !== "string" ||
+    entry.verifiedAt.length > 64 ||
+    !Number.isFinite(Date.parse(entry.verifiedAt)) ||
+    !Array.isArray(entry.columns) ||
+    entry.columns.length > MAX_PYTHON_EVIDENCE_COLUMNS ||
+    entry.columns.some(
+      (column) =>
+        typeof column !== "string" ||
+        characterCount(column) > MAX_PYTHON_COLUMN_NAME_CHARS,
+    ) ||
+    !Array.isArray(entry.dtypes) ||
+    entry.dtypes.length !== entry.columns.length ||
+    entry.dtypes.some(
+      (dtype) =>
+        typeof dtype !== "string" ||
+        characterCount(dtype) > MAX_PYTHON_DTYPE_CHARS ||
+        !PYTHON_DTYPE_PATTERN.test(dtype),
+    ) ||
+    !Array.isArray(entry.previewRows) ||
+    entry.previewRows.length > MAX_PYTHON_EVIDENCE_PREVIEW_ROWS ||
+    entry.previewRows.some(
+      (row) =>
+        !Array.isArray(row) ||
+        row.length !== entry.columns?.length ||
+        row.some((cell) => !isPythonEvidenceCell(cell)),
+    ) ||
+    typeof entry.rowCount !== "number" ||
+    !Number.isInteger(entry.rowCount) ||
+    entry.rowCount < entry.previewRows.length ||
+    entry.rowCount > MAX_PYTHON_EVIDENCE_ROW_COUNT ||
+    typeof entry.stdout !== "string" ||
+    characterCount(entry.stdout) > MAX_PYTHON_EVIDENCE_STDOUT_CHARS ||
+    tasks[key]?.completed !== true
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function isPythonEvidenceNotebook(
+  value: unknown,
+  tasks: Record<string, { completed: boolean }>,
+): value is Record<string, PythonEvidenceEntry> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const entries = Object.entries(value);
+  return (
+    entries.length <= MAX_PYTHON_EVIDENCE_ENTRIES &&
+    entries.every(([key, entry]) => isPythonEvidenceEntry(entry, key, tasks))
+  );
 }
 
 function isDecisionNote(value: unknown): value is DecisionNote {
@@ -669,15 +857,33 @@ function isProgressProfile(value: unknown): value is ProgressProfile {
   );
 }
 
-function isProgressState(value: unknown): value is ProgressState {
+function isProgressStateV5(value: unknown): value is ProgressStateV5 {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const candidate = value as Partial<ProgressState>;
+  const candidate = value as Partial<ProgressStateV5>;
   return (
     candidate.version === 5 &&
     hasValidProgressData(value) &&
     typeof candidate.lastOpenedTaskIdTrusted === "boolean" &&
     isProgressProfile(candidate.profile) &&
     isEvidenceNotebook(candidate.evidenceByTaskId, candidate.tasks ?? {})
+  );
+}
+
+function isProgressState(value: unknown): value is ProgressState {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const candidate = value as Partial<ProgressState>;
+  return (
+    candidate.version === 6 &&
+    hasValidProgressData(value) &&
+    typeof candidate.lastOpenedTaskIdTrusted === "boolean" &&
+    isValidPythonTaskId(candidate.lastOpenedPythonTaskId) &&
+    isProgressProfile(candidate.profile) &&
+    isEvidenceNotebook(candidate.evidenceByTaskId, candidate.tasks ?? {}) &&
+    isPythonTaskProgressRecord(candidate.pythonTasks) &&
+    isPythonEvidenceNotebook(
+      candidate.pythonEvidenceByTaskId,
+      candidate.pythonTasks ?? {},
+    )
   );
 }
 
@@ -719,6 +925,62 @@ function cloneEvidenceNotebook(
         },
         ...(entry.note ? { note: { ...entry.note } } : {}),
       },
+    ]),
+  );
+}
+
+function clonePythonTasks(
+  tasks: Record<string, PythonTaskProgress>,
+): Record<string, PythonTaskProgress> {
+  return Object.fromEntries(
+    Object.entries(tasks).map(([taskId, task]) => [
+      taskId,
+      {
+        taskId: task.taskId,
+        attempts: task.attempts,
+        completed: task.completed,
+        ...(task.firstCompletedAt
+          ? { firstCompletedAt: task.firstCompletedAt }
+          : {}),
+        ...(task.lastCompletedAt
+          ? { lastCompletedAt: task.lastCompletedAt }
+          : {}),
+        lastCode: task.lastCode,
+        hintsUsed: [...task.hintsUsed],
+        solutionRevealed: task.solutionRevealed,
+        ...(task.scoreAwarded !== undefined
+          ? { scoreAwarded: task.scoreAwarded }
+          : {}),
+        solveTimeSeconds: task.solveTimeSeconds,
+        firstTry: task.firstTry,
+      },
+    ]),
+  );
+}
+
+function clonePythonEvidenceEntry(
+  entry: PythonEvidenceEntry,
+): PythonEvidenceEntry {
+  return {
+    taskId: entry.taskId,
+    runtimeVersion: entry.runtimeVersion,
+    contentVersion: entry.contentVersion,
+    verifiedAt: entry.verifiedAt,
+    columns: [...entry.columns],
+    dtypes: [...entry.dtypes],
+    previewRows: entry.previewRows.map((row) => [...row]),
+    rowCount: entry.rowCount,
+    stdout: entry.stdout,
+  };
+}
+
+function clonePythonEvidenceNotebook(
+  evidenceByTaskId: Record<string, PythonEvidenceEntry>,
+): Record<string, PythonEvidenceEntry> {
+  return Object.fromEntries(
+    Object.entries(evidenceByTaskId).map(([taskId, entry]) => [
+      taskId,
+      clonePythonEvidenceEntry(entry),
     ]),
   );
 }
@@ -771,7 +1033,7 @@ export function migrateProgressState(
   if (isProgressState(value)) {
     const profileName = validateProfileName(value.profile.displayName);
     return {
-      ...value,
+      version: 6,
       profile: {
         id: value.profile.id,
         displayName: profileName.normalizedName,
@@ -779,20 +1041,29 @@ export function migrateProgressState(
           ? { localAccountCreatedAt: value.profile.localAccountCreatedAt }
           : {}),
       },
+      startedAt: value.startedAt,
+      lastOpenedTaskId: value.lastOpenedTaskId,
+      lastOpenedTaskIdTrusted: value.lastOpenedTaskIdTrusted,
+      lastOpenedPythonTaskId: value.lastOpenedPythonTaskId,
+      activityDates: [...value.activityDates],
       tasks: Object.fromEntries(
         Object.entries(value.tasks).map(([taskId, task]) => [
           taskId,
           { ...task, hintsUsed: [...task.hintsUsed] },
         ]),
       ),
+      pythonTasks: clonePythonTasks(value.pythonTasks),
       settings: { ...defaultSettings, ...value.settings },
       evidenceByTaskId: cloneEvidenceNotebook(value.evidenceByTaskId),
+      pythonEvidenceByTaskId: clonePythonEvidenceNotebook(
+        value.pythonEvidenceByTaskId,
+      ),
     };
   }
 
-  if (isProgressStateV4(value)) {
+  if (isProgressStateV5(value)) {
     return {
-      version: 5,
+      version: 6,
       profile: {
         id: value.profile.id,
         displayName: validateProfileName(value.profile.displayName)
@@ -804,16 +1075,48 @@ export function migrateProgressState(
       startedAt: value.startedAt,
       lastOpenedTaskId: value.lastOpenedTaskId,
       lastOpenedTaskIdTrusted: value.lastOpenedTaskIdTrusted,
+      lastOpenedPythonTaskId: "py-m1-t1",
       activityDates: [...value.activityDates],
-      tasks: migrateTasks(value.tasks),
+      tasks: Object.fromEntries(
+        Object.entries(value.tasks).map(([taskId, task]) => [
+          taskId,
+          { ...task, hintsUsed: [...task.hintsUsed] },
+        ]),
+      ),
+      pythonTasks: {},
       settings: { ...defaultSettings, ...value.settings },
       evidenceByTaskId: cloneEvidenceNotebook(value.evidenceByTaskId),
+      pythonEvidenceByTaskId: {},
+    };
+  }
+
+  if (isProgressStateV4(value)) {
+    return {
+      version: 6,
+      profile: {
+        id: value.profile.id,
+        displayName: validateProfileName(value.profile.displayName)
+          .normalizedName,
+        ...(value.profile.localAccountCreatedAt
+          ? { localAccountCreatedAt: value.profile.localAccountCreatedAt }
+          : {}),
+      },
+      startedAt: value.startedAt,
+      lastOpenedTaskId: value.lastOpenedTaskId,
+      lastOpenedTaskIdTrusted: value.lastOpenedTaskIdTrusted,
+      lastOpenedPythonTaskId: "py-m1-t1",
+      activityDates: [...value.activityDates],
+      tasks: migrateTasks(value.tasks),
+      pythonTasks: {},
+      settings: { ...defaultSettings, ...value.settings },
+      evidenceByTaskId: cloneEvidenceNotebook(value.evidenceByTaskId),
+      pythonEvidenceByTaskId: {},
     };
   }
 
   if (isProgressStateV3(value)) {
     return {
-      version: 5,
+      version: 6,
       profile: {
         id: value.profile.id,
         displayName: validateProfileName(value.profile.displayName)
@@ -825,16 +1128,19 @@ export function migrateProgressState(
       startedAt: value.startedAt,
       lastOpenedTaskId: value.lastOpenedTaskId,
       lastOpenedTaskIdTrusted: false,
+      lastOpenedPythonTaskId: "py-m1-t1",
       activityDates: [...value.activityDates],
       tasks: migrateTasks(value.tasks),
+      pythonTasks: {},
       settings: { ...defaultSettings, ...value.settings },
       evidenceByTaskId: cloneEvidenceNotebook(value.evidenceByTaskId),
+      pythonEvidenceByTaskId: {},
     };
   }
 
   if (isProgressStateV2(value)) {
     return {
-      version: 5,
+      version: 6,
       profile: {
         id: value.profile.id,
         displayName: validateProfileName(value.profile.displayName)
@@ -846,16 +1152,19 @@ export function migrateProgressState(
       startedAt: value.startedAt,
       lastOpenedTaskId: value.lastOpenedTaskId,
       lastOpenedTaskIdTrusted: false,
+      lastOpenedPythonTaskId: "py-m1-t1",
       activityDates: [...value.activityDates],
       tasks: migrateTasks(value.tasks),
+      pythonTasks: {},
       settings: { ...defaultSettings, ...value.settings },
       evidenceByTaskId: {},
+      pythonEvidenceByTaskId: {},
     };
   }
 
   if (isProgressStateV1(value)) {
     return {
-      version: 5,
+      version: 6,
       profile: {
         id: globalThis.crypto.randomUUID(),
         displayName: DEFAULT_PROFILE_DISPLAY_NAME,
@@ -863,10 +1172,13 @@ export function migrateProgressState(
       startedAt: value.startedAt,
       lastOpenedTaskId: value.lastOpenedTaskId,
       lastOpenedTaskIdTrusted: false,
+      lastOpenedPythonTaskId: "py-m1-t1",
       activityDates: [...value.activityDates],
       tasks: migrateTasks(value.tasks),
+      pythonTasks: {},
       settings: { ...defaultSettings, ...value.settings },
       evidenceByTaskId: {},
+      pythonEvidenceByTaskId: {},
     };
   }
 
@@ -897,7 +1209,8 @@ export async function loadProgress(): Promise<ProgressState> {
       isProgressStateV1(stored) ||
       isProgressStateV2(stored) ||
       isProgressStateV3(stored) ||
-      isProgressStateV4(stored)
+      isProgressStateV4(stored) ||
+      isProgressStateV5(stored)
     ) {
       try {
         await writeStoredState(migrated);
@@ -1117,6 +1430,242 @@ export function recordTaskOpen(
     ...state,
     lastOpenedTaskId: taskId,
     lastOpenedTaskIdTrusted: true,
+  };
+}
+
+function requirePythonTaskId(taskId: string): void {
+  if (!isValidPythonTaskId(taskId)) {
+    throw new Error("Geçerli bir Python görev kimliği gereklidir.");
+  }
+}
+
+function requirePythonCode(code: string): void {
+  if (typeof code !== "string" || code.length > MAX_PYTHON_CODE_CHARS) {
+    throw new Error(
+      `Python kodu en fazla ${MAX_PYTHON_CODE_CHARS} karakter olabilir.`,
+    );
+  }
+}
+
+function requirePythonTaskCapacity(state: ProgressState, taskId: string): void {
+  if (
+    !state.pythonTasks[taskId] &&
+    Object.keys(state.pythonTasks).length >= MAX_PYTHON_TASKS
+  ) {
+    throw new Error("Python görev kaydı güvenli sayı sınırını aşıyor.");
+  }
+}
+
+function createEmptyPythonTaskProgress(taskId: string): PythonTaskProgress {
+  return {
+    taskId,
+    attempts: 0,
+    completed: false,
+    lastCode: "",
+    hintsUsed: [],
+    solutionRevealed: false,
+    solveTimeSeconds: 0,
+    firstTry: false,
+  };
+}
+
+export function recordPythonTaskOpen(
+  state: ProgressState,
+  taskId: string,
+): ProgressState {
+  requirePythonTaskId(taskId);
+  if (state.lastOpenedPythonTaskId === taskId) return state;
+  return { ...state, lastOpenedPythonTaskId: taskId };
+}
+
+export function recordPythonDraft(
+  state: ProgressState,
+  taskId: string,
+  code: string,
+): ProgressState {
+  requirePythonTaskId(taskId);
+  requirePythonCode(code);
+  requirePythonTaskCapacity(state, taskId);
+  const previous = state.pythonTasks[taskId];
+  if (previous?.lastCode === code) return state;
+  const task = previous ?? createEmptyPythonTaskProgress(taskId);
+  return {
+    ...state,
+    pythonTasks: {
+      ...state.pythonTasks,
+      [taskId]: { ...task, lastCode: code, hintsUsed: [...task.hintsUsed] },
+    },
+  };
+}
+
+export function recordPythonAttempt(
+  state: ProgressState,
+  taskId: string,
+  code: string,
+  completed: boolean,
+  solveTimeSeconds: number,
+  now = new Date(),
+  assistanceAtRunStart?: AttemptAssistanceSnapshot,
+): ProgressState {
+  requirePythonTaskId(taskId);
+  requirePythonCode(code);
+  requirePythonTaskCapacity(state, taskId);
+  if (typeof completed !== "boolean") {
+    throw new Error("Python denemesinin tamamlanma durumu geçerli değil.");
+  }
+  if (
+    !isFiniteNumberInRange(solveTimeSeconds, 0, 100_000_000) ||
+    !Number.isFinite(now.getTime())
+  ) {
+    throw new Error("Python denemesinin çözüm süresi geçerli değil.");
+  }
+  if (
+    assistanceAtRunStart &&
+    (!isValidPythonHints([...assistanceAtRunStart.hintsUsed]) ||
+      typeof assistanceAtRunStart.solutionRevealed !== "boolean")
+  ) {
+    throw new Error("Python denemesinin yardım kaydı geçerli değil.");
+  }
+
+  const previous = state.pythonTasks[taskId];
+  const attempts = (previous?.attempts ?? 0) + 1;
+  if (attempts > 1_000_000) {
+    throw new Error("Python deneme sayısı güvenli sınırı aşıyor.");
+  }
+  const firstCompletion = completed && !previous?.completed;
+  const solutionRevealed = previous?.solutionRevealed ?? false;
+  const scoreAwarded = firstCompletion
+    ? calculateCaseScore(
+        assistanceAtRunStart?.hintsUsed ?? previous?.hintsUsed ?? [],
+        assistanceAtRunStart?.solutionRevealed ?? solutionRevealed,
+      )
+    : previous?.scoreAwarded;
+  const task: PythonTaskProgress = {
+    taskId,
+    attempts,
+    completed: Boolean(previous?.completed || completed),
+    ...(firstCompletion
+      ? { firstCompletedAt: now.toISOString() }
+      : previous?.firstCompletedAt
+        ? { firstCompletedAt: previous.firstCompletedAt }
+        : {}),
+    ...(completed
+      ? { lastCompletedAt: now.toISOString() }
+      : previous?.lastCompletedAt
+        ? { lastCompletedAt: previous.lastCompletedAt }
+        : {}),
+    lastCode: code,
+    hintsUsed: [...(previous?.hintsUsed ?? [])],
+    solutionRevealed,
+    ...(scoreAwarded !== undefined ? { scoreAwarded } : {}),
+    solveTimeSeconds: completed
+      ? solveTimeSeconds
+      : (previous?.solveTimeSeconds ?? 0),
+    firstTry: firstCompletion ? attempts === 1 : (previous?.firstTry ?? false),
+  };
+
+  return recordPracticeActivity(
+    {
+      ...state,
+      pythonTasks: { ...state.pythonTasks, [taskId]: task },
+    },
+    now,
+  );
+}
+
+export function recordPythonHint(
+  state: ProgressState,
+  taskId: string,
+  hintIndex: number,
+  now = new Date(),
+): ProgressState {
+  requirePythonTaskId(taskId);
+  requirePythonTaskCapacity(state, taskId);
+  if (!Number.isInteger(hintIndex) || hintIndex < 0 || hintIndex > 2) {
+    throw new Error("Python ipucu sırası 0 ile 2 arasında olmalıdır.");
+  }
+  const previous =
+    state.pythonTasks[taskId] ?? createEmptyPythonTaskProgress(taskId);
+  const hintsUsed = Array.from(
+    new Set([...previous.hintsUsed, hintIndex]),
+  ).sort((left, right) => left - right);
+  if (
+    hintsUsed.length === previous.hintsUsed.length &&
+    previous.hintsUsed.every((hint, index) => hint === hintsUsed[index])
+  ) {
+    return state;
+  }
+  return recordPracticeActivity(
+    {
+      ...state,
+      pythonTasks: {
+        ...state.pythonTasks,
+        [taskId]: { ...previous, hintsUsed },
+      },
+    },
+    now,
+  );
+}
+
+export function recordPythonSolutionReveal(
+  state: ProgressState,
+  taskId: string,
+  now = new Date(),
+): ProgressState {
+  requirePythonTaskId(taskId);
+  requirePythonTaskCapacity(state, taskId);
+  const previous =
+    state.pythonTasks[taskId] ?? createEmptyPythonTaskProgress(taskId);
+  if (previous.completed || previous.solutionRevealed) return state;
+  return recordPracticeActivity(
+    {
+      ...state,
+      pythonTasks: {
+        ...state.pythonTasks,
+        [taskId]: {
+          ...previous,
+          hintsUsed: [...previous.hintsUsed],
+          solutionRevealed: true,
+        },
+      },
+    },
+    now,
+  );
+}
+
+export function recordPythonEvidence(
+  state: ProgressState,
+  entry: PythonEvidenceEntry,
+  options: { replace?: boolean } = {},
+): ProgressState {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+    throw new Error("Doğrulanmış Python kanıtı geçerli değil.");
+  }
+  requirePythonTaskId(entry.taskId);
+  if (!state.pythonTasks[entry.taskId]?.completed) {
+    throw new Error(
+      "Python kanıtı yalnızca doğru değerlendirmeyle tamamlanan bir görev için kaydedilebilir.",
+    );
+  }
+  if (!isPythonEvidenceEntry(entry, entry.taskId, state.pythonTasks)) {
+    throw new Error("Doğrulanmış Python kanıtı geçerli değil.");
+  }
+  if (state.pythonEvidenceByTaskId[entry.taskId] && !options.replace) {
+    return state;
+  }
+  if (
+    !state.pythonEvidenceByTaskId[entry.taskId] &&
+    Object.keys(state.pythonEvidenceByTaskId).length >=
+      MAX_PYTHON_EVIDENCE_ENTRIES
+  ) {
+    throw new Error("Python kanıt kaydı güvenli sayı sınırını aşıyor.");
+  }
+  return {
+    ...state,
+    pythonEvidenceByTaskId: {
+      ...state.pythonEvidenceByTaskId,
+      [entry.taskId]: clonePythonEvidenceEntry(entry),
+    },
   };
 }
 

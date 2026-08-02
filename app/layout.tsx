@@ -15,26 +15,28 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://yacirmen.github.io/queryvale/"),
   title: {
-    default: "Queryvale — SQL ezberleme, veri analisti gibi çalış",
+    default: "Queryvale — SQL ve Python ile veri analisti gibi çalış",
     template: "%s · Queryvale",
   },
   description:
-    "Gerçek iş sorularını incele, SQL sorgunu tarayıcıda çalıştır, sonucunu doğrula ve bulgunu bir karar notuna dönüştür.",
+    "Gerçek iş sorularını SQL ve Python ile çöz, sonucunu doğrula ve veri analisti gibi yorumla.",
   applicationName: "Queryvale",
   alternates: {
     canonical: "https://yacirmen.github.io/queryvale/",
   },
   keywords: [
     "SQL",
+    "Python",
+    "pandas",
     "veri analizi",
     "PostgreSQL",
     "veri analisti",
     "interaktif eğitim",
   ],
   openGraph: {
-    title: "SQL ezberleme. Veri analisti gibi çalış.",
+    title: "SQL ve Python ezberleme. Veri analisti gibi çalış.",
     description:
-      "İş sorusunu incele, sorgunu çalıştır, sonucunu doğrula ve kararını anlat.",
+      "İş sorusunu incele, SQL veya Python çalışmanı doğrula ve kararını anlat.",
     type: "website",
     locale: "tr_TR",
     images: [
@@ -48,8 +50,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "SQL ezberleme. Veri analisti gibi çalış.",
-    description: "Gerçek iş sorularını sorguya, sonucu kanıta dönüştür.",
+    title: "SQL ve Python ile veri analisti gibi çalış.",
+    description:
+      "Gerçek iş sorularını çalışan analize, sonucu kanıta dönüştür.",
     images: ["https://yacirmen.github.io/queryvale/og-analyst-loop.png"],
   },
 };

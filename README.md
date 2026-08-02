@@ -2,7 +2,7 @@
 
 **Turn questions into evidence.**
 
-Queryvale, SQL sözdizimini ezberleten bir kurs değil; gerçek iş sorularını çözerek **veri analisti gibi çalışmayı** öğreten tarayıcı tabanlı bir kanıt rotasıdır. Her vaka `Sor → İncele → Sorgula → Doğrula → Anlat` döngüsünü tekrar ettirir: kullanıcı iş sorusunu ve şemayı inceler, sorgusunu gerçek PostgreSQL uyumlu veri üzerinde çalıştırır, sonucu doğrular ve isterse bulgusunu bir karar notuna dönüştürür. Değerlendirme SQL metnini değil, üretilen sonucu ve vakanın öğrenme hedefini dikkate alır.
+Queryvale, komut ezberleten bir kurs değil; gerçek iş sorularını SQL ve Python ile çözerek **veri analisti gibi çalışmayı** öğreten tarayıcı tabanlı bir kanıt rotasıdır. SQL vakaları `Sor → İncele → Sorgula → Doğrula → Anlat` döngüsünü; Python vakaları ise `Veriyi tanı → güvenilir hâle getir → analiz et → örüntüyü açıkla` akışını tekrar ettirir. Her iki stüdyo da kaynak metni kopyalamayı değil, üretilen gerçek sonucu değerlendirir.
 
 > Ürün dili Türkçedir. Tablo, kolon ve SQL adlandırmaları gerçek çalışma ortamlarına uyum için İngilizcedir.
 
@@ -14,6 +14,9 @@ Queryvale, SQL sözdizimini ezberleten bir kurs değil; gerçek iş sorularını
 - Önceki SQL konusu tamamlandıkça sıradaki konuyu açan, nedeni görünür modül kilitleri
 - Son durak olarak 12 ilişkili veri setine dayalı pazarlama analitiği portföy projesi
 - Tarayıcı içinde çalışan PGlite tabanlı SQL motoru
+- Tarayıcı içinde ayrı Web Worker’da çalışan, aynı origin’den yüklenen Pyodide + pandas Python motoru
+- EDA, veri temizleme, KPI/segment ve zaman/örüntü analizlerinden oluşan 4 modül ve 12 çalışan Python vakası
+- Her Python vakasında deterministik DataFrame, gerçek `result` çıktısı, üç ipucu, tam çözüm ve çıktı odaklı doğrulama
 - Alternatif doğru sorguları kabul eden sonuç odaklı değerlendirme
 - Kolon, satır, sıralama, `NULL`, duplicate ve zorunlu kavram kontrolleri
 - Mantık → parçalar → sorgu iskeleti ipuçları ve istek üzerine tam çalışan örnek SQL
@@ -29,25 +32,27 @@ Queryvale, SQL sözdizimini ezberleten bir kurs değil; gerçek iş sorularını
 - Yerel profil oluşturulduktan sonra `Hemen Başla` yerine doğrudan `Profil` ve `Ayarlar` erişimi sunan hesap duyarlı header
 - İlerlemeyi silmeden çıkış, sayfa yenilemeleri arasında korunan yerel profil durumu ve aynı cihazda tek dokunuşla yeniden giriş
 - Başlangıç rehberi, otomatik kayıt/taşıma açıklaması, destek bağlantısı ve profil-veri silme eylemini birleştiren `Yardım ve veri` alanı
-- `Studio` üzerinden profil kapısını zorunlu kılmadan SQL Laboratuvarı’na misafir erişimi
+- `SQL Studio` ve `Python Studio` üzerinden profil kapısını zorunlu kılmadan iki çalışma alanına misafir erişimi
 - Yazarken otomatik kaydedilen SQL taslakları; `⌘/Ctrl+S` ile anında kayıt
 - Açık/koyu tema, editör tercihleri ve reduced-motion desteği
 - Dışa/içe aktarılabilir ilerleme verisi
 - Masaüstü öncelikli; mobilde `Vaka | Veri | SQL | Sonuç` sekmeli responsive deneyim
+- Python Studio’da mobil `Vaka | Veri | Python | Sonuç` akışı, otomatik taslak kaydı ve `⌘/Ctrl+Enter` çalıştırma
 
 ## Teknoloji yığını
 
-| Katman    | Teknoloji                                             |
-| --------- | ----------------------------------------------------- |
-| Uygulama  | React 19, TypeScript, Vinext ve Vite                  |
-| Stil      | Tailwind CSS 4 ve ürün tasarım token’ları             |
-| Editör    | Monaco Editor                                         |
-| SQL       | PGlite, tarayıcı içinde ve gerektiğinde lazy-load     |
-| State     | Sade React state, reducer/context ve saf selector’lar |
-| Kalıcılık | IndexedDB                                             |
-| Test      | Vitest, React Testing Library, Playwright             |
-| Kalite    | ESLint, Prettier, TypeScript                          |
-| Dağıtım   | GitHub Pages                                          |
+| Katman    | Teknoloji                                               |
+| --------- | ------------------------------------------------------- |
+| Uygulama  | React 19, TypeScript, Vinext ve Vite                    |
+| Stil      | Tailwind CSS 4 ve ürün tasarım token’ları               |
+| Editör    | Monaco Editor                                           |
+| SQL       | PGlite, tarayıcı içinde ve gerektiğinde lazy-load       |
+| Python    | Pyodide 0.29.4 + pandas, ayrı Web Worker ve yerel asset |
+| State     | Sade React state, reducer/context ve saf selector’lar   |
+| Kalıcılık | IndexedDB                                               |
+| Test      | Vitest, React Testing Library, Playwright               |
+| Kalite    | ESLint, Prettier, TypeScript                            |
+| Dağıtım   | GitHub Pages                                            |
 
 ## Gereksinimler
 
@@ -62,7 +67,7 @@ pnpm install
 pnpm run dev
 ```
 
-Geliştirme sunucusunun gösterdiği yerel adresi açın. İlk SQL çalıştırmasında PGlite ve Monaco parçaları lazy-load edildiği için kısa bir hazırlık durumu görülebilir.
+Geliştirme sunucusunun gösterdiği yerel adresi açın. İlk SQL çalıştırmasında PGlite ve Monaco parçaları; ilk Python çalıştırmasında yaklaşık 19,4 MiB sabitlenmiş Pyodide/pandas runtime’ı lazy-load edildiği için kısa bir hazırlık durumu görülebilir. `prepare:python-runtime` komutu gerekli Python dosyalarını sürümü ve SHA-256 bütünlüğü doğrulanmış kaynaktan üretim klasörüne hazırlar.
 
 ## GitHub Pages yayını
 
@@ -87,8 +92,8 @@ veya bulut senkronizasyonu vaat etmez. Açıkça yerel profil oluşturulduktan s
 kilidi veya yetkilendirme değildir. Profilin tamamen kaldırılması ayrı ve onaylı
 `Ayarlar → Profil ve veri → Profili sil` eylemidir. `İlerlemeyi sıfırla` ise profil adını
 ve çalışma tercihlerini korur.
-Yalnız görev denemiş bir misafir hesap varmış gibi gösterilmez. `Studio` bağlantısı SQL
-Laboratuvarı'na misafir erişimini korur; çıkış yapılmışken Studio'da üretilen çalışma da
+Yalnız görev denemiş bir misafir hesap varmış gibi gösterilmez. `SQL Studio` bağlantısı SQL
+Laboratuvarı'na misafir erişimini korur; çıkış yapılmışken stüdyolarda üretilen çalışma da
 bu cihazdaki tek çalışma alanına kaydedilir.
 
 ## Komutlar
@@ -114,6 +119,8 @@ src/app/                  Uygulama state’i, ekranlar ve UI bileşenleri
 src/content/              Tip güvenli modül, görev ve fixture kataloğu
 src/features/sql-engine/  PGlite yaşam döngüsü ve sorgu çalıştırma
 src/features/validation/  Sonuç normalizasyonu ve değerlendirme
+src/features/python-engine/ Pyodide worker yaşam döngüsü ve Python çalıştırma
+src/features/python-validation/ DataFrame artifact değerlendirmesi
 src/features/evidence/    Sınırlı ve JSON-güvenli doğrulanmış çalışma snapshot'ı
 src/features/progress/    IndexedDB ilerleme ve ayar modeli
 src/types/                Ortak içerik tipleri
@@ -125,7 +132,7 @@ packaging/                Yerel macOS başlatıcı, loopback sunucu ve yönergel
 
 Depodaki gerçek klasörler uygulama geliştikçe bu sorumluluklara göre gruplanabilir; klasör adından daha önemli olan bağımlılık sınırlarıdır. Ayrıntı için [ARCHITECTURE.md](./ARCHITECTURE.md).
 
-## Yeni görev ekleme
+## Yeni SQL görevi ekleme
 
 1. Uygun modülü ve ön koşulları belirleyin.
 2. `src/content` altında tip güvenli görev ve öğrenme içeriği tanımı oluşturun.
@@ -137,17 +144,21 @@ Depodaki gerçek klasörler uygulama geliştikçe bu sorumluluklara göre grupla
 
 Alanların tam sözleşmesi, örnek görev ve editoryal standartlar [CONTENT_GUIDE.md](./CONTENT_GUIDE.md) dosyasındadır.
 
+Yeni Python vakası `PythonLessonTask` sözleşmesine uyar: küçük ve deterministik fixture’lar, yalnız desteklenen yerel paketler, `result` adlı DataFrame teslimi, beklenen kolon/satır/dtype artifact’ı, üç kabul kontrolü, üç ipucu ve gerçek Pyodide+pandas üzerinde çalışan referans çözüm birlikte eklenir.
+
 ## Ürün sınırları ve bilinen kısıtlar
 
 - Her tarayıcı kendi adlandırılabilir öğrenen profilini ve ilerlemesini saklar; cihazlar arası canlı senkronizasyon yoktur.
 - Bir origin ve tarayıcı profili tek bir Queryvale çalışma alanı taşır; çoklu kullanıcı hesabı, parola koruması ve aynı cihazda birbirinden yalıtılmış çalışma alanları bu sürümün parçası değildir.
-- Çalışan rota bugün SQL ağırlıklı 11 modül ve 52 çalışmadır: ilk 10 modülde 40 doğrulanmış vaka, son Pazarlama Analitiği Proje Stüdyosu'nda 12 portföy projesi bulunur. SQL konuları sırayla açılır; eski ileri kayıtlar silinmeden ilk eksik modülün arkasında korunur. Python, elektronik tablo ve BI araçları henüz ürün içinde çalıştırılmaz; ileride aynı kanıt döngüsüne bağlanan köprüler olarak değerlendirilecektir.
+- SQL rotası 11 modül ve 52 çalışmadır: ilk 10 modülde 40 doğrulanmış vaka, son Pazarlama Analitiği Proje Stüdyosu'nda 12 portföy projesi bulunur. Ayrı Python rotası 4 modül ve 12 pandas vakasıdır. İki rotada da vakalar sırayla açılır; eski ileri kayıtlar silinmez. Elektronik tablo ve BI araçları henüz ürün içinde çalıştırılmaz.
 - Tamamlanma, Analiz puanı, deneme, süre, ipucu ve çalışma serisi pratik bağlamıdır; tek başına mesleki ustalık veya işe hazır olma iddiası değildir. Puan rekabet veya sertifika değil, ilk doğru sonuçtaki yardım düzeyinin yerel kaydıdır.
 - Taşınabilir Mac paketi macOS 11 veya yenisinde, Intel ve Apple Silicon işlemcilerde çalışır. Sabit `127.0.0.1:41739` origin'ini kullanır; Node veya internet gerektirmez ve ilerlemeyi aynı tarayıcı origin'inde korur.
 - Canlı web sürümünün tek kanonik adresi `https://yacirmen.github.io/queryvale/` ve tek yayın hattı GitHub Pages'tir.
 - Gizli bir backend bulunmadığı için görev tanımları ve beklenen sonuçlar istemci paketinde incelenebilir.
 - Büyük veri setleri amaçlanmaz; sonuçlar ve çalışma süresi güvenli sınırlarla kısıtlanır.
 - PGlite WebAssembly başlangıç maliyeti düşük donanımlarda hissedilebilir; yükleme gecikmeli yapılır.
+- Pyodide/pandas ilk yükü yaklaşık 19,4 MiB’dir; sonraki açılışlarda tarayıcı önbelleği kullanılır. Runtime kullanıcı kodunu ayrı Web Worker’da çalıştırır fakat Worker bir kötü amaçlı kod güvenlik sandbox’ı değildir; bu alan yalnız öğrenme amaçlı yerel fixture’lar içindir.
+- Python runtime asset’ları çalışma anında üçüncü taraf CDN’den çağrılmaz. Temiz bir geliştirme/CI derlemesi, sabitlenmiş wheel dosyalarını checksum doğrulayarak hazırlamak için ağ erişimine ihtiyaç duyar; üretilen GitHub Pages paketi bunları aynı origin’den sunar.
 - Sorgular atılabilir görev veritabanında ve süre/satır limitleriyle çalışır; ayrı Web Worker izolasyonu bu sürümde yoktur.
 - PostgreSQL’in her uzantısı ve sunucu özelliği tarayıcı ortamında desteklenmez.
 - Ürün adı için resmi marka ve alan adı uygunluk incelemesi bu deponun kapsamı dışındadır.

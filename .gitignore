@@ -46,6 +46,7 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+/public/vendor/pyodide/
 
 # Local transfer and Finder duplicate artifacts
 /a.scpt

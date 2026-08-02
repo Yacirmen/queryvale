@@ -1,4 +1,69 @@
 import { expect, test } from "@playwright/test";
+import { pythonTasks } from "../../src/content/pythonCurriculum";
+
+test("Python Studio executes a real pandas result before offering the next case", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(
+    isMobile,
+    "The real runtime contract only needs one browser execution.",
+  );
+  const firstTask = pythonTasks[0];
+
+  await page.goto(`/#/python/${firstTask.id}`);
+  await expect(page.locator(".app-shell")).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
+  await expect(
+    page.getByRole("heading", { name: firstTask.title }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Sonraki açık Python vakası" }),
+  ).toBeDisabled();
+
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (
+            globalThis as typeof globalThis & {
+              monaco?: { editor: { getModels: () => unknown[] } };
+            }
+          ).monaco?.editor.getModels().length ?? 0,
+      ),
+    )
+    .toBe(1);
+  await page.evaluate((solutionCode) => {
+    const editorApi = (
+      globalThis as typeof globalThis & {
+        monaco?: {
+          editor: {
+            getModels: () => Array<{ setValue: (value: string) => void }>;
+          };
+        };
+      }
+    ).monaco;
+    editorApi?.editor.getModels()[0]?.setValue(solutionCode);
+  }, firstTask.solutionCode);
+  await page.getByRole("button", { name: /Çalıştır/i }).click();
+
+  const resultTable = page.getByRole("table", {
+    name: `${firstTask.title} için üretilen result DataFrame`,
+  });
+  await expect(resultTable).toBeVisible({ timeout: 120_000 });
+  await expect(resultTable).toContainText("row_count");
+  await expect(resultTable).toContainText("missing_cells");
+  await expect(resultTable).toContainText("6");
+  await expect(
+    page.getByText("Analiz çıktısı doğrulandı", { exact: true }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`#\\/python\\/${firstTask.id}$`));
+  await expect(
+    page.getByRole("button", { name: "Sonraki vakaya geç" }),
+  ).toBeVisible();
+});
 
 test("locked module links return a new learner to the first accessible case", async ({
   page,
@@ -22,6 +87,7 @@ test("the unified fixed header keeps five controls visible across every route", 
     { path: "/#/giris", active: "account" },
     { path: "/#/learn", active: "learn" },
     { path: "/#/lab/m1-t1", active: "workspace" },
+    { path: "/#/python/py-m1-t1", active: "python" },
     { path: "/#/progress", active: undefined },
     { path: "/#/settings", active: undefined },
   ] as const;
@@ -41,14 +107,14 @@ test("the unified fixed header keeps five controls visible across every route", 
       name: "Rota",
       exact: true,
     });
-    const studio = header.getByRole("button", {
-      name: "Studio — SQL Laboratuvarı",
+    const sqlStudio = header.getByRole("button", {
+      name: "SQL Studio — SQL Laboratuvarı",
     });
-    const howItWorks = header.getByRole("button", { name: "Nasıl Çalışır" });
+    const pythonStudio = header.getByRole("button", { name: "Python Studio" });
     const start = header.locator(".landing-header-cta");
 
     await expect(header).toHaveCSS("position", "fixed");
-    for (const control of [brand, routeLink, studio, howItWorks, start]) {
+    for (const control of [brand, routeLink, sqlStudio, pythonStudio, start]) {
       await expect(control).toBeVisible();
     }
     await expect(header.getByText("Dokümanlar")).toHaveCount(0);
@@ -75,7 +141,10 @@ test("the unified fixed header keeps five controls visible across every route", 
       await expect(routeLink).toHaveAttribute("aria-current", "page");
     } else if (route.active === "workspace") {
       await expect(activeControls).toHaveCount(1);
-      await expect(studio).toHaveAttribute("aria-current", "page");
+      await expect(sqlStudio).toHaveAttribute("aria-current", "page");
+    } else if (route.active === "python") {
+      await expect(activeControls).toHaveCount(1);
+      await expect(pythonStudio).toHaveAttribute("aria-current", "page");
     } else if (route.active === "account") {
       await expect(activeControls).toHaveCount(1);
       await expect(start).toHaveAttribute("aria-current", "page");
@@ -90,9 +159,38 @@ test("the unified fixed header keeps five controls visible across every route", 
     ).toBe(true);
   }
 
-  await page.getByRole("button", { name: "Nasıl Çalışır" }).click();
-  await expect(page).toHaveURL(/#\/$/);
-  await expect(page.locator("#queryvale-studio")).toBeFocused();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page
+    .locator(".app-header")
+    .getByRole("button", { name: "Python Studio" })
+    .click();
+  await expect(page).toHaveURL(/#\/python\/py-m1-t1$/);
+  await expect(
+    page.getByRole("heading", { name: "İlk veri sağlık kontrolü" }),
+  ).toBeVisible();
+
+  const pythonPanels = page.getByRole("tablist", {
+    name: "Python çalışma alanı",
+  });
+  const casePanel = pythonPanels.getByRole("tab", { name: "Vaka" });
+  const dataPanel = pythonPanels.getByRole("tab", { name: "Veri" });
+  const codePanel = pythonPanels.getByRole("tab", { name: "Python" });
+  const resultPanel = pythonPanels.getByRole("tab", { name: "Sonuç" });
+
+  for (const panel of [casePanel, dataPanel, codePanel, resultPanel]) {
+    await expect(panel).toBeVisible();
+  }
+
+  await expect(casePanel).toHaveAttribute("aria-selected", "true");
+  await dataPanel.click();
+  await expect(page.getByText("Vaka verisi hazır")).toBeVisible();
+  await codePanel.click();
+  await expect(page.locator(".python-editor-section")).toBeVisible();
+  await expect(
+    page.getByRole("textbox", { name: "Editor content" }),
+  ).toBeVisible();
+  await resultPanel.click();
+  await expect(page.getByText("Analiz çıktın burada oluşacak")).toBeVisible();
 });
 
 test("the local profile survives sign-out and can be deliberately deleted", async ({
@@ -457,7 +555,7 @@ test("landing, onboarding and first real SQL task", async ({
       .click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await page
-      .getByRole("button", { name: "Studio — SQL Laboratuvarı" })
+      .getByRole("button", { name: "SQL Studio — SQL Laboratuvarı" })
       .click();
     await expect(page).toHaveURL(/#\/lab\/m1-t1$/);
     await expect(page.locator(".editor-toolbar")).toHaveCSS(
@@ -793,7 +891,9 @@ test("learning path and settings remain usable on a narrow viewport", async ({
   await expect(page.locator(".task-status-label").first()).toBeVisible();
   await expect(page.locator("body")).not.toHaveCSS("overflow-x", "scroll");
 
-  await page.getByRole("button", { name: "Studio — SQL Laboratuvarı" }).click();
+  await page
+    .getByRole("button", { name: "SQL Studio — SQL Laboratuvarı" })
+    .click();
   await expect(
     page.getByRole("tablist", { name: "Vaka çalışma adımları" }),
   ).toBeVisible();

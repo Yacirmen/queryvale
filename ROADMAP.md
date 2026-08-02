@@ -12,6 +12,7 @@ Bu yol haritası tarih vaadi değil, bağımlılık ve değer sırasıdır. Her 
 - On bir çalışan SQL konusunu mesleki sonuçlarına göre gruplayan dört bölüm
 - Her vakada `Sor → İncele → Sorgula → Doğrula → Anlat` döngüsü
 - Masaüstü öncelikli vaka çalışma alanı; mobilde `Vaka | Veri | SQL | Sonuç` sekmeleri
+- Header’da ayrı `SQL Studio` ve `Python Studio`; Python’da `Vaka | Veri | Python | Sonuç` sekmeleri
 - Şema, örnek satır, editor, sonuç ve ipucu panelleri
 
 ### P0: SQL ve değerlendirme
@@ -23,6 +24,14 @@ Bu yol haritası tarih vaadi değil, bağımlılık ve değer sırasıdır. Her 
 - Gerekli kavram ve yasak işlem sinyalleri
 - Öğretici hata eşleme
 
+### P0: Python veri analizi
+
+- Ayrı Web Worker’da, aynı-origin ve sabitlenmiş Pyodide 0.29.4 + pandas runtime’ı
+- EDA → veri temizleme → KPI/segment → zaman/örüntü sırasındaki 4 modül ve 12 doğrulanmış vaka
+- Küçük deterministik DataFrame fixture’ları, `result` artifact sözleşmesi ve kolon/dtype/satır/sıra değerlendirmesi
+- Sıralı vaka/modül erişimi, üç ipucu, tam çözüm, 10/7/4/1/0 puan ve sonuçtan sonra açık ilerleme
+- Otomatik Python taslağı, ayrı devam konumu ve sınırlı doğrulanmış DataFrame kanıtı
+
 ### P0: Öğrenme ve kalıcılık
 
 - İlk on modülde dörder çalışan ve doğrulanmış vaka; final modülde 12 pazarlama analitiği portföy projesi; toplam 52 çalışma
@@ -31,7 +40,7 @@ Bu yol haritası tarih vaadi değil, bağımlılık ve değer sırasıdır. Her 
 - Hazırlık ipuçları yetmediğinde açık talep üzerine, puan etkisi önceden açıklanan ve ilerlemeyi engellemeyen tam çalışan çözüm
 - Değerlendirme durumuna özel koçluk ve başarı sonrası transfer odaklı debrief
 - Doğru değerlendirmeden üretilen sınırlı kanıt snapshot’ı, isteğe bağlı karar notu ve Kanıt Defteri
-- IndexedDB v5 ilerleme, güvenilir devam konumu, otomatik SQL taslağı, ilk başarıda kilitlenen Analiz puanı, ayarlar ve `evidenceByTaskId` kalıcılığı
+- IndexedDB v6 ilerleme, SQL/Python devam konumları, otomatik taslaklar, ilk başarıda kilitlenen Analiz puanı, ayarlar ve iki kanıt alanının kalıcılığı
 - İçe/dışa aktarma ve onaylı reset
 - İlerleme özeti ve sıradaki vaka önerisi
 
@@ -63,12 +72,12 @@ Bu yol haritası tarih vaadi değil, bağımlılık ve değer sırasıdır. Her 
 ## Daha sonra — Araç köprüleri
 
 1. CSV/elektronik tablo incelemesini aynı kanıt sözleşmesine bağlayan içe/dışa aktarma akışları
-2. Kanıtı Python/pandas çalışmasına taşıyan, dosya tabanlı ve açık sınırları olan çalışma köprüsü
+2. Mevcut Python/pandas kanıtını kullanıcı dosyası içe aktarma veya daha büyük veriyle çalışmaya taşıyacak ayrı güvenlik/performans kararı
 3. Tanımlanmış metrik ve veri setini BI aracına taşıyan görselleştirme/teslim playbook’ları
 4. İçerik paketlerinin sürümlü ve bağımsız yayımlanması
 5. Türkçe dışında yerelleştirme altyapısı
 
-Python ve BI bu aşamada ürün içine gömülü ayrı çalışma motorları olarak vaat edilmez. Önce SQL kanıt rotasının veri sözleşmesi ve çıktı biçimi kararlı hale gelir; araç köprüleri daha sonra ölçülmüş kullanıcı ihtiyacıyla sınanır.
+Python Studio ürünün çalışan bir parçasıdır; kullanıcı dosyası yükleme, keyfi paket kurulumu, notebook uyumluluğu veya uzak veri erişimi vaat etmez. BI ve elektronik tablo köprüleri ancak ölçülmüş kullanıcı ihtiyacıyla ayrıca sınanır.
 
 ## Bilinçli olarak planda yok
 

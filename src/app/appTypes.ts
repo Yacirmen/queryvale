@@ -1,5 +1,11 @@
 export type AppScreen =
-  "home" | "account" | "learn" | "workspace" | "progress" | "settings";
+  | "home"
+  | "account"
+  | "learn"
+  | "workspace"
+  | "python"
+  | "progress"
+  | "settings";
 
 export interface NavigateOptions {
   taskId?: string;

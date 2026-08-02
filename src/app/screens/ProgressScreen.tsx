@@ -19,15 +19,21 @@ import {
 } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { CurriculumModule, LessonTask } from "../../types/lesson";
+import type {
+  PythonCurriculumModule,
+  PythonLessonTask,
+} from "../../types/pythonLesson";
 import {
   calculateStreak,
   localDateKey,
+  type PythonEvidenceCell,
   type ProgressState,
   validateProfileName,
 } from "../../features/progress/progressStore";
 import {
   getAwardedCaseScore,
   summarizeScores,
+  type ScoreSummary,
 } from "../../features/progress/scoring";
 import {
   buildModuleAccessStates,
@@ -39,6 +45,8 @@ import { ConfirmationDialog } from "../components/Dialogs";
 interface ProgressScreenProps {
   modules: CurriculumModule[];
   tasks: LessonTask[];
+  pythonModules: PythonCurriculumModule[];
+  pythonTasks: PythonLessonTask[];
   progress: ProgressState;
   profileName: string;
   onProfileNameChange: (name: string) => void;
@@ -59,6 +67,27 @@ function formatConcept(concept: string): string {
   return concept.replaceAll("_", " ");
 }
 
+function formatPythonEvidenceCell(value: PythonEvidenceCell): string {
+  if (value === null) return "NULL";
+  if (typeof value === "boolean") return value ? "True" : "False";
+  return String(value);
+}
+
+function combineScoreSummaries(
+  sql: ScoreSummary,
+  python: ScoreSummary,
+): ScoreSummary {
+  return {
+    earned: sql.earned + python.earned,
+    possible: sql.possible + python.possible,
+    completedPossible: sql.completedPossible + python.completedPossible,
+    completed: sql.completed + python.completed,
+    independent: sql.independent + python.independent,
+    hintAssisted: sql.hintAssisted + python.hintAssisted,
+    solutionAssisted: sql.solutionAssisted + python.solutionAssisted,
+  };
+}
+
 function profileInitials(name: string): string {
   const initials = name
     .trim()
@@ -77,6 +106,20 @@ function hasTaskActivity(taskId: string, progress: ProgressState): boolean {
       taskState.attempts > 0 ||
       taskState.hintsUsed.length > 0 ||
       taskState.lastQuery.trim().length > 0),
+  );
+}
+
+function hasPythonTaskActivity(
+  taskId: string,
+  progress: ProgressState,
+): boolean {
+  const taskState = progress.pythonTasks[taskId];
+  return Boolean(
+    taskState &&
+    (taskState.completed ||
+      taskState.attempts > 0 ||
+      taskState.hintsUsed.length > 0 ||
+      taskState.lastCode.trim().length > 0),
   );
 }
 
@@ -148,6 +191,8 @@ export function buildProfileConceptSignals(
 export function ProgressScreen({
   modules,
   tasks,
+  pythonModules,
+  pythonTasks,
   progress,
   profileName,
   onProfileNameChange,
@@ -165,6 +210,7 @@ export function ProgressScreen({
   const editNameButtonRef = useRef<HTMLButtonElement>(null);
   const shouldRestoreNameFocusRef = useRef(false);
   const evidenceByTaskId = progress.evidenceByTaskId;
+  const pythonEvidenceByTaskId = progress.pythonEvidenceByTaskId;
 
   useEffect(() => {
     if (isEditingName) nameInputRef.current?.focus();
@@ -175,36 +221,61 @@ export function ProgressScreen({
   }, [isEditingName]);
 
   const metrics = useMemo(() => {
-    const taskProgress = tasks.flatMap((task) => {
+    const sqlTaskProgress = tasks.flatMap((task) => {
       const taskState = progress.tasks[task.id];
       return taskState ? [taskState] : [];
     });
-    const completed = taskProgress.filter((task) => task.completed);
-    const attempts = taskProgress.reduce(
+    const pythonTaskProgress = pythonTasks.flatMap((task) => {
+      const taskState = progress.pythonTasks[task.id];
+      return taskState ? [taskState] : [];
+    });
+    const sqlCompleted = sqlTaskProgress.filter((task) => task.completed);
+    const pythonCompleted = pythonTaskProgress.filter((task) => task.completed);
+    const attempts = [...sqlTaskProgress, ...pythonTaskProgress].reduce(
       (total, task) => total + task.attempts,
       0,
     );
-    const score = summarizeScores(
+    const sqlScore = summarizeScores(
       tasks.map((task) => task.id),
       progress.tasks,
     );
-    const verifiedEvidence = Object.values(evidenceByTaskId);
-    const decisionNotes = verifiedEvidence.filter((evidence) =>
+    const pythonScore = summarizeScores(
+      pythonTasks.map((task) => task.id),
+      progress.pythonTasks,
+    );
+    const sqlEvidence = Object.values(evidenceByTaskId);
+    const pythonEvidence = Object.values(pythonEvidenceByTaskId);
+    const decisionNotes = sqlEvidence.filter((evidence) =>
       Boolean(evidence.note),
     ).length;
+    const totalTasks = tasks.length + pythonTasks.length;
+    const completed = sqlCompleted.length + pythonCompleted.length;
 
     return {
-      completed: completed.length,
+      completed,
+      sqlCompleted: sqlCompleted.length,
+      pythonCompleted: pythonCompleted.length,
+      totalTasks,
       attempts,
-      score,
-      verifiedEvidence: verifiedEvidence.length,
+      score: combineScoreSummaries(sqlScore, pythonScore),
+      verifiedEvidence: sqlEvidence.length + pythonEvidence.length,
+      sqlEvidence: sqlEvidence.length,
+      pythonEvidence: pythonEvidence.length,
       decisionNotes,
       streak: calculateStreak(progress.activityDates),
-      completionRate: tasks.length
-        ? Math.min(100, Math.round((completed.length / tasks.length) * 100))
+      completionRate: totalTasks
+        ? Math.min(100, Math.round((completed / totalTasks) * 100))
         : 0,
     };
-  }, [evidenceByTaskId, progress.activityDates, progress.tasks, tasks]);
+  }, [
+    evidenceByTaskId,
+    progress.activityDates,
+    progress.pythonTasks,
+    progress.tasks,
+    pythonEvidenceByTaskId,
+    pythonTasks,
+    tasks,
+  ]);
 
   const moduleAccess = useMemo(
     () => buildModuleAccessStates(modules, tasks, progress.tasks),
@@ -308,32 +379,166 @@ export function ProgressScreen({
     });
   }, [moduleAccessById, modules, progress, recommendedTask?.id, tasks]);
 
-  const recentCompletions = useMemo(
+  const pythonModuleAccess = useMemo(
     () =>
-      tasks
-        .flatMap((task) => {
-          const taskState = progress.tasks[task.id];
-          if (!taskState?.completed || !taskState.lastCompletedAt) return [];
-          const curriculumModule = modules.find((item) =>
-            item.tasks.some((moduleTask) => moduleTask.id === task.id),
-          );
-          return [
-            {
-              task,
-              moduleTitle: curriculumModule?.title ?? "Rota",
-              completedAt: taskState.lastCompletedAt,
-              attempts: taskState.attempts,
-              score: getAwardedCaseScore(taskState),
-            },
-          ];
-        })
-        .sort(
-          (left, right) =>
-            Date.parse(right.completedAt) - Date.parse(left.completedAt),
-        )
-        .slice(0, 4),
-    [modules, progress.tasks, tasks],
+      buildModuleAccessStates(pythonModules, pythonTasks, progress.pythonTasks),
+    [progress.pythonTasks, pythonModules, pythonTasks],
   );
+
+  const pythonModuleAccessById = useMemo(
+    () => new Map(pythonModuleAccess.map((state) => [state.moduleId, state])),
+    [pythonModuleAccess],
+  );
+
+  const recommendedPythonTask = useMemo(() => {
+    if (
+      !pythonTasks.some(
+        (task) => progress.pythonTasks[task.id]?.completed !== true,
+      )
+    ) {
+      return undefined;
+    }
+
+    return pythonTasks.find((task) => {
+      const moduleState = pythonModuleAccessById.get(task.moduleId);
+      return (
+        moduleState?.isUnlocked &&
+        progress.pythonTasks[task.id]?.completed !== true &&
+        task.prerequisites.every(
+          (prerequisiteId) =>
+            progress.pythonTasks[prerequisiteId]?.completed === true,
+        )
+      );
+    });
+  }, [progress.pythonTasks, pythonModuleAccessById, pythonTasks]);
+
+  const pythonModuleProgress = useMemo(
+    () =>
+      pythonModules.map((module, index) => {
+        const access = pythonModuleAccessById.get(module.id);
+        const isUnlocked = access?.isUnlocked ?? index === 0;
+        const completed = module.tasks.filter(
+          (task) => progress.pythonTasks[task.id]?.completed,
+        ).length;
+        const active = module.tasks.find(
+          (task) =>
+            progress.pythonTasks[task.id]?.completed !== true &&
+            hasPythonTaskActivity(task.id, progress),
+        );
+        const suggested = module.tasks.find(
+          (task) =>
+            progress.pythonTasks[task.id]?.completed !== true &&
+            task.prerequisites.every(
+              (prerequisiteId) =>
+                progress.pythonTasks[prerequisiteId]?.completed === true,
+            ),
+        );
+        const rate = module.tasks.length
+          ? Math.round((completed / module.tasks.length) * 100)
+          : 0;
+        const score = summarizeScores(
+          module.tasks.map((task) => task.id),
+          progress.pythonTasks,
+        );
+        const isComplete = rate === 100;
+        const state = !isUnlocked
+          ? "Kilitli"
+          : isComplete
+            ? "Tamamlandı"
+            : active
+              ? "Devam ediyor"
+              : module.tasks.some(
+                    (task) => task.id === recommendedPythonTask?.id,
+                  )
+                ? "Sıradaki"
+                : "Başlamadı";
+
+        return {
+          id: module.id,
+          index: index + 1,
+          title: module.title,
+          completed,
+          total: module.tasks.length,
+          rate,
+          score,
+          next: isUnlocked
+            ? isComplete
+              ? module.tasks[0]
+              : suggested
+            : undefined,
+          isUnlocked,
+          blockingModuleTitle: access?.blockingModule?.title,
+          state,
+          action:
+            state === "Tamamlandı"
+              ? "Tekrar et"
+              : state === "Devam ediyor"
+                ? "Devam"
+                : state === "Sıradaki"
+                  ? "Başla"
+                  : "Göz at",
+        };
+      }),
+    [
+      progress,
+      pythonModuleAccessById,
+      pythonModules,
+      recommendedPythonTask?.id,
+    ],
+  );
+
+  const recentCompletions = useMemo(() => {
+    const sqlCompletions = tasks.flatMap((task) => {
+      const taskState = progress.tasks[task.id];
+      if (!taskState?.completed || !taskState.lastCompletedAt) return [];
+      const curriculumModule = modules.find((item) =>
+        item.tasks.some((moduleTask) => moduleTask.id === task.id),
+      );
+      return [
+        {
+          task,
+          trackLabel: "SQL",
+          moduleTitle: curriculumModule?.title ?? "SQL rotası",
+          completedAt: taskState.lastCompletedAt,
+          attempts: taskState.attempts,
+          score: getAwardedCaseScore(taskState),
+          screen: "workspace" as const,
+        },
+      ];
+    });
+    const pythonCompletions = pythonTasks.flatMap((task) => {
+      const taskState = progress.pythonTasks[task.id];
+      if (!taskState?.completed || !taskState.lastCompletedAt) return [];
+      const curriculumModule = pythonModules.find((item) =>
+        item.tasks.some((moduleTask) => moduleTask.id === task.id),
+      );
+      return [
+        {
+          task,
+          trackLabel: "Python",
+          moduleTitle: curriculumModule?.title ?? "Python rotası",
+          completedAt: taskState.lastCompletedAt,
+          attempts: taskState.attempts,
+          score: getAwardedCaseScore(taskState),
+          screen: "python" as const,
+        },
+      ];
+    });
+
+    return [...sqlCompletions, ...pythonCompletions]
+      .sort(
+        (left, right) =>
+          Date.parse(right.completedAt) - Date.parse(left.completedAt),
+      )
+      .slice(0, 4);
+  }, [
+    modules,
+    progress.pythonTasks,
+    progress.tasks,
+    pythonModules,
+    pythonTasks,
+    tasks,
+  ]);
 
   const evidenceRecords = useMemo(
     () =>
@@ -366,6 +571,31 @@ export function ProgressScreen({
           return Date.parse(rightDate) - Date.parse(leftDate);
         }),
     [evidenceByTaskId, modules, tasks],
+  );
+
+  const pythonEvidenceRecords = useMemo(
+    () =>
+      Object.values(pythonEvidenceByTaskId)
+        .flatMap((evidence) => {
+          const task = pythonTasks.find((item) => item.id === evidence.taskId);
+          if (!task) return [];
+          const curriculumModule = pythonModules.find(
+            (item) => item.id === task.moduleId,
+          );
+          return [
+            {
+              evidence,
+              task,
+              moduleTitle: curriculumModule?.title ?? "Python rotası",
+            },
+          ];
+        })
+        .sort(
+          (left, right) =>
+            Date.parse(right.evidence.verifiedAt) -
+            Date.parse(left.evidence.verifiedAt),
+        ),
+    [pythonEvidenceByTaskId, pythonModules, pythonTasks],
   );
 
   const conceptSignals = useMemo(
@@ -424,6 +654,38 @@ export function ProgressScreen({
   const hasConceptSignals = Boolean(
     conceptSignals.verified.length || conceptSignals.inProgress.length,
   );
+  const hasSqlActivity = tasks.some((task) =>
+    hasTaskActivity(task.id, progress),
+  );
+  const hasPythonActivity = pythonTasks.some((task) =>
+    hasPythonTaskActivity(task.id, progress),
+  );
+  const nextMission =
+    recommendedPythonTask && hasPythonActivity && !hasSqlActivity
+      ? {
+          task: recommendedPythonTask,
+          screen: "python" as const,
+          trackLabel: "Python",
+        }
+      : recommendedTask
+        ? {
+            task: recommendedTask,
+            screen: "workspace" as const,
+            trackLabel: "SQL",
+          }
+        : recommendedPythonTask
+          ? {
+              task: recommendedPythonTask,
+              screen: "python" as const,
+              trackLabel: "Python",
+            }
+          : undefined;
+  const completedSqlModules = moduleProgress.filter(
+    (module) => module.state === "Tamamlandı",
+  ).length;
+  const completedPythonModules = pythonModuleProgress.filter(
+    (module) => module.state === "Tamamlandı",
+  ).length;
   const activityRange = `${activityCells[0]?.dateLabel ?? ""} – ${
     activityCells.at(-1)?.dateLabel ?? ""
   }`;
@@ -550,12 +812,12 @@ export function ProgressScreen({
               <div className="progress-overview-copy">
                 <span>Genel rota</span>
                 <strong>
-                  {metrics.completed} / {tasks.length} çalışma
+                  {metrics.completed} / {metrics.totalTasks} çalışma
                 </strong>
                 <p>
                   {metrics.completed
-                    ? `${modules.filter((module) => module.tasks.every((task) => progress.tasks[task.id]?.completed)).length} SQL konusunu tamamladın.`
-                    : "İlk doğru sorguyla kişisel ilerleme haritan oluşacak."}
+                    ? `${completedSqlModules} SQL · ${completedPythonModules} Python modülü tamamlandı.`
+                    : "İlk doğru SQL veya Python çıktınla kişisel ilerleme haritan oluşacak."}
                 </p>
               </div>
             </div>
@@ -586,19 +848,22 @@ export function ProgressScreen({
           <div className="next-mission-copy">
             <span>Şimdi en anlamlı adım</span>
             <h2 id="next-mission-title">
-              {recommendedTask?.title ?? "Rotayı tamamladın"}
+              {nextMission?.task.title ?? "Rotayı tamamladın"}
             </h2>
             <p>
-              {recommendedTask?.subtitle ??
-                "Bütün çalışmalar tamamlandı. İstersen zorlandığın konulara dönüp farklı sorgular deneyebilirsin."}
+              {nextMission
+                ? `${nextMission.trackLabel} · ${nextMission.task.subtitle}`
+                : "Bütün SQL ve Python çalışmaları tamamlandı. İstersen zorlandığın konulara dönüp farklı çözümler deneyebilirsin."}
             </p>
           </div>
-          {recommendedTask && (
+          {nextMission && (
             <button
               className="primary-button"
               type="button"
               onClick={() =>
-                onNavigate("workspace", { taskId: recommendedTask.id })
+                onNavigate(nextMission.screen, {
+                  taskId: nextMission.task.id,
+                })
               }
             >
               Çalışmaya devam et <ArrowRight size={15} />
@@ -611,13 +876,19 @@ export function ProgressScreen({
             <CheckCircle2 size={16} />
             <span>Tamamlanan</span>
             <strong>{metrics.completed}</strong>
-            <small>{tasks.length} çalışmadan</small>
+            <small>
+              {metrics.totalTasks} çalışmadan · {metrics.sqlCompleted} SQL ·{" "}
+              {metrics.pythonCompleted} Python
+            </small>
           </article>
           <article>
             <Target size={16} />
-            <span>Karar notu</span>
-            <strong>{metrics.decisionNotes}</strong>
-            <small>{metrics.verifiedEvidence} doğrulanmış kanıtta</small>
+            <span>Doğrulanmış kanıt</span>
+            <strong>{metrics.verifiedEvidence}</strong>
+            <small>
+              {metrics.sqlEvidence} SQL · {metrics.pythonEvidence} Python ·{" "}
+              {metrics.decisionNotes} karar notu
+            </small>
           </article>
           <article>
             <Sparkles size={16} />
@@ -648,18 +919,19 @@ export function ProgressScreen({
                   <span className="section-kicker">Doğrulanmış çalışmalar</span>
                   <h2 id="evidence-notebook-title">Kanıt Defteri</h2>
                   <p className="evidence-notebook-description">
-                    Doğrulanmış sorguların ve karar notların.
+                    Doğrulanmış SQL sorguların, Python DataFrame çıktıları ve
+                    karar notların.
                   </p>
                 </div>
-                {evidenceRecords.length > 0 && (
+                {metrics.verifiedEvidence > 0 && (
                   <span className="module-progress-state complete">
                     {metrics.decisionNotes} karar notu ·{" "}
-                    {evidenceRecords.length} kanıt
+                    {metrics.verifiedEvidence} kanıt
                   </span>
                 )}
               </div>
 
-              {evidenceRecords.length ? (
+              {evidenceRecords.length || pythonEvidenceRecords.length ? (
                 <div className="evidence-notebook-list">
                   {evidenceRecords.map(({ evidence, moduleTitle, task }) => {
                     const note = evidence.note;
@@ -793,6 +1065,126 @@ export function ProgressScreen({
                       </article>
                     );
                   })}
+                  {pythonEvidenceRecords.map(
+                    ({ evidence, moduleTitle, task }) => {
+                      const evidenceTitleId = `${task.id}-python-evidence-title`;
+                      const previewColumns = evidence.columns.slice(0, 6);
+                      const previewRows = evidence.previewRows.slice(0, 3);
+
+                      return (
+                        <article
+                          className="evidence-record has-note"
+                          key={task.id}
+                          aria-labelledby={evidenceTitleId}
+                        >
+                          <span
+                            className="recent-progress-check"
+                            aria-hidden="true"
+                          >
+                            <Check size={14} />
+                          </span>
+
+                          <div className="evidence-record-copy">
+                            <div className="evidence-record-heading">
+                              <div>
+                                <small>Python · {moduleTitle}</small>
+                                <h3 id={evidenceTitleId}>{task.title}</h3>
+                              </div>
+                              <span className="module-progress-state complete">
+                                DataFrame doğrulandı
+                              </span>
+                            </div>
+
+                            <p className="evidence-note-pending">
+                              result DataFrame’i vaka kontratıyla eşleşti ve bu
+                              cihazdaki Python kanıtlarına kaydedildi.
+                            </p>
+
+                            <p className="evidence-record-meta">
+                              <CheckCircle2 size={13} aria-hidden="true" />
+                              {evidence.rowCount} satır ·{" "}
+                              {evidence.columns.length} kolon ·{" "}
+                              {formatDate(evidence.verifiedAt)} · Python{" "}
+                              {evidence.runtimeVersion}
+                            </p>
+
+                            <details className="evidence-record-source">
+                              <summary>DataFrame kanıtını incele</summary>
+                              <div className="evidence-record-source-body">
+                                {previewColumns.length > 0 &&
+                                previewRows.length > 0 ? (
+                                  <div className="evidence-preview-table-wrap">
+                                    <table
+                                      aria-label={`${task.title} Python çıktı önizlemesi`}
+                                    >
+                                      <thead>
+                                        <tr>
+                                          {previewColumns.map(
+                                            (column, columnIndex) => (
+                                              <th
+                                                key={`${column}-${columnIndex}`}
+                                              >
+                                                {column}
+                                              </th>
+                                            ),
+                                          )}
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {previewRows.map((row, rowIndex) => (
+                                          <tr
+                                            key={`${task.id}-python-${rowIndex}`}
+                                          >
+                                            {previewColumns.map(
+                                              (column, columnIndex) => (
+                                                <td
+                                                  key={`${column}-${columnIndex}`}
+                                                >
+                                                  {formatPythonEvidenceCell(
+                                                    row[columnIndex] ?? null,
+                                                  )}
+                                                </td>
+                                              ),
+                                            )}
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                ) : (
+                                  <p>Bu çalışma satır döndürmedi.</p>
+                                )}
+                                <small>
+                                  İlk {previewRows.length} satır · tipler:{" "}
+                                  {evidence.dtypes.slice(0, 6).join(" · ")}
+                                  {evidence.columns.length >
+                                  previewColumns.length
+                                    ? ` · ${evidence.columns.length - previewColumns.length} kolon daha var`
+                                    : ""}
+                                </small>
+                                {evidence.stdout.trim() ? (
+                                  <pre aria-label="Kaydedilmiş Python konsol çıktısı">
+                                    <code>{evidence.stdout}</code>
+                                  </pre>
+                                ) : null}
+                              </div>
+                            </details>
+                          </div>
+
+                          <button
+                            className="module-progress-action"
+                            type="button"
+                            onClick={() =>
+                              onNavigate("python", { taskId: task.id })
+                            }
+                            aria-label={`Python çalışmasını aç: ${task.title}`}
+                          >
+                            Çalışmayı aç <ArrowRight size={14} />
+                          </button>
+                        </article>
+                      );
+                    },
+                  )}
                 </div>
               ) : (
                 <div className="progress-empty-state">
@@ -800,9 +1192,9 @@ export function ProgressScreen({
                   <div>
                     <strong>İlk doğrulanmış kanıtın burada görünecek</strong>
                     <p>
-                      Bir sorguyu doğru tamamladığında SQL’in ve çıktı özeti
-                      kaydedilir. Bulguyu yorumladığında karar notun da bu
-                      deftere eklenir.
+                      Bir SQL sorgusunu veya Python DataFrame çıktısını doğru
+                      tamamladığında özet burada saklanır. SQL bulgunu
+                      yorumladığında karar notun da bu deftere eklenir.
                     </p>
                   </div>
                 </div>
@@ -902,6 +1294,103 @@ export function ProgressScreen({
             </section>
 
             <section
+              className="progress-section module-progress-section"
+              aria-labelledby="python-module-progress-title"
+            >
+              <div className="progress-section-heading">
+                <div>
+                  <span className="section-kicker">Python rota görünümü</span>
+                  <h2 id="python-module-progress-title">
+                    Python modüllerinde neredesin?
+                  </h2>
+                </div>
+                <button
+                  className="soft-button"
+                  type="button"
+                  onClick={() =>
+                    onNavigate("python", {
+                      taskId: recommendedPythonTask?.id ?? pythonTasks[0]?.id,
+                    })
+                  }
+                >
+                  Python Studio’yu aç <ArrowRight size={14} />
+                </button>
+              </div>
+
+              <div className="module-progress-list">
+                {pythonModuleProgress.map((module) => (
+                  <article
+                    className={`module-progress-row ${module.isUnlocked ? "" : "locked"}`}
+                    key={module.id}
+                  >
+                    <span className="module-progress-index">
+                      PY {String(module.index).padStart(2, "0")}
+                    </span>
+                    <div className="module-progress-copy">
+                      <div>
+                        <h3>{module.title}</h3>
+                        <span
+                          className={`module-progress-state ${module.state === "Tamamlandı" ? "complete" : ""} ${module.state === "Sıradaki" ? "next" : ""} ${module.state === "Kilitli" ? "locked" : ""}`}
+                        >
+                          {module.state === "Tamamlandı" && <Check size={12} />}
+                          {module.state === "Kilitli" && <Lock size={12} />}
+                          {module.state}
+                        </span>
+                      </div>
+                      <div className="module-progress-meter">
+                        <div
+                          className="progress-track"
+                          role="progressbar"
+                          aria-label={`${module.title} Python ilerlemesi`}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={module.rate}
+                        >
+                          <span
+                            className="progress-fill"
+                            style={{ width: `${module.rate}%` }}
+                          />
+                        </div>
+                        <span>
+                          {module.completed}/{module.total} vaka ·{" "}
+                          {module.score.earned}/{module.score.possible} puan
+                        </span>
+                      </div>
+                    </div>
+                    {module.next ? (
+                      <button
+                        className="module-progress-action"
+                        type="button"
+                        onClick={() =>
+                          onNavigate("python", { taskId: module.next?.id })
+                        }
+                        aria-label={`${module.title}: ${module.action} — ${module.next.title}`}
+                      >
+                        {module.action}
+                        <ArrowRight size={14} />
+                      </button>
+                    ) : module.isUnlocked ? (
+                      <span
+                        className="module-progress-done"
+                        aria-label="Tamamlandı"
+                      >
+                        <CheckCircle2 size={18} />
+                      </span>
+                    ) : (
+                      <span
+                        className="module-progress-locked"
+                        aria-label={`${module.title} kilitli. Önce ${module.blockingModuleTitle ?? "önceki Python modülünü"} tamamla.`}
+                      >
+                        <Lock size={15} aria-hidden="true" />
+                        Önce {module.blockingModuleTitle ?? "önceki modül"}
+                      </span>
+                    )}
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section
               className="progress-section recent-progress-section"
               aria-labelledby="recent-progress-title"
             >
@@ -922,7 +1411,7 @@ export function ProgressScreen({
                       type="button"
                       key={item.task.id}
                       onClick={() =>
-                        onNavigate("workspace", { taskId: item.task.id })
+                        onNavigate(item.screen, { taskId: item.task.id })
                       }
                     >
                       <span
@@ -933,7 +1422,9 @@ export function ProgressScreen({
                       </span>
                       <span>
                         <strong>{item.task.title}</strong>
-                        <small>{item.moduleTitle}</small>
+                        <small>
+                          {item.trackLabel} · {item.moduleTitle}
+                        </small>
                       </span>
                       <span className="recent-progress-meta">
                         {formatDate(item.completedAt)} · {item.attempts} deneme
@@ -1010,8 +1501,9 @@ export function ProgressScreen({
               </div>
               {!activeDaysInWindow && (
                 <p className="profile-widget-note">
-                  Bu web adresinde henüz çalışma kaydı yok. Sorgu yazdığında,
-                  ipucu açtığında veya çalıştırdığında bugün işaretlenir.
+                  Bu web adresinde henüz çalışma kaydı yok. SQL veya Python
+                  çalıştırdığında, ipucu açtığında ya da kanıt doğruladığında
+                  bugün işaretlenir.
                 </p>
               )}
             </section>
@@ -1105,9 +1597,10 @@ export function ProgressScreen({
                 </div>
               </div>
               <p>
-                Adın, sorguların ve ilerlemen bu tarayıcıda ve bu web adresinde
-                tutulur. Localhost’taki kayıt GitHub adresine otomatik gelmez;
-                taşımak için JSON yedeğini kullanabilirsin.
+                Adın, SQL sorguların, Python kodların ve ilerlemen bu tarayıcıda
+                ve bu web adresinde tutulur. Localhost’taki kayıt GitHub
+                adresine otomatik gelmez; taşımak için JSON yedeğini
+                kullanabilirsin.
               </p>
               <button
                 className="ghost-button"

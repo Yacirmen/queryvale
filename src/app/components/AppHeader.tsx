@@ -9,7 +9,7 @@ interface AppHeaderProps {
   screen: AppScreen;
   onNavigate: Navigate;
   onStudio?: () => void;
-  onHowItWorks?: () => void;
+  onPythonStudio?: () => void;
   onStart?: () => void;
   startLabel?: string;
   accountStatus?: HeaderAccountStatus;
@@ -33,7 +33,7 @@ export function AppHeader({
   screen,
   onNavigate,
   onStudio,
-  onHowItWorks,
+  onPythonStudio,
   onStart,
   startLabel,
   accountStatus = "guest",
@@ -41,8 +41,7 @@ export function AppHeader({
   disabled = false,
 }: AppHeaderProps) {
   const openStudio = onStudio ?? (() => onNavigate("workspace"));
-  const openHowItWorks =
-    onHowItWorks ?? (() => onNavigate("home", { anchor: "queryvale-studio" }));
+  const openPythonStudio = onPythonStudio ?? (() => onNavigate("python"));
   const start = onStart ?? (() => onNavigate("account"));
 
   return (
@@ -82,18 +81,19 @@ export function AppHeader({
               type="button"
               disabled={disabled}
               onClick={openStudio}
-              aria-label="Studio — SQL Laboratuvarı"
+              aria-label="SQL Studio — SQL Laboratuvarı"
               aria-current={screen === "workspace" ? "page" : undefined}
             >
-              Studio
+              SQL Studio
             </button>
             <button
               className="reference-nav-link"
               type="button"
               disabled={disabled}
-              onClick={openHowItWorks}
+              onClick={openPythonStudio}
+              aria-current={screen === "python" ? "page" : undefined}
             >
-              Nasıl Çalışır
+              Python Studio
             </button>
           </nav>
 

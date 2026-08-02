@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AppHeader } from "./AppHeader";
 
 describe("AppHeader", () => {
-  it("shows three navigation targets and the CTA without documentation", () => {
+  it("shows the route and both studios with the CTA", () => {
     const { rerender } = render(
       <AppHeader screen="learn" onNavigate={vi.fn()} />,
     );
@@ -13,34 +13,43 @@ describe("AppHeader", () => {
       name: "Ana bölümler",
     });
     const route = within(navigation).getByRole("button", { name: "Rota" });
-    const studio = within(navigation).getByRole("button", {
-      name: "Studio — SQL Laboratuvarı",
+    const sqlStudio = within(navigation).getByRole("button", {
+      name: "SQL Studio — SQL Laboratuvarı",
     });
-    const howItWorks = within(navigation).getByRole("button", {
-      name: "Nasıl Çalışır",
+    const pythonStudio = within(navigation).getByRole("button", {
+      name: "Python Studio",
     });
     const start = screen.getByRole("button", {
       name: "Hemen Başla — hesap aç veya giriş yap",
     });
 
     expect(route).toBeVisible();
-    expect(studio).toBeVisible();
-    expect(howItWorks).toBeVisible();
+    expect(sqlStudio).toBeVisible();
+    expect(sqlStudio).toHaveTextContent("SQL Studio");
+    expect(pythonStudio).toBeVisible();
     expect(start).toBeVisible();
     expect(within(navigation).getAllByRole("button")).toHaveLength(3);
     expect(screen.queryByText("Dokümanlar")).not.toBeInTheDocument();
+    expect(screen.queryByText("Nasıl Çalışır")).not.toBeInTheDocument();
     expect(route).toHaveAttribute("aria-current", "page");
-    expect(studio).not.toHaveAttribute("aria-current");
+    expect(sqlStudio).not.toHaveAttribute("aria-current");
+    expect(pythonStudio).not.toHaveAttribute("aria-current");
     expect(start).not.toHaveAttribute("aria-current");
 
     rerender(<AppHeader screen="workspace" onNavigate={vi.fn()} />);
 
     expect(route).not.toHaveAttribute("aria-current");
-    expect(studio).toHaveAttribute("aria-current", "page");
+    expect(sqlStudio).toHaveAttribute("aria-current", "page");
+    expect(pythonStudio).not.toHaveAttribute("aria-current");
+
+    rerender(<AppHeader screen="python" onNavigate={vi.fn()} />);
+
+    expect(sqlStudio).not.toHaveAttribute("aria-current");
+    expect(pythonStudio).toHaveAttribute("aria-current", "page");
 
     rerender(<AppHeader screen="account" onNavigate={vi.fn()} />);
 
-    expect(studio).not.toHaveAttribute("aria-current");
+    expect(pythonStudio).not.toHaveAttribute("aria-current");
     expect(start).toHaveAttribute("aria-current", "page");
 
     rerender(<AppHeader screen="account" onNavigate={vi.fn()} disabled />);
@@ -51,11 +60,11 @@ describe("AppHeader", () => {
     }
   });
 
-  it("routes Rota and keeps Studio, how-it-works and CTA callbacks separate", async () => {
+  it("routes Rota and keeps SQL Studio, Python Studio and CTA callbacks separate", async () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
     const onStudio = vi.fn();
-    const onHowItWorks = vi.fn();
+    const onPythonStudio = vi.fn();
     const onStart = vi.fn();
 
     render(
@@ -63,7 +72,7 @@ describe("AppHeader", () => {
         screen="home"
         onNavigate={onNavigate}
         onStudio={onStudio}
-        onHowItWorks={onHowItWorks}
+        onPythonStudio={onPythonStudio}
         onStart={onStart}
         startLabel="Hesabını oluştur"
       />,
@@ -71,9 +80,11 @@ describe("AppHeader", () => {
 
     await user.click(screen.getByRole("button", { name: "Rota" }));
     await user.click(
-      screen.getByRole("button", { name: "Studio — SQL Laboratuvarı" }),
+      screen.getByRole("button", {
+        name: "SQL Studio — SQL Laboratuvarı",
+      }),
     );
-    await user.click(screen.getByRole("button", { name: "Nasıl Çalışır" }));
+    await user.click(screen.getByRole("button", { name: "Python Studio" }));
     await user.click(
       screen.getByRole("button", {
         name: "Hemen Başla — Hesabını oluştur",
@@ -83,20 +94,22 @@ describe("AppHeader", () => {
     expect(onNavigate).toHaveBeenCalledOnce();
     expect(onNavigate).toHaveBeenCalledWith("learn");
     expect(onStudio).toHaveBeenCalledOnce();
-    expect(onHowItWorks).toHaveBeenCalledOnce();
+    expect(onPythonStudio).toHaveBeenCalledOnce();
     expect(onStart).toHaveBeenCalledOnce();
   });
 
-  it("falls back to the workspace, showcase anchor and account screen", async () => {
+  it("falls back to the SQL workspace, Python Studio and account screen", async () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
 
     render(<AppHeader screen="home" onNavigate={onNavigate} />);
 
     await user.click(
-      screen.getByRole("button", { name: "Studio — SQL Laboratuvarı" }),
+      screen.getByRole("button", {
+        name: "SQL Studio — SQL Laboratuvarı",
+      }),
     );
-    await user.click(screen.getByRole("button", { name: "Nasıl Çalışır" }));
+    await user.click(screen.getByRole("button", { name: "Python Studio" }));
     await user.click(
       screen.getByRole("button", {
         name: "Hemen Başla — hesap aç veya giriş yap",
@@ -104,9 +117,7 @@ describe("AppHeader", () => {
     );
 
     expect(onNavigate).toHaveBeenNthCalledWith(1, "workspace");
-    expect(onNavigate).toHaveBeenNthCalledWith(2, "home", {
-      anchor: "queryvale-studio",
-    });
+    expect(onNavigate).toHaveBeenNthCalledWith(2, "python");
     expect(onNavigate).toHaveBeenNthCalledWith(3, "account");
   });
 

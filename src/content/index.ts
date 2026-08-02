@@ -47,3 +47,27 @@ export type {
   ValidationMode,
   ValidationOptions,
 } from "../types/lesson";
+
+export {
+  getPythonModuleById,
+  getPythonTaskById,
+  pythonCurriculum,
+  pythonModuleById,
+  pythonModules,
+  pythonTaskById,
+  pythonTasks,
+} from "./pythonCurriculum";
+
+export type {
+  PythonCurriculum,
+  PythonCurriculumModule,
+  PythonDataFrameDtype,
+  PythonDatasetFixture,
+  PythonDifficulty,
+  PythonHint,
+  PythonLessonTask,
+  PythonPackage,
+  PythonScalar,
+  PythonTaskDebrief,
+  PythonTaskTransfer,
+} from "../types/pythonLesson";

@@ -130,7 +130,7 @@ describe("AccountScreen", () => {
     expect(screen.getByText("Mevcut çalışmaların korunacak")).toBeVisible();
     expect(
       screen.getByText(
-        /3 tamamlanmış vakan ve sorguların “Kritik stokları sırala” konumuyla birlikte bu profile bağlanacak/i,
+        /3 tamamlanmış vakan ve çalışmaların “Kritik stokları sırala” konumuyla birlikte bu profile bağlanacak/i,
       ),
     ).toBeVisible();
   });

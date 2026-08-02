@@ -2,7 +2,7 @@
 
 ## Kalite ilkesi
 
-Queryvale’de testler görsel bir prototipi değil, gerçek öğrenme döngüsünü korur. En kritik sözleşme şudur: aynı doğru sonucu üreten farklı SQL kabul edilir, yanlış veya tehlikeli sonuç açıklanabilir biçimde reddedilir ve ilerleme yalnızca gerçek başarıyla değişir.
+Queryvale’de testler görsel bir prototipi değil, gerçek öğrenme döngüsünü korur. En kritik sözleşme şudur: aynı doğru sonucu üreten farklı SQL veya Python kodu kabul edilir, yanlış sonuç açıklanabilir biçimde reddedilir ve ilerleme yalnızca gerçek motor başarısıyla değişir.
 
 ## Katmanlar
 
@@ -17,6 +17,8 @@ Hızlı ve deterministik saf sözleşmeler:
 - gerekli kavram ve yasak operasyon tespiti,
 - ilerleme istatistikleri ve import şeması,
 - öğretici hata eşleme.
+- Python modül/zincir sözleşmesi, DataFrame kolon/dtype/satır/sıra değerlendirmesi,
+- Pyodide Worker istemcisinde boot/run timeout, iptal, reset ve stale mesaj reddi.
 
 ### Bileşen testleri — React Testing Library
 
@@ -29,7 +31,7 @@ Kullanıcının gördüğü/duyduğu davranış:
 - başarı özeti ve sonraki görev eylemi,
 - reset/import onay akışları.
 
-Monaco ve PGlite, component testlerinde sözleşme seviyesinde adapter ile kontrol edilebilir; evaluator’ın kendisi mock’lanıp unutulmaz, ayrı gerçek entegrasyon testleri vardır.
+Monaco, PGlite ve Pyodide Worker component testlerinde sözleşme seviyesinde adapter ile kontrol edilebilir; evaluator’lar mock’lanıp unutulmaz, ayrı gerçek entegrasyon testleri vardır.
 
 ### Entegrasyon testleri — Vitest/browser ortamı
 
@@ -40,6 +42,7 @@ Monaco ve PGlite, component testlerinde sözleşme seviyesinde adapter ile kontr
 - görevin resetlenmesi,
 - iki görev arasında izolasyon,
 - gerçek motor çıktısının evaluator’a aktarılması,
+- sabitlenmiş Pyodide+pandas runtime’ında bütün Python referans çözümlerinin fixture’larla çalışması ve evaluator’dan `correct` alması,
 - IndexedDB kaydetme/geri yükleme/migrasyon.
 - IndexedDB okuması yetkili sonuç üretemezse otomatik kaydın eski veriyi ezmemesi; yalnız açık replace işleminin korumayı kaldırması.
 
@@ -53,24 +56,27 @@ Monaco ve PGlite, component testlerinde sözleşme seviyesinde adapter ile kontr
 - tema/ayar kalıcılığı,
 - klavye kısayolları,
 - mobil viewport’ta temel görev akışı,
+- Python Studio’ya header’dan giriş, dört mobil panel, gerçek DataFrame çalıştırma ve sonuçtan sonra açık sonraki-vaka eylemi,
 - export/import ve onaylı reset,
 - yerel profil oluşturma → çıkış → yenileme → aynı profile giriş yaşam döngüsü,
 - profil silmede iptal/onay ayrımı ve silinen verinin yeniden görünmemesi.
 
 ## Zorunlu senaryo matrisi
 
-| Alan         | Mutlu yol                                              | Kritik edge case                                                       |
-| ------------ | ------------------------------------------------------ | ---------------------------------------------------------------------- |
-| İçerik       | geçerli görev kataloğa girer                           | duplicate ID, bozuk nextTask, eksik hint reddedilir                    |
-| SQL runtime  | setup + SELECT sonuç döndürür                          | syntax error, timeout, stale run, reset                                |
-| Kolon        | doğru ad/sıra kabul edilir                             | eksik, fazla, alias/case politikası                                    |
-| Satır        | eşit sonuç kabul edilir                                | duplicate, `NULL`, tarih, float toleransı                              |
-| Sıra         | görev politikasına uyar                                | aynı satırlar yanlış sırada                                            |
-| Kavram       | hedef kavram saptanır                                  | kavram yalnız yorum/string içinde geçer                                |
-| Progress     | başarı kalıcılaşır                                     | tekrar deneme, migration, IndexedDB hatası                             |
-| Yerel profil | oluşturma, çıkış ve yeniden giriş aynı ilerlemeyi açar | çıkış veriyi silmez; profil silme iptali korur, onayı tamamen temizler |
-| UI           | yükleniyor→sonuç                                       | motor yükleme hatası, boş sonuç                                        |
-| Responsive   | görev tamamlanır                                       | yatay taşma, erişilemeyen eylem                                        |
+| Alan           | Mutlu yol                                              | Kritik edge case                                                       |
+| -------------- | ------------------------------------------------------ | ---------------------------------------------------------------------- |
+| İçerik         | geçerli görev kataloğa girer                           | duplicate ID, bozuk nextTask, eksik hint reddedilir                    |
+| SQL runtime    | setup + SELECT sonuç döndürür                          | syntax error, timeout, stale run, reset                                |
+| Python runtime | pandas kodu gerçek DataFrame artifact döndürür         | boot/run timeout, iptal, eksik result, satır/çıktı sınırı              |
+| Python içeriği | 12 referans çözüm gerçek runtime’da doğrulanır         | kolon, dtype, sıra veya fixture sapması build’i durdurur               |
+| Kolon          | doğru ad/sıra kabul edilir                             | eksik, fazla, alias/case politikası                                    |
+| Satır          | eşit sonuç kabul edilir                                | duplicate, `NULL`, tarih, float toleransı                              |
+| Sıra           | görev politikasına uyar                                | aynı satırlar yanlış sırada                                            |
+| Kavram         | hedef kavram saptanır                                  | kavram yalnız yorum/string içinde geçer                                |
+| Progress       | başarı kalıcılaşır                                     | tekrar deneme, migration, IndexedDB hatası                             |
+| Yerel profil   | oluşturma, çıkış ve yeniden giriş aynı ilerlemeyi açar | çıkış veriyi silmez; profil silme iptali korur, onayı tamamen temizler |
+| UI             | yükleniyor→sonuç                                       | motor yükleme hatası, boş sonuç                                        |
+| Responsive     | görev tamamlanır                                       | yatay taşma, erişilemeyen eylem                                        |
 
 ## Komutlar
 
@@ -95,7 +101,7 @@ pnpm run build
 ## Mock politikası
 
 - Ağır UI bağımlılıkları component seviyesinde mock edilebilir.
-- PGlite sözleşmesi sadece mock ile doğrulanmış sayılmaz.
+- PGlite ve Pyodide/pandas sözleşmeleri sadece mock ile doğrulanmış sayılmaz.
 - IndexedDB repository için hızlı test adapter’ı kullanılabilir; gerçek IndexedDB entegrasyon testi ayrıca çalışır.
 - Zaman, rastgelelik ve locale sabitlenir.
 - Testin geçmesi için üretim doğrulaması bypass edilmez.
@@ -114,6 +120,7 @@ Otomatik testlerden sonra üretim build’inde:
 8. Export alınır, reset onaylanır, import ile geri yüklenir.
 9. Profil ekranından çıkış yapılır; header'ın misafir durumuna döndüğü, yenilemede çıkışın korunduğu ve yeniden girişte son vakaya dönüldüğü doğrulanır.
 10. Ayarlar'da `İlerlemeyi sıfırla` ile `Profili sil` açıklamaları karşılaştırılır; profil silme önce iptal edilir, sonra onaylanır ve yeni misafir durumu doğrulanır.
+11. Python Studio ilk EDA vakasında çalıştırılır; gerçek tablo, geri bildirim, ipucu/çözüm puanı, sonraki vaka kilidi ve yenileme sonrası taslak kontrol edilir.
 
 ## Hata ayıklama raporu
 
