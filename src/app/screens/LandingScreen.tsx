@@ -14,6 +14,7 @@ interface LandingScreenProps {
   profileActive: boolean;
   startDisabled?: boolean;
   reducedMotion: boolean;
+  onJourneyComplete: () => void;
 }
 
 const roles = ["Veri Analistleri", "İş Analistleri", "Veri Bilimcileri"];
@@ -81,9 +82,11 @@ export function LandingScreen({
   profileActive,
   startDisabled = false,
   reducedMotion,
+  onJourneyComplete,
 }: LandingScreenProps) {
   const heroTrackRef = useRef<HTMLElement>(null);
   const studioTrackRef = useRef<HTMLElement>(null);
+  const journeyEndRef = useRef<HTMLSpanElement>(null);
   const [roleIndex, setRoleIndex] = useState(0);
   const [studioStep, setStudioStep] = useState(0);
 
@@ -140,6 +143,59 @@ export function LandingScreen({
       if (animationFrame) window.cancelAnimationFrame(animationFrame);
     };
   }, [reducedMotion]);
+
+  useEffect(() => {
+    const journeyEnd = journeyEndRef.current;
+    if (!journeyEnd) return;
+
+    let completed = false;
+    let observer: IntersectionObserver | undefined;
+    const completeJourney = () => {
+      if (completed) return;
+      completed = true;
+      observer?.disconnect();
+      onJourneyComplete();
+    };
+
+    if (typeof window.IntersectionObserver === "function") {
+      observer = new window.IntersectionObserver(
+        (entries) => {
+          if (entries.some((entry) => entry.isIntersecting)) {
+            completeJourney();
+          }
+        },
+        { threshold: 0.5 },
+      );
+      observer.observe(journeyEnd);
+      return () => observer?.disconnect();
+    }
+
+    const checkDocumentEnd = () => {
+      const root = document.documentElement;
+      const body = document.body;
+      const documentHeight = Math.max(root.scrollHeight, body.scrollHeight);
+      const viewportHeight = Math.max(window.innerHeight, root.clientHeight);
+      const scrollTop = Math.max(
+        window.scrollY,
+        root.scrollTop,
+        body.scrollTop,
+      );
+      if (
+        documentHeight > 0 &&
+        scrollTop + viewportHeight >= documentHeight - 2
+      ) {
+        completeJourney();
+      }
+    };
+
+    checkDocumentEnd();
+    window.addEventListener("scroll", checkDocumentEnd, { passive: true });
+    window.addEventListener("resize", checkDocumentEnd);
+    return () => {
+      window.removeEventListener("scroll", checkDocumentEnd);
+      window.removeEventListener("resize", checkDocumentEnd);
+    };
+  }, [onJourneyComplete]);
 
   const activeStep = studioSteps[studioStep];
   const resultVisible = studioStep === 2;
@@ -210,7 +266,7 @@ export function LandingScreen({
               })
             }
           >
-            Kaydırarak Rolleri Keşfedin
+            Kaydırarak Studio’ları Açın
             <ArrowDown size={16} aria-hidden="true" />
           </button>
         </div>
@@ -394,6 +450,12 @@ export function LandingScreen({
         </nav>
         <p>© 2026 Queryvale. Cihazında çalışan SQL öğrenme stüdyosu.</p>
       </footer>
+
+      <span
+        ref={journeyEndRef}
+        className="landing-journey-end"
+        aria-hidden="true"
+      />
     </main>
   );
 }

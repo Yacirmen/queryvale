@@ -90,6 +90,63 @@ describe("AppHeader", () => {
     expect(onStart).toHaveBeenCalledOnce();
   });
 
+  it("locks only the landing Studio actions and explains how they open", async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    const onStudio = vi.fn();
+    const onPythonStudio = vi.fn();
+    const onStart = vi.fn();
+
+    render(
+      <AppHeader
+        screen="home"
+        onNavigate={onNavigate}
+        onStudio={onStudio}
+        onPythonStudio={onPythonStudio}
+        onStart={onStart}
+        studioNavigationLocked
+      />,
+    );
+
+    const navigation = screen.getByRole("navigation", {
+      name: "Ana bölümler",
+    });
+    const sqlStudio = within(navigation).getByRole("button", {
+      name: "SQL Studio — SQL Laboratuvarı",
+    });
+    const pythonStudio = within(navigation).getByRole("button", {
+      name: "Python Studio",
+    });
+    const explanation = screen.getByText(
+      /ana sayfanın sonuna ulaştığında açılır/i,
+    );
+
+    for (const studio of [sqlStudio, pythonStudio]) {
+      expect(studio).toHaveAttribute("aria-disabled", "true");
+      expect(studio).toHaveAttribute(
+        "aria-describedby",
+        explanation.getAttribute("id"),
+      );
+      expect(studio).toHaveAttribute(
+        "title",
+        "Sayfanın sonuna ulaştığında açılır",
+      );
+      await user.click(studio);
+    }
+
+    expect(onStudio).not.toHaveBeenCalled();
+    expect(onPythonStudio).not.toHaveBeenCalled();
+
+    await user.click(
+      screen.getByRole("button", { name: "Queryvale ana sayfa" }),
+    );
+    await user.click(screen.getByRole("button", { name: /^Hemen Başla/ }));
+
+    expect(onNavigate).toHaveBeenCalledWith("home");
+    expect(onStart).toHaveBeenCalledOnce();
+    expect(screen.getByRole("banner")).toHaveAttribute("aria-busy", "false");
+  });
+
   it("falls back to the SQL workspace, Python Studio and account screen", async () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
@@ -122,6 +179,7 @@ describe("AppHeader", () => {
         onNavigate={onNavigate}
         accountStatus="local"
         profileName="Ada Yılmaz"
+        studioNavigationLocked
       />,
     );
 
@@ -137,7 +195,14 @@ describe("AppHeader", () => {
 
     expect(profile).toBeVisible();
     expect(profile).toHaveTextContent("AYProfil");
+    expect(profile).toBeEnabled();
     expect(settings).toBeVisible();
+    expect(settings).toBeEnabled();
+    expect(
+      within(
+        screen.getByRole("navigation", { name: "Ana bölümler" }),
+      ).getByRole("button", { name: "SQL Studio — SQL Laboratuvarı" }),
+    ).toHaveAttribute("aria-disabled", "true");
     expect(
       screen.queryByRole("button", { name: /^Hemen Başla/ }),
     ).not.toBeInTheDocument();

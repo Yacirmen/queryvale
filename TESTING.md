@@ -57,6 +57,7 @@ Monaco, PGlite ve Pyodide Worker component testlerinde sözleşme seviyesinde ad
 - klavye kısayolları,
 - mobil viewport’ta temel görev akışı,
 - header'da yalnız iki Studio hedefi ve her iki çalışma alanında klavye/mobil uyumlu rota menüsü,
+- ana sayfa başında iki Studio hedefinin açıklamalı biçimde pasif kalması, footer sonunda birlikte açılması ve doğrudan Studio rotalarının bu geçitten etkilenmemesi,
 - SQL rota menüsünde 11 modül/52 çalışma, aktif vaka, tamamlanma ve modül bazlı kilit davranışı,
 - Python Studio’ya header’dan giriş, dört mobil panel, gerçek DataFrame çalıştırma ve sonuçtan sonra açık sonraki-vaka eylemi,
 - export/import ve onaylı reset,
@@ -112,7 +113,7 @@ pnpm run build
 
 Otomatik testlerden sonra üretim build’inde:
 
-1. Temiz profilde ana sayfadan ilk görev başlatılır.
+1. Temiz profilde ana sayfa başında SQL/Python header hedeflerinin pasif olduğu, footer sonuna ulaşıldığında birlikte açıldığı ve `Hemen Başla` eyleminin bu sırada kullanılabildiği doğrulanır; ardından ilk görev başlatılır.
 2. Şema klavye ile incelenir, yanlış sorgu çalıştırılır.
 3. Geri bildirim ve üç ipucu kontrol edilir.
 4. Alternatif doğru sorguyla görev tamamlanır.

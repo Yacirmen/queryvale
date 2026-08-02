@@ -33,6 +33,7 @@ Queryvale, komut ezberleten bir kurs değil; gerçek iş sorularını SQL ve Pyt
 - İlerlemeyi silmeden çıkış, sayfa yenilemeleri arasında korunan yerel profil durumu ve aynı cihazda tek dokunuşla yeniden giriş
 - Başlangıç rehberi, otomatik kayıt/taşıma açıklaması, destek bağlantısı ve profil-veri silme eylemini birleştiren `Yardım ve veri` alanı
 - `SQL Studio` ve `Python Studio` üzerinden profil kapısını zorunlu kılmadan iki çalışma alanına misafir erişimi
+- Ana sayfa anlatısının sonuna ulaşılana kadar iki Studio hedefini açıklamalı kilit simgesiyle bekleten; doğrudan rotaları ve diğer ekranları engellemeyen oturumluk tanıtım geçidi
 - Header'ı kalabalıklaştırmadan her stüdyonun içinde açılan rota menüsü: SQL'de 11 modül/52 vaka-proje, Python'da 4 modül/12 vaka
 - Yazarken otomatik kaydedilen SQL taslakları; `⌘/Ctrl+S` ile anında kayıt
 - Açık/koyu tema, editör tercihleri ve reduced-motion desteği
@@ -95,7 +96,11 @@ kilidi veya yetkilendirme değildir. Profilin tamamen kaldırılması ayrı ve o
 ve çalışma tercihlerini korur.
 Yalnız görev denemiş bir misafir hesap varmış gibi gösterilmez. Header yalnız `SQL Studio`
 ve `Python Studio` çalışma hedeflerini taşır; iki rotanın modül/vaka görünümü kendi stüdyosundaki
-açılır menüden erişilir. `SQL Studio` bağlantısı SQL Laboratuvarı'na misafir erişimini korur;
+açılır menüden erişilir. Ana sayfada bu iki hedef, kullanıcı footer sonuna ulaşana kadar
+erişilebilir açıklamayla pasif kalır ve aynı uygulama oturumu boyunca açık kalır. Bu yalnız
+tanıtım akışıdır: doğrudan `#/lab/...` ve `#/python/...` rotaları ile diğer ekranlardaki Studio
+hedefleri engellenmez. Tam sayfa yenileme yeni uygulama oturumu sayılır. `SQL Studio`
+bağlantısı SQL Laboratuvarı'na misafir erişimini korur;
 çıkış yapılmışken stüdyolarda üretilen çalışma da
 bu cihazdaki tek çalışma alanına kaydedilir.
 

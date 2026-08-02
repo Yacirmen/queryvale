@@ -1,5 +1,5 @@
 import { PGlite } from "@electric-sql/pglite";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { tasks } from "../../content/curriculum";
@@ -10,6 +10,7 @@ describe("LandingScreen", () => {
     const user = userEvent.setup();
     const onStart = vi.fn();
     const onContinue = vi.fn();
+    const onJourneyComplete = vi.fn();
     render(
       <LandingScreen
         onStart={onStart}
@@ -20,6 +21,7 @@ describe("LandingScreen", () => {
         hasLocalAccount={false}
         profileActive={false}
         reducedMotion
+        onJourneyComplete={onJourneyComplete}
       />,
     );
 
@@ -58,6 +60,7 @@ describe("LandingScreen", () => {
     expect(screen.getByText("damla_data")).toBeInTheDocument();
     expect(screen.getAllByText("Active")).toHaveLength(3);
     expect(screen.queryByText("Idle")).not.toBeInTheDocument();
+    expect(onJourneyComplete).not.toHaveBeenCalled();
 
     const startButton = screen.getByRole("button", {
       name: /Hesabını Aç & Vaka Çöz/i,
@@ -82,6 +85,7 @@ describe("LandingScreen", () => {
         hasLocalAccount
         profileActive
         reducedMotion
+        onJourneyComplete={vi.fn()}
       />,
     );
 
@@ -106,6 +110,7 @@ describe("LandingScreen", () => {
         hasLocalAccount={false}
         profileActive={false}
         reducedMotion
+        onJourneyComplete={vi.fn()}
       />,
     );
 
@@ -133,6 +138,7 @@ describe("LandingScreen", () => {
         hasLocalAccount
         profileActive={false}
         reducedMotion
+        onJourneyComplete={vi.fn()}
       />,
     );
 
@@ -190,4 +196,46 @@ describe("LandingScreen", () => {
       await database.close();
     }
   }, 20_000);
+
+  it("completes the landing journey only when the document end is reached", async () => {
+    const onJourneyComplete = vi.fn();
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: 800,
+    });
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      value: 0,
+    });
+    Object.defineProperty(document.documentElement, "scrollHeight", {
+      configurable: true,
+      value: 2400,
+    });
+
+    render(
+      <LandingScreen
+        onStart={vi.fn()}
+        onContinue={vi.fn()}
+        onOpenHelp={vi.fn()}
+        resumeTask={tasks[0]}
+        isReturningLearner={false}
+        hasLocalAccount={false}
+        profileActive={false}
+        reducedMotion
+        onJourneyComplete={onJourneyComplete}
+      />,
+    );
+
+    fireEvent.scroll(window);
+    expect(onJourneyComplete).not.toHaveBeenCalled();
+
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      value: 1600,
+    });
+    fireEvent.scroll(window);
+    fireEvent.scroll(window);
+
+    await waitFor(() => expect(onJourneyComplete).toHaveBeenCalledOnce());
+  });
 });

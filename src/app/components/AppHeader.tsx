@@ -1,6 +1,6 @@
 "use client";
 
-import { Settings2 } from "lucide-react";
+import { LockKeyhole, Settings2 } from "lucide-react";
 import type { AppScreen, Navigate } from "../appTypes";
 
 type HeaderAccountStatus = "loading" | "guest" | "local";
@@ -15,6 +15,7 @@ interface AppHeaderProps {
   accountStatus?: HeaderAccountStatus;
   profileName?: string;
   disabled?: boolean;
+  studioNavigationLocked?: boolean;
 }
 
 function profileInitials(profileName?: string): string {
@@ -39,6 +40,7 @@ export function AppHeader({
   accountStatus = "guest",
   profileName,
   disabled = false,
+  studioNavigationLocked = false,
 }: AppHeaderProps) {
   const openStudio = onStudio ?? (() => onNavigate("workspace"));
   const openPythonStudio = onPythonStudio ?? (() => onNavigate("python"));
@@ -67,24 +69,64 @@ export function AppHeader({
           </button>
 
           <nav className="reference-primary-nav" aria-label="Ana bölümler">
+            {studioNavigationLocked ? (
+              <span id="landing-studio-lock-note" className="sr-only">
+                SQL ve Python Studio bağlantıları ana sayfanın sonuna
+                ulaştığında açılır.
+              </span>
+            ) : null}
             <button
               className="reference-nav-link"
               type="button"
               disabled={disabled}
-              onClick={openStudio}
+              onClick={studioNavigationLocked ? undefined : openStudio}
               aria-label="SQL Studio — SQL Laboratuvarı"
+              aria-disabled={studioNavigationLocked || undefined}
+              aria-describedby={
+                studioNavigationLocked ? "landing-studio-lock-note" : undefined
+              }
+              title={
+                studioNavigationLocked
+                  ? "Sayfanın sonuna ulaştığında açılır"
+                  : undefined
+              }
               aria-current={screen === "workspace" ? "page" : undefined}
             >
-              SQL Studio
+              <span>SQL Studio</span>
+              <span className="reference-nav-lock-slot" aria-hidden="true">
+                <LockKeyhole
+                  className="reference-nav-lock"
+                  data-visible={studioNavigationLocked}
+                  size={13}
+                  strokeWidth={2}
+                />
+              </span>
             </button>
             <button
               className="reference-nav-link"
               type="button"
               disabled={disabled}
-              onClick={openPythonStudio}
+              onClick={studioNavigationLocked ? undefined : openPythonStudio}
+              aria-disabled={studioNavigationLocked || undefined}
+              aria-describedby={
+                studioNavigationLocked ? "landing-studio-lock-note" : undefined
+              }
+              title={
+                studioNavigationLocked
+                  ? "Sayfanın sonuna ulaştığında açılır"
+                  : undefined
+              }
               aria-current={screen === "python" ? "page" : undefined}
             >
-              Python Studio
+              <span>Python Studio</span>
+              <span className="reference-nav-lock-slot" aria-hidden="true">
+                <LockKeyhole
+                  className="reference-nav-lock"
+                  data-visible={studioNavigationLocked}
+                  size={13}
+                  strokeWidth={2}
+                />
+              </span>
             </button>
           </nav>
 

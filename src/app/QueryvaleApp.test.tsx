@@ -330,6 +330,22 @@ describe("QueryvaleApp", () => {
       configurable: true,
       value: 1024,
     });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: 768,
+    });
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      value: 0,
+    });
+    Object.defineProperty(document.documentElement, "scrollHeight", {
+      configurable: true,
+      value: 0,
+    });
+    Object.defineProperty(document.body, "scrollHeight", {
+      configurable: true,
+      value: 0,
+    });
     Object.defineProperty(window, "matchMedia", {
       configurable: true,
       value: vi.fn().mockImplementation((query: string) => ({
@@ -351,6 +367,71 @@ describe("QueryvaleApp", () => {
       request.onerror = () => resolve();
     });
     await loadProgress();
+  });
+
+  it("unlocks both landing Studio targets only at the page end and keeps them open while navigating", async () => {
+    Object.defineProperty(document.documentElement, "scrollHeight", {
+      configurable: true,
+      value: 2400,
+    });
+    const user = userEvent.setup();
+    render(<QueryvaleApp />);
+
+    await waitFor(() =>
+      expect(document.querySelector(".app-shell")).toHaveAttribute(
+        "aria-busy",
+        "false",
+      ),
+    );
+    const navigation = screen.getByRole("navigation", {
+      name: "Ana bölümler",
+    });
+    const sqlStudio = within(navigation).getByRole("button", {
+      name: "SQL Studio — SQL Laboratuvarı",
+    });
+    const pythonStudio = within(navigation).getByRole("button", {
+      name: "Python Studio",
+    });
+
+    expect(sqlStudio).toHaveAttribute("aria-disabled", "true");
+    expect(pythonStudio).toHaveAttribute("aria-disabled", "true");
+    await user.click(pythonStudio);
+    expect(window.location.hash).toBe("#/");
+    expect(
+      within(screen.getByRole("banner")).getByRole("button", {
+        name: /^Hemen Başla/,
+      }),
+    ).toBeEnabled();
+
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      value: 1632,
+    });
+    fireEvent.scroll(window);
+
+    await waitFor(() => {
+      expect(sqlStudio).not.toHaveAttribute("aria-disabled");
+      expect(pythonStudio).not.toHaveAttribute("aria-disabled");
+    });
+    expect(
+      screen.getByText("SQL Studio ve Python Studio bağlantıları açıldı."),
+    ).toBeInTheDocument();
+
+    await user.click(pythonStudio);
+    expect(window.location.hash).toBe(`#/python/${pythonTasks[0].id}`);
+    await screen.findByRole("heading", { name: pythonTasks[0].title });
+
+    await user.click(
+      screen.getByRole("button", { name: "Queryvale ana sayfa" }),
+    );
+    await screen.findByRole("heading", {
+      name: /Geleceğin Veri Analistleri.*İçin İnteraktif SQL Studio/i,
+    });
+    expect(
+      within(
+        screen.getByRole("navigation", { name: "Ana bölümler" }),
+      ).getByRole("button", { name: "Python Studio" }),
+    ).not.toHaveAttribute("aria-disabled");
   });
 
   it("keeps engine initialization failures separate from query coaching", async () => {
@@ -1984,6 +2065,7 @@ describe("QueryvaleApp", () => {
       ...initial,
       settings: { ...initial.settings, reducedMotion: true },
     });
+    window.location.hash = "#/settings";
     const user = userEvent.setup();
     const scrollTo = vi.mocked(window.scrollTo);
     scrollTo.mockClear();

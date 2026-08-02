@@ -179,6 +179,8 @@ test("the unified fixed header keeps both Studio controls visible across every r
     if (route.active === "home") {
       await expect(activeControls).toHaveCount(1);
       await expect(brand).toHaveAttribute("aria-current", "page");
+      await expect(sqlStudio).toHaveAttribute("aria-disabled", "true");
+      await expect(pythonStudio).toHaveAttribute("aria-disabled", "true");
     } else if (route.active === "workspace") {
       await expect(activeControls).toHaveCount(1);
       await expect(sqlStudio).toHaveAttribute("aria-current", "page");
@@ -190,6 +192,10 @@ test("the unified fixed header keeps both Studio controls visible across every r
       await expect(start).toHaveAttribute("aria-current", "page");
     } else {
       await expect(activeControls).toHaveCount(0);
+    }
+    if (route.active !== "home") {
+      await expect(sqlStudio).not.toHaveAttribute("aria-disabled", "true");
+      await expect(pythonStudio).not.toHaveAttribute("aria-disabled", "true");
     }
 
     expect(
@@ -381,6 +387,14 @@ test("desktop landing pins the authored role and three-step SQL story", async ({
   test.skip(isMobile, "Mobil görünüm doğrudan adım kontrollerini kullanır.");
   await page.goto("/");
 
+  const header = page.locator(".app-header");
+  const sqlStudio = header.getByRole("button", {
+    name: "SQL Studio — SQL Laboratuvarı",
+  });
+  const pythonStudio = header.getByRole("button", { name: "Python Studio" });
+  await expect(sqlStudio).toHaveAttribute("aria-disabled", "true");
+  await expect(pythonStudio).toHaveAttribute("aria-disabled", "true");
+
   const heroTrack = page.locator(".landing-role-track");
   const heroStage = page.locator(".landing-role-stage");
   await expect(heroTrack).toHaveAttribute("data-scroll-mode", "cinematic");
@@ -492,6 +506,8 @@ test("desktop landing pins the authored role and three-step SQL story", async ({
   await expect(page.getByText("damla_data")).toBeVisible();
   await expect(page.getByText("Idle")).toHaveCount(0);
   expectSameStudioGeometry(await readStudioGeometry(), initialStudioGeometry);
+  await expect(sqlStudio).toHaveAttribute("aria-disabled", "true");
+  await expect(pythonStudio).toHaveAttribute("aria-disabled", "true");
 
   const beforeWheel = await page.evaluate(() => window.scrollY);
   await page.locator(".landing-result-area").hover();
@@ -499,6 +515,21 @@ test("desktop landing pins the authored role and three-step SQL story", async ({
   await expect
     .poll(() => page.evaluate(() => window.scrollY))
     .toBeGreaterThan(beforeWheel);
+
+  await page.evaluate(() =>
+    window.scrollTo({
+      behavior: "auto",
+      top: document.documentElement.scrollHeight,
+    }),
+  );
+  await expect(sqlStudio).not.toHaveAttribute("aria-disabled", "true");
+  await expect(pythonStudio).not.toHaveAttribute("aria-disabled", "true");
+  await expect(
+    page.getByText("SQL Studio ve Python Studio bağlantıları açıldı."),
+  ).toBeAttached();
+  await page.evaluate(() => window.scrollTo({ behavior: "auto", top: 0 }));
+  await expect(sqlStudio).not.toHaveAttribute("aria-disabled", "true");
+  await expect(pythonStudio).not.toHaveAttribute("aria-disabled", "true");
 });
 
 test("landing, onboarding and first real SQL task", async ({
@@ -512,6 +543,15 @@ test("landing, onboarding and first real SQL task", async ({
       name: /Geleceğin Veri Analistleri.*İçin İnteraktif SQL Studio/i,
     }),
   ).toBeVisible();
+  const landingHeader = page.locator(".app-header");
+  const landingSqlStudio = landingHeader.getByRole("button", {
+    name: "SQL Studio — SQL Laboratuvarı",
+  });
+  const landingPythonStudio = landingHeader.getByRole("button", {
+    name: "Python Studio",
+  });
+  await expect(landingSqlStudio).toHaveAttribute("aria-disabled", "true");
+  await expect(landingPythonStudio).toHaveAttribute("aria-disabled", "true");
   await expect(
     page.getByRole("region", { name: "Üç adımda çalışan SQL sorgusu" }),
   ).toBeVisible();
@@ -524,6 +564,8 @@ test("landing, onboarding and first real SQL task", async ({
     await expect(page.getByText("3 ROWS RETURNED")).toBeVisible();
     await expect(page.getByText("damla_data")).toBeVisible();
   }
+  await expect(landingSqlStudio).toHaveAttribute("aria-disabled", "true");
+  await expect(landingPythonStudio).toHaveAttribute("aria-disabled", "true");
   await expect(page.locator(".app-shell")).toHaveAttribute(
     "aria-busy",
     "false",
@@ -878,15 +920,37 @@ test("legacy learning path and settings remain usable on a narrow viewport", asy
       name: /Geleceğin Veri Analistleri.*İçin İnteraktif SQL Studio/i,
     }),
   ).toBeVisible();
+  const landingHeader = page.locator(".app-header");
+  const landingSqlStudio = landingHeader.getByRole("button", {
+    name: "SQL Studio — SQL Laboratuvarı",
+  });
+  const landingPythonStudio = landingHeader.getByRole("button", {
+    name: "Python Studio",
+  });
+  await expect(landingSqlStudio).toHaveAttribute("aria-disabled", "true");
+  await expect(landingPythonStudio).toHaveAttribute("aria-disabled", "true");
   await page
     .getByRole("button", {
       name: "3. adım: Sorgu Çalıştırıldı, Sonuç Hazır",
     })
     .click();
   await expect(page.getByText("damla_data")).toBeVisible();
+  await expect(landingSqlStudio).toHaveAttribute("aria-disabled", "true");
+  await expect(landingPythonStudio).toHaveAttribute("aria-disabled", "true");
   await expect(
     page.getByRole("button", { name: /Hesabını Aç & Vaka Çöz/i }),
   ).toBeVisible();
+  await page.evaluate(() =>
+    window.scrollTo({
+      behavior: "auto",
+      top: document.documentElement.scrollHeight,
+    }),
+  );
+  await expect(landingSqlStudio).not.toHaveAttribute("aria-disabled", "true");
+  await expect(landingPythonStudio).not.toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,

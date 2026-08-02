@@ -23,7 +23,7 @@
 
 ## Birincil akış
 
-1. Ana sayfa ürün vaadini ve tarayıcı içi çalışma modelini açıklar.
+1. Ana sayfa ürün vaadini ve tarayıcı içi çalışma modelini açıklar; header'daki SQL/Python hedefleri footer sonuna kadar nedenini açıklayan geçici bir tanıtım kilidi taşır. Bu kilit yalnız ana sayfa sunumudur, doğrudan Studio rotalarını veya diğer ekranları engellemez.
 2. Yeni kullanıcıda “İlk vakaya başla” ilk vaka içinde kapatılabilir 90 saniyelik rehberi açar; geri dönen kullanıcıda “Kaldığın vakaya devam et” son güvenilir konumu açar.
 3. SQL Studio içindeki rota menüsü çalışan SQL konularını dört mesleki bölüm altında gösterir; yalnız önceki SQL konusu tamamlandığında sıradakini açar ve ilk erişilebilir eksiği önerir. Ayrıntılı eski `#/learn` görünümü geriye uyumluluk için ikincil erişim olarak korunur.
 4. Çalışma alanı önce istenen teslimi ve çıktı sözleşmesini gösterir; kavram, kabul kontrolleri, veri notları ve iş bağlamını ihtiyaç anında açar.

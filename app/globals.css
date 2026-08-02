@@ -8264,6 +8264,7 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   color: #64748b;
   background: transparent;
   font-size: 15.2px;
@@ -8275,6 +8276,24 @@ button {
   transition:
     color 180ms ease,
     transform 180ms ease;
+}
+
+.reference-nav-lock-slot {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 13px;
+  display: inline-grid;
+  place-items: center;
+}
+
+.reference-nav-lock {
+  color: var(--brand-start);
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.reference-nav-lock[data-visible="true"] {
+  opacity: 1;
 }
 
 [data-theme="dark"] .reference-nav-link {
@@ -8435,6 +8454,21 @@ button {
   transform: none;
 }
 
+.reference-nav-link[aria-disabled="true"],
+.reference-nav-link[aria-disabled="true"]:hover {
+  color: color-mix(in srgb, var(--text-soft) 66%, transparent);
+  cursor: not-allowed;
+  opacity: 0.68;
+  transform: none;
+}
+
+.landing-journey-end {
+  width: 100%;
+  height: 1px;
+  display: block;
+  pointer-events: none;
+}
+
 .app-shell[data-screen="account"] > .page,
 .app-shell[data-screen="learn"] > .page,
 .app-shell[data-screen="progress"] > .page,
@@ -8490,6 +8524,7 @@ button {
 
 [data-reduced-motion="true"] .app-header .brand,
 [data-reduced-motion="true"] .reference-nav-link,
+[data-reduced-motion="true"] .reference-nav-lock,
 [data-reduced-motion="true"] .app-header .landing-header-cta,
 [data-reduced-motion="true"] .header-profile-action,
 [data-reduced-motion="true"] .header-settings-action {
