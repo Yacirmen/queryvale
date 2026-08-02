@@ -143,7 +143,7 @@ export function LandingScreen({
 
   const activeStep = studioSteps[studioStep];
   const resultVisible = studioStep === 2;
-  const visibleStartLabel = profileActive
+  const startContextLabel = profileActive
     ? isReturningLearner
       ? "Kaldığın Yerden Devam Et"
       : "İlk Vakaya Başla"
@@ -356,14 +356,14 @@ export function LandingScreen({
             type="button"
             disabled={startDisabled}
             onClick={profileActive ? onContinue : onStart}
-            aria-label={visibleStartLabel}
+            aria-label={`Hemen Başla — ${startContextLabel}`}
             title={
               isReturningLearner && resumeTask
                 ? `Son konumun: ${resumeTask.title}`
                 : undefined
             }
           >
-            {visibleStartLabel}
+            Hemen Başla
             <ArrowRight size={18} aria-hidden="true" />
           </button>
         </div>

@@ -902,7 +902,9 @@ describe("QueryvaleApp", () => {
       within(signOutDialog).getByRole("button", { name: "Profilden çık" }),
     );
 
-    await screen.findByRole("button", { name: "Profiline Gir" });
+    await screen.findByRole("button", {
+      name: "Hemen Başla — Profiline Gir",
+    });
     expect(window.location.hash).toBe("#/");
     expect(
       within(screen.getByRole("banner")).getByRole("button", {

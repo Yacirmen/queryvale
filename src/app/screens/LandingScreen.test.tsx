@@ -59,9 +59,11 @@ describe("LandingScreen", () => {
     expect(screen.getAllByText("Active")).toHaveLength(3);
     expect(screen.queryByText("Idle")).not.toBeInTheDocument();
 
-    await user.click(
-      screen.getByRole("button", { name: /Hesabını Aç & Vaka Çöz/i }),
-    );
+    const startButton = screen.getByRole("button", {
+      name: /Hesabını Aç & Vaka Çöz/i,
+    });
+    expect(startButton).toHaveTextContent("Hemen Başla");
+    await user.click(startButton);
     expect(onStart).toHaveBeenCalledOnce();
     expect(onContinue).not.toHaveBeenCalled();
   });
@@ -86,6 +88,7 @@ describe("LandingScreen", () => {
     const resume = screen.getByRole("button", {
       name: /Kaldığın Yerden Devam Et/i,
     });
+    expect(resume).toHaveTextContent("Hemen Başla");
     expect(resume).toHaveAttribute("title", `Son konumun: ${tasks[1].title}`);
     await user.click(resume);
     expect(onContinue).toHaveBeenCalledOnce();
