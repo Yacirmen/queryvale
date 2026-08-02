@@ -8049,9 +8049,101 @@ button {
   box-shadow: 0 8px 24px rgb(59 130 246 / 42%);
 }
 
+.header-account-placeholder {
+  width: 128px;
+  min-height: 44px;
+  justify-self: end;
+  border: 1px solid color-mix(in srgb, var(--line-strong) 62%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 68%, transparent);
+  opacity: 0.58;
+}
+
+.header-account-actions {
+  min-width: 0;
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-profile-action,
+.header-settings-action {
+  position: relative;
+  min-height: 44px;
+  border: 1px solid color-mix(in srgb, var(--line-strong) 72%, transparent);
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-soft);
+  background: color-mix(in srgb, var(--surface) 68%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 26%, transparent);
+  font-size: 13.5px;
+  font-weight: 620;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease,
+    color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.header-profile-action {
+  padding: 5px 12px 5px 6px;
+}
+
+.header-settings-action {
+  padding: 9px 12px;
+}
+
+.header-profile-avatar {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border: 1px solid color-mix(in srgb, var(--brand-start) 48%, var(--line));
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  background: var(--action-primary-bg);
+  box-shadow: 0 5px 16px rgb(59 130 246 / 24%);
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: 0.035em;
+}
+
+.header-profile-action:hover,
+.header-settings-action:hover,
+.header-profile-action[aria-current="page"],
+.header-settings-action[aria-current="page"] {
+  border-color: color-mix(in srgb, var(--brand-start) 52%, var(--line));
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent-soft) 68%, var(--surface));
+  transform: translateY(-1px);
+}
+
+.header-profile-action[aria-current="page"]::after,
+.header-settings-action[aria-current="page"]::after {
+  position: absolute;
+  right: 10px;
+  bottom: 2px;
+  left: 10px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand-start), var(--brand-end));
+  content: "";
+}
+
 .app-header .brand:disabled,
 .reference-nav-link:disabled,
-.app-header .landing-header-cta:disabled {
+.app-header .landing-header-cta:disabled,
+.header-profile-action:disabled,
+.header-settings-action:disabled {
   cursor: wait;
   filter: none;
   opacity: 0.52;
@@ -8113,7 +8205,9 @@ button {
 
 [data-reduced-motion="true"] .app-header .brand,
 [data-reduced-motion="true"] .reference-nav-link,
-[data-reduced-motion="true"] .app-header .landing-header-cta {
+[data-reduced-motion="true"] .app-header .landing-header-cta,
+[data-reduced-motion="true"] .header-profile-action,
+[data-reduced-motion="true"] .header-settings-action {
   transition: none;
 }
 
@@ -8201,6 +8295,44 @@ button {
     font-size: 12px;
   }
 
+  .header-account-placeholder,
+  .header-account-actions {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .header-account-placeholder {
+    width: 116px;
+  }
+
+  .header-account-actions {
+    gap: 6px;
+  }
+
+  .header-profile-action,
+  .header-settings-action {
+    min-width: 44px;
+    min-height: 44px;
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  .header-profile-action {
+    padding: 5px 9px 5px 5px;
+  }
+
+  .header-settings-action {
+    padding: 8px 9px;
+  }
+
+  .header-profile-avatar {
+    width: 28px;
+    height: 28px;
+    flex-basis: 28px;
+    border-radius: 9px;
+    font-size: 9px;
+  }
+
   .workspace-body[data-mobile-view="editor"] .workbench,
   .workspace-body[data-mobile-view="results"] .workbench {
     height: max(560px, calc(100svh - var(--header-h) - 106px));
@@ -8209,7 +8341,9 @@ button {
 
 @media (forced-colors: active) {
   .reference-nav-link[aria-current="page"],
-  .app-header .landing-header-cta {
+  .app-header .landing-header-cta,
+  .header-profile-action,
+  .header-settings-action {
     border: 2px solid Highlight;
   }
 }

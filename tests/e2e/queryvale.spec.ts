@@ -95,6 +95,72 @@ test("the unified fixed header keeps five controls visible across every route", 
   await expect(page.locator("#queryvale-studio")).toBeFocused();
 });
 
+test("a saved local account replaces Hemen Başla with profile controls", async ({
+  page,
+  isMobile,
+}) => {
+  if (isMobile) {
+    await page.setViewportSize({ width: 320, height: 700 });
+  }
+  await page.goto("/#/giris");
+  await expect(page.locator(".app-shell")).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
+
+  await page.getByLabel("Adın").fill("Ada Analist");
+  await page
+    .getByRole("button", { name: "Yerel hesabımı oluştur ve başla" })
+    .click();
+  await expect(page).toHaveURL(/#\/lab\/m1-t1$/);
+  await page.getByRole("button", { name: "Başlangıç rehberini kapat" }).click();
+
+  const header = page.locator(".app-header");
+  const profile = header.getByRole("button", {
+    name: "Profil — Ada Analist",
+  });
+  const settings = header.getByRole("button", { name: "Ayarlar" });
+  await expect(
+    header.getByRole("button", { name: /^Hemen Başla/ }),
+  ).toHaveCount(0);
+  await expect(profile).toBeVisible();
+  await expect(profile).toContainText("Profil");
+  await expect(settings).toBeVisible();
+
+  for (const control of [profile, settings]) {
+    const bounds = await control.boundingBox();
+    expect(bounds?.width ?? 0).toBeGreaterThanOrEqual(44);
+    expect(bounds?.height ?? 0).toBeGreaterThanOrEqual(44);
+  }
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+
+  await profile.click();
+  await expect(page).toHaveURL(/#\/progress$/);
+  await expect(profile).toHaveAttribute("aria-current", "page");
+
+  await settings.click();
+  await expect(page).toHaveURL(/#\/settings$/);
+  await expect(settings).toHaveAttribute("aria-current", "page");
+
+  await page.reload();
+  await expect(page.locator(".app-shell")).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
+  await expect(
+    page
+      .locator(".app-header")
+      .getByRole("button", { name: "Profil — Ada Analist" }),
+  ).toBeVisible();
+  await expect(
+    page.locator(".app-header").getByRole("button", { name: /^Hemen Başla/ }),
+  ).toHaveCount(0);
+});
+
 test("desktop landing pins the authored role and three-step SQL story", async ({
   page,
   isMobile,

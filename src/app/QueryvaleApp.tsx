@@ -632,7 +632,11 @@ export function QueryvaleApp() {
           onStudio={openResumeWorkspace}
           onHowItWorks={() => navigate("home", { anchor: "queryvale-studio" })}
           onStart={() => navigate("account")}
-          disabled={isCreatingLocalAccount}
+          accountStatus={
+            !isLoaded ? "loading" : localAccountExists ? "local" : "guest"
+          }
+          profileName={progress.profile.displayName}
+          disabled={!isLoaded || isReplacingProgress || isCreatingLocalAccount}
           startLabel={
             localAccountExists
               ? "Profiline gir ve kaldığın vakaya devam et"

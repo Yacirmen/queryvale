@@ -109,4 +109,79 @@ describe("AppHeader", () => {
     });
     expect(onNavigate).toHaveBeenNthCalledWith(3, "account");
   });
+
+  it("replaces the start CTA with profile controls for a local account", async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    const { rerender } = render(
+      <AppHeader
+        screen="home"
+        onNavigate={onNavigate}
+        accountStatus="local"
+        profileName="Ada Yılmaz"
+      />,
+    );
+
+    const accountActions = screen.getByRole("group", {
+      name: "Profil işlemleri",
+    });
+    const profile = within(accountActions).getByRole("button", {
+      name: "Profil — Ada Yılmaz",
+    });
+    const settings = within(accountActions).getByRole("button", {
+      name: "Ayarlar",
+    });
+
+    expect(profile).toBeVisible();
+    expect(profile).toHaveTextContent("AYProfil");
+    expect(settings).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: /^Hemen Başla/ }),
+    ).not.toBeInTheDocument();
+
+    await user.click(profile);
+    await user.click(settings);
+
+    expect(onNavigate).toHaveBeenNthCalledWith(1, "progress");
+    expect(onNavigate).toHaveBeenNthCalledWith(2, "settings");
+
+    rerender(
+      <AppHeader
+        screen="progress"
+        onNavigate={onNavigate}
+        accountStatus="local"
+        profileName="Ada Yılmaz"
+      />,
+    );
+    expect(profile).toHaveAttribute("aria-current", "page");
+    expect(settings).not.toHaveAttribute("aria-current");
+
+    rerender(
+      <AppHeader
+        screen="settings"
+        onNavigate={onNavigate}
+        accountStatus="local"
+        profileName="Ada Yılmaz"
+        disabled
+      />,
+    );
+    expect(profile).not.toHaveAttribute("aria-current");
+    expect(settings).toHaveAttribute("aria-current", "page");
+    expect(profile).toBeDisabled();
+    expect(settings).toBeDisabled();
+  });
+
+  it("keeps the account slot neutral while persisted progress is loading", () => {
+    render(
+      <AppHeader screen="home" onNavigate={vi.fn()} accountStatus="loading" />,
+    );
+
+    expect(screen.getByRole("banner")).toHaveAttribute("aria-busy", "true");
+    expect(
+      screen.queryByRole("button", { name: /^Hemen Başla/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("group", { name: "Profil işlemleri" }),
+    ).not.toBeInTheDocument();
+  });
 });

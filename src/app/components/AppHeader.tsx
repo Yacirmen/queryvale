@@ -1,6 +1,9 @@
 "use client";
 
+import { Settings2 } from "lucide-react";
 import type { AppScreen, Navigate } from "../appTypes";
+
+type HeaderAccountStatus = "loading" | "guest" | "local";
 
 interface AppHeaderProps {
   screen: AppScreen;
@@ -9,7 +12,21 @@ interface AppHeaderProps {
   onHowItWorks?: () => void;
   onStart?: () => void;
   startLabel?: string;
+  accountStatus?: HeaderAccountStatus;
+  profileName?: string;
   disabled?: boolean;
+}
+
+function profileInitials(profileName?: string): string {
+  const initials = (profileName ?? "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => Array.from(part)[0]?.toLocaleUpperCase("tr-TR") ?? "")
+    .join("");
+
+  return initials || "QV";
 }
 
 export function AppHeader({
@@ -19,6 +36,8 @@ export function AppHeader({
   onHowItWorks,
   onStart,
   startLabel,
+  accountStatus = "guest",
+  profileName,
   disabled = false,
 }: AppHeaderProps) {
   const openStudio = onStudio ?? (() => onNavigate("workspace"));
@@ -32,7 +51,10 @@ export function AppHeader({
         İçeriğe geç
       </a>
 
-      <header className="app-header" aria-busy={disabled}>
+      <header
+        className="app-header"
+        aria-busy={disabled || accountStatus === "loading"}
+      >
         <div className="header-inner">
           <button
             className="brand"
@@ -75,16 +97,51 @@ export function AppHeader({
             </button>
           </nav>
 
-          <button
-            className="landing-header-cta"
-            type="button"
-            disabled={disabled}
-            onClick={start}
-            aria-label={`Hemen Başla — ${startLabel ?? "hesap aç veya giriş yap"}`}
-            aria-current={screen === "account" ? "page" : undefined}
-          >
-            Hemen Başla
-          </button>
+          {accountStatus === "loading" ? (
+            <span className="header-account-placeholder" aria-hidden="true" />
+          ) : accountStatus === "local" ? (
+            <div
+              className="header-account-actions"
+              role="group"
+              aria-label="Profil işlemleri"
+            >
+              <button
+                className="header-profile-action"
+                type="button"
+                disabled={disabled}
+                onClick={() => onNavigate("progress")}
+                aria-label={`Profil — ${profileName?.trim() || "yerel kullanıcı"}`}
+                aria-current={screen === "progress" ? "page" : undefined}
+              >
+                <span className="header-profile-avatar" aria-hidden="true">
+                  {profileInitials(profileName)}
+                </span>
+                <span>Profil</span>
+              </button>
+              <button
+                className="header-settings-action"
+                type="button"
+                disabled={disabled}
+                onClick={() => onNavigate("settings")}
+                aria-label="Ayarlar"
+                aria-current={screen === "settings" ? "page" : undefined}
+              >
+                <Settings2 size={17} strokeWidth={1.9} aria-hidden="true" />
+                <span className="header-settings-label">Ayarlar</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              className="landing-header-cta"
+              type="button"
+              disabled={disabled}
+              onClick={start}
+              aria-label={`Hemen Başla — ${startLabel ?? "hesap aç veya giriş yap"}`}
+              aria-current={screen === "account" ? "page" : undefined}
+            >
+              Hemen Başla
+            </button>
+          )}
         </div>
       </header>
     </>

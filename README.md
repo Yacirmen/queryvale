@@ -26,6 +26,7 @@ Queryvale, SQL sözdizimini ezberleten bir kurs değil; gerçek iş sorularını
 - İlk doğru sorguda kilitlenen 10/7/4/1 Analiz puanı; tam çözüm desteğinde 0, puan rota erişimini etkilemez
 - Şema, örnek veri, SQL editörü ve sonuçları bir araya getiren çalışma alanı
 - `Hemen Başla` ile açılan yerel `Giriş yap / Hesap oluştur` başlangıç kapısı; e-posta, parola, backend veya bulut hesabı olmadan IndexedDB tabanlı cihaz profili
+- Yerel profil oluşturulduktan sonra `Hemen Başla` yerine doğrudan `Profil` ve `Ayarlar` erişimi sunan hesap duyarlı header
 - `Studio` üzerinden profil kapısını zorunlu kılmadan SQL Laboratuvarı’na misafir erişimi
 - Yazarken otomatik kaydedilen SQL taslakları; `⌘/Ctrl+S` ile anında kayıt
 - Açık/koyu tema, editör tercihleri ve reduced-motion desteği
@@ -77,8 +78,10 @@ origin içinde otomatik kaydedilir; normal kullanımda `⌘/Ctrl+S` gerekmez.
 `Hemen Başla`, bu yerel çalışma alanını seçmek veya adlandırmak için
 `Giriş yap / Hesap oluştur` ekranını açar. Bu ekran gerçek kimlik doğrulama değildir; e-posta
 ya da parola toplamaz, backend'e veri göndermez ve başka cihazda oturum açma
-veya bulut senkronizasyonu vaat etmez. `Studio` bağlantısı SQL Laboratuvarı'na
-misafir erişimini korur.
+veya bulut senkronizasyonu vaat etmez. Açıkça yerel profil oluşturulduktan sonra header'daki
+`Hemen Başla` eylemi kaldırılır; aynı alanda `Profil` ve `Ayarlar` bağlantıları görünür.
+Yalnız görev denemiş bir misafir hesap varmış gibi gösterilmez. `Studio` bağlantısı SQL
+Laboratuvarı'na misafir erişimini korur.
 
 ## Komutlar
 

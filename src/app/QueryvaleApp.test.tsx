@@ -676,6 +676,18 @@ describe("QueryvaleApp", () => {
         localAccountCreatedAt: expect.any(String),
       }),
     );
+    const accountHeader = screen.getByRole("banner");
+    expect(
+      within(accountHeader).queryByRole("button", { name: /^Hemen Başla/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(accountHeader).getByRole("button", {
+        name: "Profil — Ada Analist",
+      }),
+    ).toBeVisible();
+    expect(
+      within(accountHeader).getByRole("button", { name: "Ayarlar" }),
+    ).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "Sonraki vaka" }));
     expect(
@@ -747,6 +759,22 @@ describe("QueryvaleApp", () => {
 
     render(<QueryvaleApp />);
 
+    const accountHeader = screen.getByRole("banner");
+    await waitFor(() =>
+      expect(accountHeader).toHaveAttribute("aria-busy", "false"),
+    );
+    expect(
+      within(accountHeader).queryByRole("button", { name: /^Hemen Başla/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(accountHeader).getByRole("button", {
+        name: "Profil — Ada Analist",
+      }),
+    ).toBeVisible();
+    expect(
+      within(accountHeader).getByRole("button", { name: "Ayarlar" }),
+    ).toBeVisible();
+
     const resumeButtons = await screen.findAllByRole("button", {
       name: /Profiline Gir & Devam Et/i,
     });
@@ -778,6 +806,30 @@ describe("QueryvaleApp", () => {
         lastQuery: resumeQuery,
       });
     });
+  });
+
+  it("keeps Hemen Başla for guest activity without a local account", async () => {
+    const guestProgress = recordAttempt(
+      createDefaultProgress(),
+      "m1-t1",
+      "SELECT product_name, category FROM products;",
+      false,
+      9,
+    );
+    await saveProgress(guestProgress);
+
+    render(<QueryvaleApp />);
+
+    const header = screen.getByRole("banner");
+    await waitFor(() => expect(header).toHaveAttribute("aria-busy", "false"));
+    expect(
+      within(header).getByRole("button", {
+        name: "Hemen Başla — Yerel profil oluştur veya kaldığın vakaya devam et",
+      }),
+    ).toBeVisible();
+    expect(
+      within(header).queryByRole("group", { name: "Profil işlemleri" }),
+    ).not.toBeInTheDocument();
   });
 
   it("recovers a legacy first-task pointer once and then marks the location trusted", async () => {
