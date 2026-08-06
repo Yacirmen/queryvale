@@ -6266,9 +6266,10 @@ button {
   }
 
   .workspace-page {
-    height: auto;
-    min-height: calc(100vh - var(--header-h));
-    overflow: visible;
+    height: calc(100vh - var(--header-h));
+    height: calc(100dvh - var(--header-h));
+    min-height: 0;
+    overflow: hidden;
   }
 
   .workspace-body {
@@ -15529,13 +15530,14 @@ body:has(.app-shell[data-screen="python"]) {
 
 @media (max-width: 820px) {
   .app-shell[data-screen="python"] > .python-studio-page {
-    margin-top: var(--header-h);
+    margin-top: 0 !important;
   }
 
   .python-studio-page {
-    height: auto;
-    min-height: calc(100svh - var(--header-h));
-    overflow: visible;
+    height: calc(100vh - var(--header-h));
+    height: calc(100dvh - var(--header-h));
+    min-height: 0;
+    overflow: hidden;
   }
 
   .python-studio-topbar {
