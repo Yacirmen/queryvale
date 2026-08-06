@@ -2257,7 +2257,8 @@ button {
 
 .workspace-page {
   height: calc(100vh - var(--header-h));
-  min-height: 680px;
+  height: calc(100dvh - var(--header-h));
+  min-height: 0;
   overflow: hidden;
   background: var(--bg-raised);
 }
@@ -8472,9 +8473,43 @@ button {
 .app-shell[data-screen="account"] > .page,
 .app-shell[data-screen="learn"] > .page,
 .app-shell[data-screen="progress"] > .page,
-.app-shell[data-screen="settings"] > .page,
-.app-shell[data-screen="workspace"] > .workspace-page {
+.app-shell[data-screen="settings"] > .page {
   margin-top: var(--header-h);
+}
+
+.app-shell[data-screen="workspace"],
+.app-shell[data-screen="python"] {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app-shell[data-screen="workspace"] > .app-header,
+.app-shell[data-screen="python"] > .app-header {
+  position: relative;
+  flex-shrink: 0;
+  inset: auto;
+}
+
+.app-shell[data-screen="workspace"] > .workspace-page,
+.app-shell[data-screen="python"] > .python-studio-page {
+  flex: 1;
+  margin-top: 0 !important;
+  height: calc(100vh - var(--header-h));
+  height: calc(100dvh - var(--header-h));
+  min-height: 0;
+  overflow: hidden;
+}
+
+html:has(.app-shell[data-screen="workspace"]),
+html:has(.app-shell[data-screen="python"]),
+body:has(.app-shell[data-screen="workspace"]),
+body:has(.app-shell[data-screen="python"]) {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden !important;
 }
 
 .page-container {
@@ -13937,8 +13972,8 @@ button {
     var(--workbench-surface)
   );
   height: calc(100vh - var(--header-h));
-  height: calc(100svh - var(--header-h));
-  min-height: 660px;
+  height: calc(100dvh - var(--header-h));
+  min-height: 0;
   overflow: hidden;
   color: var(--workbench-text);
   background:
