@@ -8480,27 +8480,22 @@ button {
 
 .app-shell[data-screen="workspace"],
 .app-shell[data-screen="python"] {
-  display: flex;
-  flex-direction: column;
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
 }
 
-.app-shell[data-screen="workspace"] > .app-header,
-.app-shell[data-screen="python"] > .app-header {
-  position: relative;
-  flex-shrink: 0;
-  inset: auto;
-}
-
 .app-shell[data-screen="workspace"] > .workspace-page,
 .app-shell[data-screen="python"] > .python-studio-page {
-  flex: 1;
-  margin-top: 0 !important;
+  position: fixed;
+  top: var(--header-h);
+  right: 0;
+  bottom: 0;
+  left: 0;
   height: calc(100vh - var(--header-h));
   height: calc(100dvh - var(--header-h));
   min-height: 0;
+  margin-top: 0 !important;
   overflow: hidden;
 }
 
