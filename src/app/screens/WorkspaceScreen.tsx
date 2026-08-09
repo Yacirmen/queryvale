@@ -197,7 +197,6 @@ export function WorkspaceScreen({
   const openedAtRef = useRef(0);
   const workbenchRef = useRef<HTMLDivElement>(null);
   const resultsContentRef = useRef<HTMLDivElement>(null);
-  const editorFrameRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const editorShortcutActionsRef = useRef<Array<{ dispose: () => void }>>([]);
   const runQueryShortcutRef = useRef<() => void>(() => undefined);
@@ -765,10 +764,6 @@ export function WorkspaceScreen({
 
   const focusEditor = () => {
     setMobileView("editor");
-    editorFrameRef.current?.scrollIntoView?.({
-      behavior: settings.reducedMotion ? "auto" : "smooth",
-      block: "center",
-    });
     if (!editorRef.current) pendingEditorFocusRef.current = true;
     window.setTimeout(() => editorRef.current?.focus(), 0);
   };
@@ -1660,7 +1655,7 @@ export function WorkspaceScreen({
                 <span className="keycap">⌘/Ctrl ↵</span>
               </button>
             </div>
-            <div className="editor-frame" ref={editorFrameRef}>
+            <div className="editor-frame">
               <Suspense
                 fallback={
                   <div className="editor-loading">
@@ -1876,7 +1871,13 @@ export function WorkspaceScreen({
                 ) : null}
               </aside>
             )}
-            <div className="results-content" ref={resultsContentRef}>
+            <div
+              className="results-content"
+              ref={resultsContentRef}
+              role="region"
+              aria-label={`${task.title} sorgu sonuçları`}
+              tabIndex={0}
+            >
               {result && resultColumns.length ? (
                 <table className="data-table" aria-label="Sorgu sonucu">
                   <thead>

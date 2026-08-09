@@ -128,7 +128,6 @@ html {
 }
 
 body {
-  min-height: 100vh;
   margin: 0;
   overflow-x: clip;
   background: var(--bg);
@@ -191,7 +190,25 @@ button {
 }
 
 .app-shell {
-  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+html:has(.app-shell[data-screen="workspace"]),
+body:has(.app-shell[data-screen="workspace"]) {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.app-shell[data-screen="workspace"] {
+  height: 100dvh;
+  min-height: 0;
+  padding-top: var(--header-h);
+  padding-bottom: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--workbench-bg);
 }
 
 .app-header {
@@ -603,7 +620,7 @@ button {
 }
 
 .page {
-  min-height: calc(100vh - var(--header-h));
+  min-height: calc(100dvh - var(--header-h));
 }
 
 .page-container {
@@ -632,7 +649,7 @@ button {
 }
 
 .landing-hero {
-  min-height: calc(100vh - var(--header-h));
+  min-height: calc(100dvh - var(--header-h));
   padding: 76px 0 66px;
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(450px, 0.95fr);
@@ -2256,15 +2273,19 @@ button {
 }
 
 .workspace-page {
-  height: calc(100vh - var(--header-h));
-  height: calc(100dvh - var(--header-h));
+  height: auto;
   min-height: 0;
+  flex: 1 1 0;
   overflow: hidden;
-  background: var(--bg-raised);
+  display: flex;
+  flex-direction: column;
+  background: transparent;
 }
 
 .workspace-topbar {
   height: 54px;
+  min-height: 0;
+  flex: 0 0 54px;
   padding: 0 18px;
   border-bottom: 1px solid var(--line);
   display: grid;
@@ -2318,12 +2339,16 @@ button {
 }
 
 .workspace-body {
-  height: calc(100% - 54px);
+  height: auto;
+  min-height: 0;
+  flex: 1 1 0;
+  overflow: hidden;
   display: grid;
   grid-template-columns: var(--brief-width, 370px) 8px minmax(0, 1fr);
 }
 
 .brief-panel {
+  min-height: 0;
   min-width: 300px;
   background: var(--surface);
   overflow: hidden;
@@ -2373,6 +2398,7 @@ button {
 }
 
 .brief-scroll {
+  min-height: 0;
   flex: 1;
   padding: 18px 20px 44px;
   overflow-y: auto;
@@ -3635,12 +3661,11 @@ button {
 }
 
 .workbench {
+  height: 100%;
+  min-height: 0;
   min-width: 0;
   display: grid;
-  grid-template-rows: minmax(260px, var(--editor-height, 56%)) 8px minmax(
-      180px,
-      1fr
-    );
+  grid-template-rows: minmax(0, var(--editor-height, 56%)) 8px minmax(0, 1fr);
   background: var(--workbench-bg);
   overflow: hidden;
 }
@@ -3648,6 +3673,7 @@ button {
 .editor-section,
 .results-section {
   min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
@@ -3833,6 +3859,7 @@ button {
   flex: 1;
   background: var(--workbench-surface);
   overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .result-completion {
@@ -5723,7 +5750,7 @@ button {
 
 .modal-card {
   width: min(560px, 100%);
-  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
   border: 1px solid var(--line-strong);
   border-radius: 24px;
   background: var(--surface);
@@ -6266,22 +6293,25 @@ button {
   }
 
   .workspace-page {
-    height: calc(100vh - var(--header-h));
-    height: calc(100dvh - var(--header-h));
+    height: auto;
     min-height: 0;
     overflow: hidden;
   }
 
   .workspace-body {
     height: auto;
+    min-height: 0;
+    flex: 1 1 0;
+    overflow: hidden;
     display: block;
   }
 
   .workspace-mobile-tabs {
-    position: sticky;
+    position: relative;
     z-index: 4;
-    top: calc(var(--header-h) + 54px);
-    min-height: 52px;
+    top: auto;
+    min-height: 0;
+    flex: 0 0 52px;
     border-bottom: 1px solid var(--line);
     padding: 6px 10px;
     display: grid;
@@ -6293,7 +6323,7 @@ button {
   .workspace-mobile-tabs button {
     position: relative;
     min-width: 0;
-    min-height: 40px;
+    min-height: 44px;
     border: 1px solid transparent;
     border-radius: 10px;
     padding: 4px 6px;
@@ -6338,14 +6368,17 @@ button {
   }
 
   .brief-panel {
+    height: 100%;
     min-width: 0;
-    max-height: none;
+    max-height: 100%;
     border-bottom: 1px solid var(--line);
-    overflow: visible;
+    overflow: hidden;
   }
 
   .brief-scroll {
-    overflow-y: visible;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .brief-panel .panel-tabs {
@@ -6370,10 +6403,8 @@ button {
 
   .workspace-body[data-mobile-view="editor"] .workbench,
   .workspace-body[data-mobile-view="results"] .workbench {
-    height: max(
-      560px,
-      calc(100svh - var(--header-h) - var(--mobile-nav-h) - 106px)
-    );
+    height: 100%;
+    min-height: 0;
     display: block;
   }
 
@@ -6391,9 +6422,10 @@ button {
   }
 
   .workspace-topbar {
-    position: sticky;
+    position: relative;
     z-index: 5;
-    top: var(--header-h);
+    top: auto;
+    flex: 0 0 54px;
     grid-template-columns: minmax(0, 1fr) auto auto;
     gap: 8px;
   }
@@ -8478,34 +8510,33 @@ button {
   margin-top: var(--header-h);
 }
 
-.app-shell[data-screen="workspace"],
 .app-shell[data-screen="python"] {
-  height: 100vh;
   height: 100dvh;
+  min-height: 0;
   overflow: hidden;
 }
 
-.app-shell[data-screen="workspace"] > .workspace-page,
 .app-shell[data-screen="python"] > .python-studio-page {
   position: fixed;
   top: var(--header-h);
   right: 0;
   bottom: 0;
   left: 0;
-  height: calc(100vh - var(--header-h));
   height: calc(100dvh - var(--header-h));
   min-height: 0;
   margin-top: 0 !important;
   overflow: hidden;
 }
 
-html:has(.app-shell[data-screen="workspace"]),
 html:has(.app-shell[data-screen="python"]),
-body:has(.app-shell[data-screen="workspace"]),
 body:has(.app-shell[data-screen="python"]) {
-  height: 100vh;
   height: 100dvh;
   overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
+.app-shell[data-screen="workspace"] > .workspace-page {
+  margin-top: 0;
 }
 
 .page-container {
@@ -8686,7 +8717,8 @@ body:has(.app-shell[data-screen="python"]) {
 
   .workspace-body[data-mobile-view="editor"] .workbench,
   .workspace-body[data-mobile-view="results"] .workbench {
-    height: max(560px, calc(100svh - var(--header-h) - 106px));
+    height: 100%;
+    min-height: 0;
   }
 }
 
@@ -13967,7 +13999,6 @@ body:has(.app-shell[data-screen="python"]) {
     var(--python-accent) 10%,
     var(--workbench-surface)
   );
-  height: calc(100vh - var(--header-h));
   height: calc(100dvh - var(--header-h));
   min-height: 0;
   overflow: hidden;
@@ -15529,7 +15560,6 @@ body:has(.app-shell[data-screen="python"]) {
   }
 
   .python-studio-page {
-    height: calc(100vh - var(--header-h));
     height: calc(100dvh - var(--header-h));
     min-height: 0;
     overflow: hidden;

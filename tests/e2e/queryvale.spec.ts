@@ -123,6 +123,219 @@ test("SQL Studio exposes the full route without changing its module locks", asyn
   ).toBeVisible();
 });
 
+test("SQL Studio keeps the document fixed across the target viewport matrix", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "The explicit viewport matrix runs once in Chromium.");
+
+  const viewports = [
+    { width: 1440, height: 900 },
+    { width: 1280, height: 800 },
+    { width: 390, height: 844 },
+  ] as const;
+
+  for (const viewport of viewports) {
+    await page.setViewportSize(viewport);
+    await page.goto("/#/lab/m1-t1");
+    await expect(page.locator(".app-shell")).toHaveAttribute(
+      "aria-busy",
+      "false",
+    );
+
+    if (viewport.width <= 820) {
+      await expect(
+        page.getByRole("tablist", { name: "Vaka çalışma adımları" }),
+      ).toBeVisible();
+    }
+
+    const layout = await page.evaluate(() => {
+      const header = document.querySelector<HTMLElement>(".app-header");
+      const workspace = document.querySelector<HTMLElement>(".workspace-page");
+      const body = document.querySelector<HTMLElement>(".workspace-body");
+      const brief = document.querySelector<HTMLElement>(
+        ".brief-scroll:not([hidden])",
+      );
+      const workbench = document.querySelector<HTMLElement>(".workbench");
+      const scrollingElement = document.scrollingElement;
+      if (
+        !header ||
+        !workspace ||
+        !body ||
+        !brief ||
+        !workbench ||
+        !scrollingElement
+      ) {
+        throw new Error("SQL Studio layout düğümleri bulunamadı.");
+      }
+      const headerBounds = header.getBoundingClientRect();
+      const workspaceBounds = workspace.getBoundingClientRect();
+      return {
+        documentHeightDelta: Math.abs(
+          scrollingElement.scrollHeight - window.innerHeight,
+        ),
+        workspaceTopDelta: Math.abs(workspaceBounds.top - headerBounds.bottom),
+        workspaceBottomDelta: Math.abs(
+          workspaceBounds.bottom - window.innerHeight,
+        ),
+        bodyMinHeight: getComputedStyle(body).minHeight,
+        bodyOverflow: getComputedStyle(body).overflow,
+        briefMinHeight: getComputedStyle(brief).minHeight,
+        briefOverflowY: getComputedStyle(brief).overflowY,
+        workbenchMinHeight: getComputedStyle(workbench).minHeight,
+        workbenchOverflow: getComputedStyle(workbench).overflow,
+      };
+    });
+
+    expect(layout.documentHeightDelta).toBeLessThanOrEqual(2);
+    expect(layout.workspaceTopDelta).toBeLessThanOrEqual(1);
+    expect(layout.workspaceBottomDelta).toBeLessThanOrEqual(1);
+    expect(layout.bodyMinHeight).toBe("0px");
+    expect(layout.bodyOverflow).toBe("hidden");
+    expect(layout.briefMinHeight).toBe("0px");
+    expect(layout.briefOverflowY).toBe("auto");
+    expect(layout.workbenchMinHeight).toBe("0px");
+    expect(layout.workbenchOverflow).toBe("hidden");
+
+    await page.evaluate(() => window.scrollTo(0, 1_000));
+    await page.waitForTimeout(50);
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+
+    if (viewport.width <= 820) {
+      for (const tabName of [
+        "Veri görünümü",
+        "SQL görünümü",
+        "Sonuç görünümü",
+      ]) {
+        await page.getByRole("tab", { name: tabName }).click();
+        expect(
+          await page.evaluate(() =>
+            Math.abs(
+              (document.scrollingElement?.scrollHeight ?? 0) -
+                window.innerHeight,
+            ),
+          ),
+        ).toBeLessThanOrEqual(2);
+      }
+    }
+  }
+
+  const legacyViewportDeclarations = await page.evaluate(() => {
+    const matches: string[] = [];
+    const visit = (rules: CSSRuleList) => {
+      for (const rule of Array.from(rules)) {
+        if (rule instanceof CSSStyleRule) {
+          for (const property of Array.from(rule.style)) {
+            const value = rule.style.getPropertyValue(property);
+            if (/(^|[^a-z])100vh/i.test(value)) {
+              matches.push(`${rule.selectorText} { ${property}: ${value} }`);
+            }
+          }
+        }
+        if ("cssRules" in rule) {
+          try {
+            visit((rule as CSSGroupingRule).cssRules);
+          } catch {
+            // Cross-origin sheets are irrelevant to this same-origin build.
+          }
+        }
+      }
+    };
+    for (const sheet of Array.from(document.styleSheets)) {
+      try {
+        visit(sheet.cssRules);
+      } catch {
+        // Cross-origin sheets are irrelevant to this same-origin build.
+      }
+    }
+    return matches;
+  });
+  expect(legacyViewportDeclarations).toEqual([]);
+});
+
+test("a 200-row SQL result scrolls only inside the result panel", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "The result ownership contract needs one desktop run.");
+  test.setTimeout(60_000);
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/#/lab/m1-t1");
+  await expect(page.locator(".app-shell")).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (
+            globalThis as typeof globalThis & {
+              monaco?: { editor: { getModels: () => unknown[] } };
+            }
+          ).monaco?.editor.getModels().length ?? 0,
+      ),
+    )
+    .toBe(1);
+
+  await page.evaluate(() => {
+    const editorApi = (
+      globalThis as typeof globalThis & {
+        monaco?: {
+          editor: {
+            getModels: () => Array<{ setValue: (value: string) => void }>;
+          };
+        };
+      }
+    ).monaco;
+    editorApi?.editor
+      .getModels()[0]
+      ?.setValue(
+        "SELECT series_id FROM generate_series(1, 250) AS rows(series_id);",
+      );
+  });
+
+  const runButton = page.getByRole("button", { name: /Çalıştır/i });
+  await expect(runButton).toBeEnabled({ timeout: 30_000 });
+  await runButton.click();
+
+  const rows = page.locator("table[aria-label='Sorgu sonucu'] tbody tr");
+  await expect(rows).toHaveCount(200, { timeout: 20_000 });
+  await expect(page.locator(".result-count")).toContainText("sınırlandı");
+
+  const results = page.locator(".results-content");
+  await expect(results).toHaveAttribute("tabindex", "0");
+  const before = await page.evaluate(() => ({
+    documentTop: document.scrollingElement?.scrollTop ?? 0,
+    briefTop:
+      document.querySelector<HTMLElement>(".brief-scroll:not([hidden])")
+        ?.scrollTop ?? 0,
+    resultTop:
+      document.querySelector<HTMLElement>(".results-content")?.scrollTop ?? 0,
+  }));
+  expect(
+    await results.evaluate(
+      (element) => element.scrollHeight > element.clientHeight,
+    ),
+  ).toBe(true);
+
+  await results.focus();
+  await results.hover();
+  await page.mouse.wheel(0, 900);
+  await expect
+    .poll(() => results.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(before.resultTop);
+  expect(
+    await page.evaluate(() => document.scrollingElement?.scrollTop ?? 0),
+  ).toBe(before.documentTop);
+  expect(
+    await page
+      .locator(".brief-scroll:not([hidden])")
+      .evaluate((element) => element.scrollTop),
+  ).toBe(before.briefTop);
+});
+
 test("the unified fixed header keeps both Studio controls visible across every route", async ({
   page,
 }) => {

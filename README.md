@@ -38,7 +38,7 @@ Queryvale, komut ezberleten bir kurs değil; gerçek iş sorularını SQL ve Pyt
 - Yazarken otomatik kaydedilen SQL taslakları; `⌘/Ctrl+S` ile anında kayıt
 - Açık/koyu tema, editör tercihleri ve reduced-motion desteği
 - Dışa/içe aktarılabilir ilerleme verisi
-- Masaüstü öncelikli; mobilde `Vaka | Veri | SQL | Sonuç` sekmeli responsive deneyim
+- Masaüstü öncelikli; SQL Studio'da belgeyi değil yalnız vaka/sonuç panellerini kaydıran tek-viewport çalışma alanı ve mobilde `Vaka | Veri | SQL | Sonuç` sekmeli responsive deneyim
 - Python Studio’da mobil `Vaka | Veri | Python | Sonuç` akışı, otomatik taslak kaydı ve `⌘/Ctrl+Enter` çalıştırma
 
 ## Teknoloji yığını
