@@ -67,18 +67,19 @@ describe("ProgressScreen learning signals", () => {
     });
   });
 
-  it("shows locked modules without offering a navigation escape", () => {
-    renderProgress(createDefaultProgress());
+  it("keeps later modules open while showing the recommended order", () => {
+    const { onNavigate } = renderProgress(createDefaultProgress());
 
-    const lockedRow = screen
+    const laterRow = screen
       .getByRole("heading", { name: modules[1].title })
       .closest("article");
-    expect(lockedRow).not.toBeNull();
-    expect(within(lockedRow!).getByText("Kilitli")).toBeInTheDocument();
-    expect(
-      within(lockedRow!).getByText(`Önce ${modules[0].title}`),
-    ).toBeInTheDocument();
-    expect(within(lockedRow!).queryByRole("button")).not.toBeInTheDocument();
+    expect(laterRow).not.toBeNull();
+    expect(within(laterRow!).getByText("Başlamadı")).toBeInTheDocument();
+    const browse = within(laterRow!).getByRole("button", { name: /Göz at/i });
+    fireEvent.click(browse);
+    expect(onNavigate).toHaveBeenCalledWith("workspace", {
+      taskId: modules[1].tasks[0].id,
+    });
 
     const projectRow = screen
       .getByRole("heading", { name: modules.at(-1)!.title })
@@ -201,14 +202,18 @@ describe("ProgressScreen learning signals", () => {
     expect(firstModuleRow).not.toBeNull();
     expect(firstModuleRow).toHaveTextContent("1/3 vaka · 7/30 puan");
 
-    const lockedPythonRow = within(pythonRoute!)
+    const laterPythonRow = within(pythonRoute!)
       .getByRole("heading", { name: pythonModules[1]!.title })
       .closest("article");
-    expect(lockedPythonRow).not.toBeNull();
-    expect(within(lockedPythonRow!).getByText("Kilitli")).toBeInTheDocument();
-    expect(
-      within(lockedPythonRow!).queryByRole("button"),
-    ).not.toBeInTheDocument();
+    expect(laterPythonRow).not.toBeNull();
+    expect(within(laterPythonRow!).getByText("Başlamadı")).toBeInTheDocument();
+    const browsePython = within(laterPythonRow!).getByRole("button", {
+      name: /Göz at/i,
+    });
+    fireEvent.click(browsePython);
+    expect(onNavigate).toHaveBeenCalledWith("python", {
+      taskId: pythonModules[1]!.tasks[0]!.id,
+    });
 
     const notebook = screen.getByRole("region", { name: "Kanıt Defteri" });
     expect(

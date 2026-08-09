@@ -153,25 +153,18 @@ describe("LearningPathScreen career chapters", () => {
     expect(within(foundationChapter).getByText("Önerilen odak")).toBeVisible();
     expect(businessChapter).toHaveTextContent("1/8 çalışma tamamlandı");
     expect(within(businessChapter).getByText("İlerliyorsun")).toBeVisible();
-    expect(
-      screen.getAllByText("Sırasıyla açılır", { exact: true }),
-    ).toHaveLength(2);
+    expect(screen.getAllByText("Serbest erişim", { exact: true })).toHaveLength(
+      2,
+    );
     expect(screen.getByText(`7/${tasks.length * 10}`)).toBeVisible();
     expect(screen.getByText("7/40 analiz puanı")).toBeVisible();
-    const lockedSummary = screen.getByRole("button", {
-      name: `${modules[3].title} modülü kilitli`,
+    const laterModule = screen.getByRole("button", {
+      name: new RegExp(`${modules[3].title} (vakalarını|projelerini)`),
     });
-    expect(lockedSummary).toHaveAttribute("aria-disabled", "true");
-    const lockedCard = lockedSummary.closest(".module-card");
-    expect(lockedCard).toBeInstanceOf(HTMLElement);
-    expect(
-      within(lockedCard as HTMLElement).getByText(
-        new RegExp(`Önce “${modules[0].title}” modülünü tamamla`),
-      ),
-    ).toBeVisible();
+    expect(laterModule).not.toHaveAttribute("aria-disabled", "true");
   });
 
-  it("keeps a locked module focusable but prevents keyboard expansion", async () => {
+  it("lets a learner open any module with the keyboard", async () => {
     const user = userEvent.setup();
     render(
       createElement(LearningPathScreen, {
@@ -185,26 +178,23 @@ describe("LearningPathScreen career chapters", () => {
     const firstModule = screen.getByRole("button", {
       name: `${modules[0].title} vakalarını daralt`,
     });
-    const lockedModule = screen.getByRole("button", {
-      name: `${modules[1].title} modülü kilitli`,
+    const laterModule = screen.getByRole("button", {
+      name: `${modules[1].title} vakalarını aç`,
     });
 
     expect(firstModule).not.toHaveAttribute("aria-disabled", "true");
-    expect(lockedModule).toHaveAttribute("aria-disabled", "true");
-    expect(lockedModule).toHaveAttribute("aria-expanded", "false");
-    expect(lockedModule).toHaveAccessibleDescription(
-      `Önce “${modules[0].title}” modülünü tamamla`,
-    );
+    expect(laterModule).not.toHaveAttribute("aria-disabled", "true");
+    expect(laterModule).toHaveAttribute("aria-expanded", "false");
 
-    lockedModule.focus();
+    laterModule.focus();
     await user.keyboard("{Enter}");
 
-    expect(lockedModule).toHaveFocus();
-    expect(lockedModule).toHaveAttribute("aria-expanded", "false");
-    expect(document.getElementById(`${modules[1].id}-tasks`)).toBeNull();
+    expect(laterModule).toHaveFocus();
+    expect(laterModule).toHaveAttribute("aria-expanded", "true");
+    expect(document.getElementById(`${modules[1].id}-tasks`)).not.toBeNull();
   });
 
-  it("opens the second module after every first-module task is complete", () => {
+  it("keeps the current module expanded after earlier work is complete", () => {
     const firstModuleProgress = Object.fromEntries(
       modules[0].tasks.map((task) => [
         task.id,

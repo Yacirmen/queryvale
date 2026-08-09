@@ -219,6 +219,7 @@ function renderStudio(
     },
   );
   const onSelectTask = vi.fn();
+  const onCompleteRoute = vi.fn();
   const runtime = new PythonRuntimeClient();
 
   const view = render(
@@ -232,6 +233,7 @@ function renderStudio(
       persistenceAvailable
       onProgressChange={onProgressChange}
       onSelectTask={onSelectTask}
+      onCompleteRoute={onCompleteRoute}
     />,
   );
 
@@ -240,6 +242,7 @@ function renderStudio(
     getProgress: () => progress,
     onProgressChange,
     onSelectTask,
+    onCompleteRoute,
     runtime,
   };
 }
@@ -279,7 +282,7 @@ describe("PythonStudioScreen", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("projects real Python prerequisites into the shared route menu", async () => {
+  it("keeps every Python case open in the shared route menu", async () => {
     const user = userEvent.setup();
     const routeModules = pythonModules.slice(0, 2);
     const routeTasks = routeModules.flatMap((module) => module.tasks);
@@ -297,21 +300,22 @@ describe("PythonStudioScreen", () => {
       progress,
     });
 
-    const trigger = screen.getByText("Python rotası").closest("summary");
-    await user.click(trigger!);
-    const menu = within(trigger!.closest("details")!);
+    const trigger = screen.getByRole("button", {
+      name: new RegExp(`Rota · Vaka 2/${routeTasks.length}`, "i"),
+    });
+    await user.click(trigger);
+    const menu = within(screen.getByRole("region", { name: "Python rotası" }));
     expect(
       menu.getByRole("button", {
         name: new RegExp(routeTasks[1]!.title, "i"),
       }),
     ).toHaveAttribute("aria-current", "page");
 
-    await user.click(menu.getByText(routeModules[1]!.title));
     expect(
       menu.getByRole("button", {
         name: new RegExp(routeModules[1]!.tasks[0]!.title, "i"),
       }),
-    ).toBeDisabled();
+    ).toBeEnabled();
 
     await user.click(
       menu.getByRole("button", {
@@ -319,6 +323,24 @@ describe("PythonStudioScreen", () => {
       }),
     );
     expect(onSelectTask).toHaveBeenCalledWith(routeTasks[0]!.id);
+  });
+
+  it("flushes the current Python draft and stops an active runtime before navigation", async () => {
+    const user = userEvent.setup();
+    const { getProgress, onSelectTask } = renderStudio({
+      tasks: [task, accessibleNextTask],
+    });
+    const editor = await screen.findByRole("textbox", {
+      name: `Python kod editörü — ${task.title}`,
+    });
+    const draft = `${task.starterCode}\n# yarım analiz`;
+    fireEvent.change(editor, { target: { value: draft } });
+
+    await user.click(screen.getByRole("button", { name: "Sonraki vaka" }));
+
+    expect(runtimeHarness.stop).toHaveBeenCalled();
+    expect(getProgress().pythonTasks[task.id]?.lastCode).toBe(draft);
+    expect(onSelectTask).toHaveBeenCalledWith(accessibleNextTask.id);
   });
 
   it("renders a correct real table before its success feedback", async () => {
@@ -333,22 +355,18 @@ describe("PythonStudioScreen", () => {
     });
     expect(within(table).getByText("row_count")).toBeInTheDocument();
     expect(within(table).getByText("6")).toBeInTheDocument();
-    expect(screen.getByText("Doğrulandı")).toBeInTheDocument();
+    expect(
+      screen.getByRole("status", { name: /Doğru — 1 satır/i }),
+    ).toBeInTheDocument();
     const scrollRegion = screen.getByRole("region", {
       name: `${task.title} sonuç tablosu; yatay kaydırılabilir`,
     });
     expect(scrollRegion).toHaveAttribute("tabindex", "0");
 
-    const feedback = screen
-      .getByText("Analiz çıktısı doğrulandı", { selector: "strong" })
-      .closest(".python-evaluation-card");
-    if (!feedback) throw new Error("Success feedback card was not rendered.");
-    expect(
-      table.compareDocumentPosition(feedback) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-
     const debrief = screen.getByRole("region", { name: "Neden çalıştı?" });
+    expect(
+      table.compareDocumentPosition(debrief) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(within(debrief).getByText(task.explanation)).toBeInTheDocument();
     for (const step of task.debrief.steps) {
       expect(within(debrief).getByText(step)).toBeInTheDocument();
@@ -357,7 +375,7 @@ describe("PythonStudioScreen", () => {
       within(debrief).getByText(task.debrief.transfer.prompt),
     ).toBeInTheDocument();
     const nextCase = screen.getByRole("button", {
-      name: /Sonraki vakaya geç/,
+      name: /Sonraki vaka/,
     });
     expect(
       debrief.compareDocumentPosition(nextCase) &
@@ -376,10 +394,12 @@ describe("PythonStudioScreen", () => {
       name: `${task.title} için üretilen result DataFrame`,
     });
     expect(table).toBeInTheDocument();
-    expect(screen.getByText("Yeniden kontrol et")).toBeInTheDocument();
     expect(
-      screen.getByText("Kod çalıştı; sonuç henüz hedef değil"),
+      screen.getByRole("status", { name: /Eşleşmedi —/i }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("status", { name: /Eşleşmedi —/i }),
+    ).toHaveTextContent(/Eşleşmedi/);
   });
 
   it("reveals hints progressively and requires confirmation before the full solution", async () => {

@@ -2,8 +2,6 @@
 
 import type { OnMount } from "@monaco-editor/react";
 import {
-  ArrowLeft,
-  ArrowRight,
   Braces,
   Check,
   CheckCircle2,
@@ -59,15 +57,17 @@ import {
   type EditorSettings,
   type ProgressState,
 } from "../../features/progress/progressStore";
-import { buildModuleAccessStates } from "../../features/progress/moduleAccess";
-import { isPythonTaskAccessible } from "../../features/progress/pythonAccess";
 import {
   getAwardedCaseScore,
   getCurrentCaseScore,
   MAX_CASE_SCORE,
 } from "../../features/progress/scoring";
 import { ConfirmationDialog } from "../components/Dialogs";
-import { StudioCurriculumMenu } from "../components/StudioCurriculumMenu";
+import {
+  StudioActionRail,
+  StudioResultStrip,
+  type StudioRouteModuleItem,
+} from "../components/StudioActionRail";
 
 const MonacoEditor = lazy(() => import("../components/LocalMonacoEditor"));
 
@@ -93,6 +93,7 @@ interface PythonStudioScreenProps {
   persistenceAvailable: boolean;
   onProgressChange: (update: (current: ProgressState) => ProgressState) => void;
   onSelectTask: (taskId: string) => void;
+  onCompleteRoute: () => void;
 }
 
 function formatCell(value: PythonScalar): string {
@@ -122,18 +123,6 @@ function datasetColumns(dataset: PythonDatasetFixture): string[] {
   return Object.keys(dataset.rows[0] ?? {});
 }
 
-function taskAccessible(
-  candidate: PythonLessonTask | undefined,
-  modules: PythonCurriculumModule[],
-  tasks: PythonLessonTask[],
-  progress: ProgressState,
-): candidate is PythonLessonTask {
-  return Boolean(
-    candidate &&
-    isPythonTaskAccessible(candidate, modules, tasks, progress.pythonTasks),
-  );
-}
-
 export function PythonStudioScreen({
   task,
   modules,
@@ -144,6 +133,7 @@ export function PythonStudioScreen({
   persistenceAvailable,
   onProgressChange,
   onSelectTask,
+  onCompleteRoute,
 }: PythonStudioScreenProps) {
   const initialCode =
     progress.pythonTasks[task.id]?.lastCode || task.starterCode;
@@ -173,9 +163,13 @@ export function PythonStudioScreen({
   const [solutionVisible, setSolutionVisible] = useState(false);
   const [solutionConfirmVisible, setSolutionConfirmVisible] = useState(false);
   const [announcement, setAnnouncement] = useState("");
+  const [routeMenuOpen, setRouteMenuOpen] = useState(false);
   const codeRef = useRef(code);
   const runCodeRef = useRef<() => void>(() => undefined);
   const saveDraftRef = useRef<() => void>(() => undefined);
+  const navigatePreviousRef = useRef<() => void>(() => undefined);
+  const navigateNextRef = useRef<() => void>(() => undefined);
+  const openRouteRef = useRef<() => void>(() => undefined);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const editorActionsRef = useRef<Array<{ dispose: () => void }>>([]);
   const mobileTabRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -183,54 +177,31 @@ export function PythonStudioScreen({
   const resultPanelRef = useRef<HTMLDivElement>(null);
   const activeModule = modules.find((module) => module.id === task.moduleId);
   const activeIndex = tasks.findIndex((candidate) => candidate.id === task.id);
-  const previousTask = [...tasks]
-    .slice(0, Math.max(0, activeIndex))
-    .reverse()
-    .find((candidate) => taskAccessible(candidate, modules, tasks, progress));
-  const nextTask = tasks
-    .slice(activeIndex + 1)
-    .find((candidate) => taskAccessible(candidate, modules, tasks, progress));
-  const moduleAccess = useMemo(
-    () => buildModuleAccessStates(modules, tasks, progress.pythonTasks),
-    [modules, progress.pythonTasks, tasks],
-  );
-  const moduleAccessById = useMemo(
-    () => new Map(moduleAccess.map((state) => [state.moduleId, state])),
-    [moduleAccess],
-  );
-  const completedCount = tasks.filter(
-    (candidate) => progress.pythonTasks[candidate.id]?.completed,
-  ).length;
-  const curriculumMenuModules = useMemo(
+  const previousTask = activeIndex > 0 ? tasks[activeIndex - 1] : undefined;
+  const nextTask = tasks[activeIndex + 1];
+  const routeModules = useMemo<StudioRouteModuleItem[]>(
     () =>
       modules.map((module) => {
-        const access = moduleAccessById.get(module.id);
-        const completed = module.tasks.filter(
-          (candidate) => progress.pythonTasks[candidate.id]?.completed,
-        ).length;
         return {
           id: module.id,
           order: module.order,
           title: module.title,
-          status: access?.isUnlocked
-            ? `${completed}/${module.tasks.length} vaka`
-            : `Önce ${access?.blockingModule?.title ?? "önceki modül"}`,
-          complete: Boolean(access?.isComplete),
           tasks: module.tasks.map((candidate) => ({
             id: candidate.id,
+            index: tasks.findIndex((item) => item.id === candidate.id),
             title: candidate.title,
-            meta: `${candidate.estimatedMinutes} dk`,
-            accessible: isPythonTaskAccessible(
-              candidate,
-              modules,
-              tasks,
-              progress.pythonTasks,
-            ),
-            complete: Boolean(progress.pythonTasks[candidate.id]?.completed),
+            status: progress.pythonTasks[candidate.id]?.completed
+              ? "completed"
+              : (progress.pythonTasks[candidate.id]?.attempts ?? 0) > 0
+                ? "attempted"
+                : "unstarted",
+            score: progress.pythonTasks[candidate.id]?.completed
+              ? getAwardedCaseScore(progress.pythonTasks[candidate.id])
+              : undefined,
           })),
         };
       }),
-    [moduleAccessById, modules, progress.pythonTasks, tasks],
+    [modules, progress.pythonTasks, tasks],
   );
   const taskProgress = progress.pythonTasks[task.id];
   const taskCompleted = Boolean(taskProgress?.completed);
@@ -289,6 +260,18 @@ export function PythonStudioScreen({
     );
   }, [code, onProgressChange, persistenceAvailable, task.id]);
 
+  const navigateToTask = useCallback(
+    (taskId: string) => {
+      runtime.stop();
+      onProgressChange((current) =>
+        recordPythonDraft(current, task.id, codeRef.current),
+      );
+      setRouteMenuOpen(false);
+      onSelectTask(taskId);
+    },
+    [onProgressChange, onSelectTask, runtime, task.id],
+  );
+
   const updateCode = (value?: string) => {
     const requestedCode = value ?? "";
     const boundedCode = requestedCode.slice(0, MAX_PYTHON_CODE_CHARS);
@@ -312,12 +295,8 @@ export function PythonStudioScreen({
         );
         mobileTabRefs.current[resultsIndex]?.focus();
       }
-      resultPanelRef.current?.scrollIntoView({
-        behavior: settings.reducedMotion ? "auto" : "smooth",
-        block: "nearest",
-      });
     }, 0);
-  }, [isCompact, settings.reducedMotion]);
+  }, [isCompact]);
 
   const runCode = useCallback(async () => {
     if (isRunning || !code.trim()) return;
@@ -426,7 +405,57 @@ export function PythonStudioScreen({
   useEffect(() => {
     runCodeRef.current = () => void runCode();
     saveDraftRef.current = saveDraft;
-  }, [runCode, saveDraft]);
+    navigatePreviousRef.current = () => {
+      if (previousTask) navigateToTask(previousTask.id);
+    };
+    navigateNextRef.current = () => {
+      if (nextTask) navigateToTask(nextTask.id);
+      else onCompleteRoute();
+    };
+    openRouteRef.current = () => setRouteMenuOpen(true);
+  }, [
+    navigateToTask,
+    nextTask,
+    onCompleteRoute,
+    previousTask,
+    runCode,
+    saveDraft,
+  ]);
+
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey)) {
+        if (event.key === "Escape") setRouteMenuOpen(false);
+        return;
+      }
+      if (event.shiftKey && event.key === "ArrowLeft") {
+        event.preventDefault();
+        navigatePreviousRef.current();
+        return;
+      }
+      if (event.shiftKey && event.key === "ArrowRight") {
+        event.preventDefault();
+        navigateNextRef.current();
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        runCodeRef.current();
+        return;
+      }
+      if (event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        saveDraftRef.current();
+        return;
+      }
+      if (event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setRouteMenuOpen(true);
+      }
+    };
+    document.addEventListener("keydown", listener);
+    return () => document.removeEventListener("keydown", listener);
+  }, []);
 
   const resetTask = () => {
     runtime.reset();
@@ -491,6 +520,32 @@ export function PythonStudioScreen({
         label: "Python taslağını kaydet",
         keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
         run: () => saveDraftRef.current(),
+      }),
+      editor.addAction({
+        id: "queryvale-python-route",
+        label: "Python rotasını aç",
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK],
+        run: () => openRouteRef.current(),
+      }),
+      editor.addAction({
+        id: "queryvale-python-previous-case",
+        label: "Önceki Python vakasına geç",
+        keybindings: [
+          monaco.KeyMod.CtrlCmd |
+            monaco.KeyMod.Shift |
+            monaco.KeyCode.LeftArrow,
+        ],
+        run: () => navigatePreviousRef.current(),
+      }),
+      editor.addAction({
+        id: "queryvale-python-next-case",
+        label: "Sonraki Python vakasına geç",
+        keybindings: [
+          monaco.KeyMod.CtrlCmd |
+            monaco.KeyMod.Shift |
+            monaco.KeyCode.RightArrow,
+        ],
+        run: () => navigateNextRef.current(),
       }),
     ];
   };
@@ -558,40 +613,10 @@ export function PythonStudioScreen({
             <strong>{task.title}</strong>
           </div>
 
-          <StudioCurriculumMenu
-            variant="python"
-            label="Python rotası"
-            title="Analist Python rotası"
-            subtitle="EDA’dan örüntü analizine"
-            completedCount={completedCount}
-            totalCount={tasks.length}
-            activeTaskId={task.id}
-            modules={curriculumMenuModules}
-            onSelectTask={onSelectTask}
-          />
-
           <div className="python-studio-top-actions">
             <span className="python-mission-counter">
               {String(activeIndex + 1).padStart(2, "0")} / {tasks.length}
             </span>
-            <button
-              className="python-icon-button"
-              type="button"
-              disabled={!previousTask}
-              onClick={() => previousTask && onSelectTask(previousTask.id)}
-              aria-label="Önceki Python vakası"
-            >
-              <ArrowLeft size={16} />
-            </button>
-            <button
-              className="python-icon-button"
-              type="button"
-              disabled={!nextTask}
-              onClick={() => nextTask && onSelectTask(nextTask.id)}
-              aria-label="Sonraki açık Python vakası"
-            >
-              <ArrowRight size={16} />
-            </button>
           </div>
         </div>
 
@@ -939,14 +964,24 @@ export function PythonStudioScreen({
                     </span>
                   ) : null}
                 </div>
-                {evaluation ? (
-                  <span className={`python-result-status ${evaluation.status}`}>
-                    {evaluation.status === "correct"
-                      ? "Doğrulandı"
-                      : "Yeniden kontrol et"}
-                  </span>
-                ) : null}
               </div>
+              {evaluation ? (
+                <StudioResultStrip
+                  status={evaluation.status === "correct" ? "correct" : "wrong"}
+                  summary={
+                    evaluation.status === "correct"
+                      ? `${tableArtifact?.rowCount ?? 0} satır · beklenen çıktıyla eşleşti · ${score}/10 puan`
+                      : evaluation.actual && evaluation.expected
+                        ? `${evaluation.actual}; beklenen ${evaluation.expected}`
+                        : evaluation.title
+                  }
+                  detail={
+                    evaluation.status === "correct"
+                      ? undefined
+                      : evaluation.message
+                  }
+                />
+              ) : null}
               <div className="python-results-content">
                 {isRunning && !execution ? (
                   <div className="python-result-empty">
@@ -998,86 +1033,64 @@ export function PythonStudioScreen({
                         <pre>{execution.stdout}</pre>
                       </details>
                     ) : null}
-                    {evaluation ? (
-                      <div
-                        className={`python-evaluation-card ${evaluation.status}`}
-                      >
-                        {evaluation.status === "correct" ? (
-                          <CheckCircle2 size={20} />
-                        ) : (
-                          <CircleAlert size={20} />
-                        )}
-                        <div>
-                          <div
-                            className="python-evaluation-summary"
-                            role="status"
-                          >
-                            <strong>{evaluation.title}</strong>
-                            <p>{evaluation.message}</p>
-                            {evaluation.expected || evaluation.actual ? (
-                              <dl>
-                                {evaluation.expected ? (
-                                  <div>
-                                    <dt>Beklenen</dt>
-                                    <dd>{evaluation.expected}</dd>
-                                  </div>
-                                ) : null}
-                                {evaluation.actual ? (
-                                  <div>
-                                    <dt>Üretilen</dt>
-                                    <dd>{evaluation.actual}</dd>
-                                  </div>
-                                ) : null}
-                              </dl>
-                            ) : null}
+                    {evaluation?.status === "correct" ? (
+                      <div className="python-evaluation-card correct">
+                        <CheckCircle2 size={20} aria-hidden="true" />
+                        <section
+                          className="python-learning-debrief"
+                          aria-labelledby={`python-${task.id}-debrief-title`}
+                        >
+                          <div className="python-learning-debrief-head">
+                            <span>Öğrenme özeti</span>
+                            <h3 id={`python-${task.id}-debrief-title`}>
+                              Neden çalıştı?
+                            </h3>
                           </div>
-                          {evaluation.status === "correct" ? (
-                            <section
-                              className="python-learning-debrief"
-                              aria-labelledby={`python-${task.id}-debrief-title`}
-                            >
-                              <div className="python-learning-debrief-head">
-                                <span>Öğrenme özeti</span>
-                                <h3 id={`python-${task.id}-debrief-title`}>
-                                  Neden çalıştı?
-                                </h3>
-                              </div>
-                              <p>{task.explanation}</p>
-                              <ol>
-                                {task.debrief.steps.map((step) => (
-                                  <li key={step}>{step}</li>
-                                ))}
-                              </ol>
-                              <details>
-                                <summary>İş etkisi ve dikkat noktaları</summary>
-                                <p>{task.debrief.whyItWorks}</p>
-                                <p>{task.debrief.workplaceImpact}</p>
-                                <ul>
-                                  {task.debrief.edgeCases.map((edgeCase) => (
-                                    <li key={edgeCase}>{edgeCase}</li>
-                                  ))}
-                                </ul>
-                              </details>
-                              <details className="python-transfer-debrief">
-                                <summary>Transfer sorusu</summary>
-                                <p>{task.debrief.transfer.prompt}</p>
-                                <details>
-                                  <summary>Yaklaşımı gör</summary>
-                                  <p>{task.debrief.transfer.reveal}</p>
-                                </details>
-                              </details>
-                            </section>
-                          ) : null}
-                          {evaluation.status === "correct" && nextTask ? (
-                            <button
-                              type="button"
-                              onClick={() => onSelectTask(nextTask.id)}
-                            >
-                              Sonraki vakaya geç <ArrowRight size={14} />
-                            </button>
-                          ) : null}
-                        </div>
+                          <p>{task.explanation}</p>
+                          <ol>
+                            {task.debrief.steps.map((step) => (
+                              <li key={step}>{step}</li>
+                            ))}
+                          </ol>
+                          <details>
+                            <summary>İş etkisi ve dikkat noktaları</summary>
+                            <p>{task.debrief.whyItWorks}</p>
+                            <p>{task.debrief.workplaceImpact}</p>
+                            <ul>
+                              {task.debrief.edgeCases.map((edgeCase) => (
+                                <li key={edgeCase}>{edgeCase}</li>
+                              ))}
+                            </ul>
+                          </details>
+                          <details className="python-transfer-debrief">
+                            <summary>Transfer sorusu</summary>
+                            <p>{task.debrief.transfer.prompt}</p>
+                            <details>
+                              <summary>Yaklaşımı gör</summary>
+                              <p>{task.debrief.transfer.reveal}</p>
+                            </details>
+                          </details>
+                        </section>
                       </div>
+                    ) : evaluation &&
+                      (evaluation.expected || evaluation.actual) ? (
+                      <details className="python-evaluation-details">
+                        <summary>Beklenen ve üretilen farkını incele</summary>
+                        <dl>
+                          {evaluation.expected ? (
+                            <div>
+                              <dt>Beklenen</dt>
+                              <dd>{evaluation.expected}</dd>
+                            </div>
+                          ) : null}
+                          {evaluation.actual ? (
+                            <div>
+                              <dt>Üretilen</dt>
+                              <dd>{evaluation.actual}</dd>
+                            </div>
+                          ) : null}
+                        </dl>
+                      </details>
                     ) : null}
                   </>
                 ) : (
@@ -1086,8 +1099,8 @@ export function PythonStudioScreen({
                     <strong>Analiz çıktın burada oluşacak</strong>
                     <p>
                       Kodunu çalıştırdığında gerçek DataFrame, konsol ve
-                      değerlendirme bu panelde görünür. Sonucu görmeden başka
-                      vakaya geçmezsin.
+                      değerlendirme bu panelde görünür. İstersen alt vaka
+                      gezintisinden rotanın başka bir adımına da geçebilirsin.
                     </p>
                   </div>
                 )}
@@ -1095,6 +1108,23 @@ export function PythonStudioScreen({
             </div>
           </section>
         </div>
+
+        <StudioActionRail
+          variant="python"
+          activeTaskId={task.id}
+          activeIndex={activeIndex}
+          totalCount={tasks.length}
+          modules={routeModules}
+          previousTaskId={previousTask?.id}
+          nextTaskId={nextTask?.id}
+          currentTaskCorrect={
+            evaluation ? evaluation.status === "correct" : taskCompleted
+          }
+          routeMenuOpen={routeMenuOpen}
+          onRouteMenuOpenChange={setRouteMenuOpen}
+          onSelectTask={navigateToTask}
+          onCompleteRoute={onCompleteRoute}
+        />
       </main>
 
       <span className="sr-only" role="status" aria-live="polite" aria-atomic>

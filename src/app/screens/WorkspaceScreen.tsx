@@ -1,11 +1,9 @@
 "use client";
 
 import {
-  ArrowLeft,
   ArrowRight,
   Braces,
   CheckCircle2,
-  ChevronsUpDown,
   CircleAlert,
   Clock3,
   Columns3,
@@ -63,12 +61,15 @@ import {
   getCurrentCaseScore,
   MAX_CASE_SCORE,
 } from "../../features/progress/scoring";
-import { buildModuleAccessStates } from "../../features/progress/moduleAccess";
 import type { Navigate } from "../appTypes";
 import { CommandDialog } from "../components/Dialogs";
 import { FirstCaseGuide } from "../components/FirstCaseGuide";
 import { ResultCompletion } from "../components/ResultCompletion";
-import { StudioCurriculumMenu } from "../components/StudioCurriculumMenu";
+import {
+  StudioActionRail,
+  StudioResultStrip,
+  type StudioRouteModuleItem,
+} from "../components/StudioActionRail";
 
 const MonacoEditor = lazy(() => import("../components/LocalMonacoEditor"));
 
@@ -187,6 +188,7 @@ export function WorkspaceScreen({
   const [briefWidth, setBriefWidth] = useState(370);
   const [editorHeight, setEditorHeight] = useState(56);
   const [showCommands, setShowCommands] = useState(false);
+  const [routeMenuOpen, setRouteMenuOpen] = useState(false);
   const [toast, setToast] = useState<string>();
   const databaseRef = useRef<TaskDatabase | undefined>(undefined);
   const runGenerationRef = useRef(0);
@@ -201,6 +203,9 @@ export function WorkspaceScreen({
   const editorShortcutActionsRef = useRef<Array<{ dispose: () => void }>>([]);
   const runQueryShortcutRef = useRef<() => void>(() => undefined);
   const saveDraftShortcutRef = useRef<() => void>(() => undefined);
+  const navigatePreviousShortcutRef = useRef<() => void>(() => undefined);
+  const navigateNextShortcutRef = useRef<() => void>(() => undefined);
+  const openRouteShortcutRef = useRef<() => void>(() => undefined);
   const pendingEditorFocusRef = useRef(false);
   const briefTabRef = useRef<HTMLButtonElement>(null);
   const schemaTabRef = useRef<HTMLButtonElement>(null);
@@ -216,70 +221,36 @@ export function WorkspaceScreen({
 
   const taskIndex = tasks.findIndex((candidate) => candidate.id === task.id);
   const previousTask = taskIndex > 0 ? tasks[taskIndex - 1] : undefined;
-  const requestedNextTask =
+  const nextTask =
     task.nextTaskId !== null
       ? tasks.find((candidate) => candidate.id === task.nextTaskId)
       : tasks[taskIndex + 1];
-  const moduleAccess = useMemo(
-    () => buildModuleAccessStates(modules, tasks, progress.tasks),
-    [modules, progress.tasks, tasks],
-  );
-  const moduleAccessById = useMemo(
-    () =>
-      new Map(moduleAccess.map((state) => [state.moduleId, state] as const)),
-    [moduleAccess],
-  );
-  const nextTask =
-    requestedNextTask &&
-    moduleAccessById.get(requestedNextTask.moduleId)?.isUnlocked
-      ? requestedNextTask
-      : undefined;
   const currentModule = modules.find((module) => module.id === task.moduleId);
   const isProject = currentModule?.contentKind === "projects";
-  const completedTaskCount = tasks.filter(
-    (candidate) => progress.tasks[candidate.id]?.completed,
-  ).length;
-  const curriculumMenuModules = useMemo(
+  const routeModules = useMemo<StudioRouteModuleItem[]>(
     () =>
       modules.map((module) => {
-        const access = moduleAccessById.get(module.id);
-        const completed = module.tasks.filter(
-          (candidate) => progress.tasks[candidate.id]?.completed,
-        ).length;
-        const itemLabel = module.contentKind === "projects" ? "proje" : "vaka";
         return {
           id: module.id,
           order: module.order,
           title: module.title,
-          status: access?.isUnlocked
-            ? `${completed}/${module.tasks.length} ${itemLabel}`
-            : `Önce ${access?.blockingModule?.title ?? "önceki modül"}`,
-          complete: Boolean(access?.isComplete),
           tasks: module.tasks.map((candidate) => ({
             id: candidate.id,
+            index: tasks.findIndex((item) => item.id === candidate.id),
             title: candidate.title,
-            meta: `${candidate.estimatedMinutes} dk`,
-            accessible: Boolean(access?.isUnlocked),
-            complete: Boolean(progress.tasks[candidate.id]?.completed),
+            status: progress.tasks[candidate.id]?.completed
+              ? "completed"
+              : (progress.tasks[candidate.id]?.attempts ?? 0) > 0
+                ? "attempted"
+                : "unstarted",
+            score: progress.tasks[candidate.id]?.completed
+              ? getAwardedCaseScore(progress.tasks[candidate.id])
+              : undefined,
           })),
         };
       }),
-    [moduleAccessById, modules, progress.tasks],
+    [modules, progress.tasks, tasks],
   );
-  const projectModuleIds = new Set(
-    modules
-      .filter((module) => module.contentKind === "projects")
-      .map((module) => module.id),
-  );
-  const caseTasks = tasks.filter(
-    (candidate) => !projectModuleIds.has(candidate.moduleId),
-  );
-  const currentCaseIndex = caseTasks.findIndex(
-    (candidate) => candidate.id === task.id,
-  );
-  const currentModuleTaskIndex =
-    currentModule?.tasks.findIndex((candidate) => candidate.id === task.id) ??
-    -1;
   const revealedHintCount = visibleHints.filter(
     (index) => index >= 0 && index < task.hints.length,
   ).length;
@@ -402,6 +373,16 @@ export function WorkspaceScreen({
   const saveDraft = useCallback(() => {
     persistDraft(queryRef.current, { announce: true });
   }, [persistDraft]);
+
+  const navigateToTask = useCallback(
+    (taskId: string) => {
+      persistDraft(queryRef.current, { preserveLocation: true });
+      runGenerationRef.current += 1;
+      setRouteMenuOpen(false);
+      onNavigate("workspace", { taskId });
+    },
+    [onNavigate, persistDraft],
+  );
 
   const updateQuery = useCallback((nextQuery: string) => {
     queryRef.current = nextQuery;
@@ -563,15 +544,17 @@ export function WorkspaceScreen({
   ]);
 
   useEffect(() => {
-    if (result && resultsContentRef.current) {
-      resultsContentRef.current.scrollTop = 0;
-    }
-  }, [result]);
-
-  useEffect(() => {
     runQueryShortcutRef.current = () => void runQuery();
     saveDraftShortcutRef.current = saveDraft;
-  }, [runQuery, saveDraft]);
+    navigatePreviousShortcutRef.current = () => {
+      if (previousTask) navigateToTask(previousTask.id);
+    };
+    navigateNextShortcutRef.current = () => {
+      if (nextTask) navigateToTask(nextTask.id);
+      else onNavigate("progress");
+    };
+    openRouteShortcutRef.current = () => setRouteMenuOpen(true);
+  }, [navigateToTask, nextTask, onNavigate, previousTask, runQuery, saveDraft]);
 
   useEffect(
     () => () => {
@@ -629,20 +612,35 @@ export function WorkspaceScreen({
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey)) {
-        if (event.key === "Escape") setShowCommands(false);
+        if (event.key === "Escape") {
+          setRouteMenuOpen(false);
+          setShowCommands(false);
+        }
+        return;
+      }
+      if (event.shiftKey && event.key === "ArrowLeft") {
+        event.preventDefault();
+        navigatePreviousShortcutRef.current();
+        return;
+      }
+      if (event.shiftKey && event.key === "ArrowRight") {
+        event.preventDefault();
+        navigateNextShortcutRef.current();
         return;
       }
       if (event.key === "Enter") {
         event.preventDefault();
         void runQuery();
+        return;
       }
       if (event.key.toLowerCase() === "s") {
         event.preventDefault();
         saveDraft();
+        return;
       }
       if (event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setShowCommands(true);
+        setRouteMenuOpen(true);
       }
     };
     document.addEventListener("keydown", listener);
@@ -910,55 +908,17 @@ export function WorkspaceScreen({
           <ArrowRight size={11} />
           <strong>{task.title}</strong>
         </div>
-        <StudioCurriculumMenu
-          variant="sql"
-          label="SQL rotası"
-          title="Analist SQL rotası"
-          subtitle="Temelden portföy projelerine"
-          completedCount={completedTaskCount}
-          totalCount={tasks.length}
-          activeTaskId={task.id}
-          modules={curriculumMenuModules}
-          onSelectTask={(taskId) => onNavigate("workspace", { taskId })}
-        />
         <div className="workspace-topbar-actions">
           <span className="mission-counter">
-            {isProject ? "Proje" : "Vaka"}{" "}
-            {String(
-              isProject ? currentModuleTaskIndex + 1 : currentCaseIndex + 1,
-            ).padStart(2, "0")}{" "}
-            / {isProject ? currentModule?.tasks.length : caseTasks.length}
+            {isProject ? "Proje" : "Vaka"} {taskIndex + 1}/{tasks.length}
           </span>
-          <button
-            className="icon-button"
-            type="button"
-            disabled={!previousTask}
-            onClick={() =>
-              previousTask &&
-              onNavigate("workspace", { taskId: previousTask.id })
-            }
-            aria-label="Önceki vaka"
-          >
-            <ArrowLeft size={14} />
-          </button>
-          <button
-            className="icon-button"
-            type="button"
-            disabled={!nextTask}
-            onClick={() =>
-              nextTask && onNavigate("workspace", { taskId: nextTask.id })
-            }
-            aria-label="Sonraki vaka"
-          >
-            <ArrowRight size={14} />
-          </button>
           <button
             className="icon-button"
             type="button"
             onClick={() => setShowCommands(true)}
             aria-label="Komut panelini aç"
           >
-            <ChevronsUpDown size={14} />
+            <TerminalSquare size={14} />
           </button>
         </div>
       </div>
@@ -1697,12 +1657,32 @@ export function WorkspaceScreen({
                         run: () => saveDraftShortcutRef.current(),
                       }),
                       editor.addAction({
-                        id: "queryvale.open-command-panel",
-                        label: "Komut panelini aç",
+                        id: "queryvale.open-route",
+                        label: "SQL rotasını aç",
                         keybindings: [
                           monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK,
                         ],
-                        run: () => setShowCommands(true),
+                        run: () => openRouteShortcutRef.current(),
+                      }),
+                      editor.addAction({
+                        id: "queryvale.previous-case",
+                        label: "Önceki vakaya geç",
+                        keybindings: [
+                          monaco.KeyMod.CtrlCmd |
+                            monaco.KeyMod.Shift |
+                            monaco.KeyCode.LeftArrow,
+                        ],
+                        run: () => navigatePreviousShortcutRef.current(),
+                      }),
+                      editor.addAction({
+                        id: "queryvale.next-case",
+                        label: "Sonraki vakaya geç",
+                        keybindings: [
+                          monaco.KeyMod.CtrlCmd |
+                            monaco.KeyMod.Shift |
+                            monaco.KeyCode.RightArrow,
+                        ],
+                        run: () => navigateNextShortcutRef.current(),
                       }),
                     ];
                     if (pendingEditorFocusRef.current) {
@@ -1807,16 +1787,6 @@ export function WorkspaceScreen({
                   : "Henüz çalıştırılmadı"}
               </span>
               <span className="toolbar-spacer" />
-              {evaluation && (
-                <span className={`evaluation-pill ${tone}`}>
-                  {evaluation.correct ? (
-                    <CheckCircle2 size={10} />
-                  ) : (
-                    <CircleAlert size={10} />
-                  )}
-                  {evaluation.title}
-                </span>
-              )}
             </div>
             {engineSetupError && (
               <div className="feedback-banner error" role="alert">
@@ -1824,53 +1794,20 @@ export function WorkspaceScreen({
                 <span>{engineSetupError}</span>
               </div>
             )}
-            {evaluation && !evaluation.correct && (
-              <div className={`feedback-banner ${tone}`} role="status">
-                <CircleAlert size={14} />
-                <span>{evaluation.message}</span>
-              </div>
-            )}
-            {activeCoaching && (
-              <aside
-                className={`coaching-card ${tone}`}
-                aria-labelledby={`${task.id}-coaching-title`}
-              >
-                <div className="coaching-card-copy">
-                  <strong id={`${task.id}-coaching-title`}>
-                    {activeCoaching.title}
-                  </strong>
-                  <ul>
-                    {activeCoaching.checks.map((check) => (
-                      <li key={check}>{check}</li>
-                    ))}
-                  </ul>
-                </div>
-                {nextHintIndex >= 0 ? (
-                  <button
-                    className="coaching-hint-action"
-                    type="button"
-                    onClick={() => {
-                      revealHint(nextHintIndex);
-                      activatePanelTab("brief", true);
-                    }}
-                  >
-                    <Lightbulb size={12} /> {nextHintIndex + 1}. ipucunu aç
-                  </button>
-                ) : !solutionVisible ? (
-                  <button
-                    className="coaching-hint-action"
-                    type="button"
-                    onClick={() => {
-                      toggleSolution(true);
-                      activatePanelTab("brief", true);
-                    }}
-                    aria-controls={`${task.id}-solution`}
-                  >
-                    <TerminalSquare size={12} /> Bir doğru sorguyu göster
-                  </button>
-                ) : null}
-              </aside>
-            )}
+            {evaluation ? (
+              <StudioResultStrip
+                status={evaluation.correct ? "correct" : "wrong"}
+                summary={
+                  evaluation.correct
+                    ? `${result?.rowCount ?? evaluation.actualRowCount ?? 0} satır · beklenen çıktıyla eşleşti · ${awardedCaseScore}/10 puan`
+                    : evaluation.actualRowCount !== undefined &&
+                        evaluation.expectedRowCount !== undefined
+                      ? `${evaluation.actualRowCount} satır döndü, ${evaluation.expectedRowCount} bekleniyordu`
+                      : evaluation.title
+                }
+                detail={evaluation.correct ? undefined : evaluation.message}
+              />
+            ) : null}
             <div
               className="results-content"
               ref={resultsContentRef}
@@ -1917,6 +1854,47 @@ export function WorkspaceScreen({
                   </div>
                 </div>
               )}
+              {activeCoaching && (
+                <aside
+                  className={`coaching-card ${tone}`}
+                  aria-labelledby={`${task.id}-coaching-title`}
+                >
+                  <div className="coaching-card-copy">
+                    <strong id={`${task.id}-coaching-title`}>
+                      {activeCoaching.title}
+                    </strong>
+                    <ul>
+                      {activeCoaching.checks.map((check) => (
+                        <li key={check}>{check}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  {nextHintIndex >= 0 ? (
+                    <button
+                      className="coaching-hint-action"
+                      type="button"
+                      onClick={() => {
+                        revealHint(nextHintIndex);
+                        activatePanelTab("brief", true);
+                      }}
+                    >
+                      <Lightbulb size={12} /> {nextHintIndex + 1}. ipucunu aç
+                    </button>
+                  ) : !solutionVisible ? (
+                    <button
+                      className="coaching-hint-action"
+                      type="button"
+                      onClick={() => {
+                        toggleSolution(true);
+                        activatePanelTab("brief", true);
+                      }}
+                      aria-controls={`${task.id}-solution`}
+                    >
+                      <TerminalSquare size={12} /> Bir doğru sorguyu göster
+                    </button>
+                  ) : null}
+                </aside>
+              )}
               {evaluation?.correct && result && (
                 <ResultCompletion
                   task={task}
@@ -1924,19 +1902,11 @@ export function WorkspaceScreen({
                   rowCount={result.rowCount}
                   scoreAwarded={awardedCaseScore}
                   evidence={progress.evidenceByTaskId[task.id]}
-                  nextTaskTitle={nextTask?.title}
                   onSaveNote={(note) => {
                     onProgressChange((current) =>
                       saveDecisionNote(current, task.id, note),
                     );
                     setToast("Karar notu Kanıt Defteri’ne kaydedildi.");
-                  }}
-                  onNext={() => {
-                    if (nextTask) {
-                      onNavigate("workspace", { taskId: nextTask.id });
-                    } else {
-                      onNavigate("progress");
-                    }
                   }}
                 />
               )}
@@ -1944,6 +1914,21 @@ export function WorkspaceScreen({
           </section>
         </div>
       </div>
+
+      <StudioActionRail
+        variant="sql"
+        activeTaskId={task.id}
+        activeIndex={taskIndex}
+        totalCount={tasks.length}
+        modules={routeModules}
+        previousTaskId={previousTask?.id}
+        nextTaskId={nextTask?.id}
+        currentTaskCorrect={evaluation ? evaluation.correct : taskCompleted}
+        routeMenuOpen={routeMenuOpen}
+        onRouteMenuOpenChange={setRouteMenuOpen}
+        onSelectTask={navigateToTask}
+        onCompleteRoute={() => onNavigate("progress")}
+      />
 
       {showCommands && (
         <CommandDialog

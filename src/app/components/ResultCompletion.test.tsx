@@ -18,9 +18,7 @@ describe("ResultCompletion", () => {
         attempts={2}
         rowCount={6}
         scoreAwarded={7}
-        nextTaskTitle="Kategori listesini tekilleştir"
         onSaveNote={vi.fn()}
-        onNext={vi.fn()}
       />,
     );
 
@@ -68,7 +66,6 @@ describe("ResultCompletion", () => {
         rowCount={6}
         scoreAwarded={0}
         onSaveNote={vi.fn()}
-        onNext={vi.fn()}
       />,
     );
 
@@ -78,29 +75,21 @@ describe("ResultCompletion", () => {
     expect(screen.getByText("0 analiz puanı")).toBeVisible();
   });
 
-  it("advances only after the explicit next action", async () => {
-    const user = userEvent.setup();
-    const onNext = vi.fn();
-
+  it("leaves progression ownership to the persistent Studio rail", () => {
     render(
       <ResultCompletion
         task={task}
         attempts={1}
         rowCount={6}
         scoreAwarded={10}
-        nextTaskTitle="Kategori listesini tekilleştir"
         onSaveNote={vi.fn()}
-        onNext={onNext}
       />,
     );
 
-    expect(onNext).not.toHaveBeenCalled();
-    await user.click(
-      screen.getByRole("button", {
-        name: "Sonraki vakaya geç: Kategori listesini tekilleştir",
-      }),
-    );
-    expect(onNext).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByRole("button", { name: /sonraki vaka/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/aşağıdaki vaka gezintisinden/i)).toBeVisible();
   });
 
   it("turns a verified result into an optional analyst decision note", async () => {
@@ -121,7 +110,6 @@ describe("ResultCompletion", () => {
           },
         }}
         onSaveNote={onSaveNote}
-        onNext={vi.fn()}
       />,
     );
 

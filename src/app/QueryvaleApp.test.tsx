@@ -559,26 +559,28 @@ describe("QueryvaleApp", () => {
     expect(sqlEngineHarness.mutationResetCount).toBe(2);
   }, 20_000);
 
-  it("redirects a locked direct hash to the first accessible missing task", async () => {
-    const lockedTask = modules[1].tasks[0];
-    window.location.hash = `#/lab/${lockedTask.id}`;
+  it("opens a later SQL deep link without forcing the learner backward", async () => {
+    const laterTask = modules[1].tasks[0];
+    window.location.hash = `#/lab/${laterTask.id}`;
 
     render(<QueryvaleApp />);
 
     await screen.findByRole("textbox", { name: "SQL sorgu editörü" });
     await waitFor(() =>
-      expect(window.location.hash).toBe(`#/lab/${tasks[0].id}`),
+      expect(window.location.hash).toBe(`#/lab/${laterTask.id}`),
     );
     expect(
-      screen.getByRole("heading", { name: tasks[0].title }),
+      screen.getByRole("heading", { name: laterTask.title }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Vaka\s+01\s+\/\s+40/)).toBeInTheDocument();
-    expect(await screen.findByText(/henüz kilitli/i)).toHaveTextContent(
-      modules[0].title,
-    );
+    expect(
+      screen.getByRole("button", {
+        name: `Rota · Vaka ${tasks.indexOf(laterTask) + 1}/${tasks.length}`,
+      }),
+    ).toBeEnabled();
+    expect(screen.queryByText(/henüz kilitli/i)).not.toBeInTheDocument();
     await waitFor(async () => {
       const stored = await loadProgress();
-      expect(stored.lastOpenedTaskId).toBe(tasks[0].id);
+      expect(stored.lastOpenedTaskId).toBe(laterTask.id);
     });
   });
 
@@ -605,32 +607,33 @@ describe("QueryvaleApp", () => {
     expect(
       await screen.findByRole("heading", { name: projectTask.title }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Proje\s+01\s+\/\s+12/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: `Rota · Vaka ${tasks.indexOf(projectTask) + 1}/${tasks.length}`,
+      }),
+    ).toBeInTheDocument();
   });
 
-  it("keeps the header laboratory entry on the first accessible task", async () => {
-    const lockedTask = modules[1].tasks[0];
-    const lockedLocation = {
+  it("keeps the header laboratory entry on the last opened valid task", async () => {
+    const laterTask = modules[1].tasks[0];
+    const savedLocation = {
       ...recordAttempt(
         createDefaultProgress(),
-        lockedTask.id,
+        laterTask.id,
         "SELECT 1",
         false,
         1,
       ),
-      lastOpenedTaskId: lockedTask.id,
+      lastOpenedTaskId: laterTask.id,
       lastOpenedTaskIdTrusted: true,
     };
-    await saveProgress(lockedLocation);
+    await saveProgress(savedLocation);
     window.location.hash = "#/learn";
     const user = userEvent.setup();
 
     render(<QueryvaleApp />);
 
     await screen.findByRole("heading", { level: 1, name: "Rota" });
-    expect(await screen.findByText(/henüz kilitli/i)).toHaveTextContent(
-      modules[0].title,
-    );
     await user.click(
       within(
         screen.getByRole("navigation", { name: "Ana bölümler" }),
@@ -639,9 +642,9 @@ describe("QueryvaleApp", () => {
 
     await screen.findByRole("textbox", { name: "SQL sorgu editörü" });
     expect(
-      screen.getByRole("heading", { name: tasks[0].title }),
+      screen.getByRole("heading", { name: laterTask.title }),
     ).toBeInTheDocument();
-    expect(window.location.hash).toBe(`#/lab/${tasks[0].id}`);
+    expect(window.location.hash).toBe(`#/lab/${laterTask.id}`);
   });
 
   it("opens the first accessible Python case from the header", async () => {
@@ -695,9 +698,7 @@ describe("QueryvaleApp", () => {
     render(<QueryvaleApp />);
 
     await screen.findByRole("heading", { name: firstPythonTask.title });
-    await user.click(
-      screen.getByRole("button", { name: "Sonraki açık Python vakası" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Sonraki vaka" }));
     await screen.findByRole("heading", { name: secondPythonTask.title });
     expect(disposeSpy).not.toHaveBeenCalled();
 
@@ -711,13 +712,13 @@ describe("QueryvaleApp", () => {
     disposeSpy.mockRestore();
   });
 
-  it("routes a legacy locked completion CTA without deleting its record", async () => {
-    const lockedTask = modules[1].tasks[0];
+  it("opens a saved later completion without deleting its record", async () => {
+    const laterTask = modules[1].tasks[0];
     const legacyForwardProgress = {
       ...recordAttempt(
         createDefaultProgress(),
-        lockedTask.id,
-        lockedTask.solutionSql,
+        laterTask.id,
+        laterTask.solutionSql,
         true,
         1,
       ),
@@ -731,18 +732,18 @@ describe("QueryvaleApp", () => {
     render(<QueryvaleApp />);
 
     const legacyCompletion = await screen.findByRole("button", {
-      name: new RegExp(lockedTask.title, "i"),
+      name: new RegExp(laterTask.title, "i"),
     });
     await user.click(legacyCompletion);
 
-    expect(window.location.hash).toBe(`#/lab/${tasks[0].id}`);
-    expect(await screen.findByText(/henüz kilitli/i)).toHaveTextContent(
-      modules[0].title,
-    );
+    expect(window.location.hash).toBe(`#/lab/${laterTask.id}`);
+    expect(
+      await screen.findByRole("heading", { name: laterTask.title }),
+    ).toBeInTheDocument();
     await waitFor(async () => {
       const stored = await loadProgress();
-      expect(stored.tasks[lockedTask.id]).toMatchObject({ completed: true });
-      expect(stored.lastOpenedTaskId).toBe(tasks[0].id);
+      expect(stored.tasks[laterTask.id]).toMatchObject({ completed: true });
+      expect(stored.lastOpenedTaskId).toBe(laterTask.id);
     });
   });
 
@@ -814,7 +815,9 @@ describe("QueryvaleApp", () => {
     );
     expect(runButton).toBeEnabled();
     await user.click(runButton);
-    expect(await screen.findByText("Doğru çözüm")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("status", { name: /Doğru —/i }),
+    ).toBeInTheDocument();
     expect(document.querySelector(".workspace-body")).toHaveAttribute(
       "data-mobile-view",
       "results",
@@ -834,11 +837,7 @@ describe("QueryvaleApp", () => {
     ).not.toBeVisible();
     await user.click(within(completion).getByText("Çözümü incele"));
     expect(within(completion).getByText(tasks[0].explanation)).toBeVisible();
-    await user.click(
-      within(completion).getByRole("button", {
-        name: "Sonraki vakaya geç: Kategori listesini tekilleştir",
-      }),
-    );
+    await user.click(screen.getByRole("button", { name: "Sonraki vaka" }));
     expect(
       await screen.findByRole("heading", {
         name: "Kategori listesini tekilleştir",
@@ -1409,15 +1408,18 @@ describe("QueryvaleApp", () => {
     ).toBeInTheDocument();
 
     act(() => editorShortcutHarness.actions.get(commandShortcut)?.());
-    const commandDialog = await screen.findByRole("dialog", {
-      name: "Komut paneli",
+    const routeDrawer = await screen.findByRole("region", {
+      name: "SQL rotası",
     });
-    await user.click(
-      within(commandDialog).getByRole("button", { name: "Kapat" }),
+    expect(within(routeDrawer).getAllByRole("button")).toHaveLength(
+      tasks.length,
     );
+    await user.keyboard("{Escape}");
 
     act(() => editorShortcutHarness.actions.get(runShortcut)?.());
-    expect(await screen.findByText("Doğru çözüm")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("status", { name: /Doğru —/i }),
+    ).toBeInTheDocument();
   });
 
   it("automatically saves an unrun SQL draft without requiring Ctrl+S", async () => {
@@ -1594,7 +1596,9 @@ describe("QueryvaleApp", () => {
     await user.type(editor, "SELECT product_name, category FROM products;");
     await screen.findByText("PostgreSQL hazır");
     await user.click(screen.getByRole("button", { name: "Çalıştır" }));
-    expect(await screen.findByText("Doğru çözüm")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("status", { name: /Doğru —/i }),
+    ).toBeInTheDocument();
     navigateToRoute("settings");
     await screen.findByRole("heading", { name: "Ayarlar" });
     await user.click(getThemeChoice("Açık"));
@@ -1625,7 +1629,9 @@ describe("QueryvaleApp", () => {
     await user.clear(editor);
     await user.click(screen.getByRole("button", { name: "Kaydet" }));
 
-    expect(await screen.findByText("Doğru çözüm")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("status", { name: /Doğru —/i }),
+    ).toBeInTheDocument();
     await waitFor(async () => {
       const restored = await loadProgress();
       expect(restored.tasks["m1-t1"]).toMatchObject({
@@ -1941,7 +1947,41 @@ describe("QueryvaleApp", () => {
     ).toHaveValue("");
   });
 
-  it("opens the complete SQL route inside Studio and preserves module locks", async () => {
+  it("rejects a stale SQL result after navigating to another case", async () => {
+    sqlEngineHarness.runDelayMs = 60;
+    window.location.hash = "#/lab/m1-t1";
+    const user = userEvent.setup();
+    render(<QueryvaleApp />);
+
+    const editor = await screen.findByRole("textbox", {
+      name: "SQL sorgu editörü",
+    });
+    fireEvent.change(editor, {
+      target: { value: "SELECT product_name, category FROM products;" },
+    });
+    const runButton = screen.getByRole("button", { name: "Çalıştır" });
+    await waitFor(() => expect(runButton).toBeEnabled());
+    await user.click(runButton);
+    await user.click(screen.getByRole("button", { name: "Sonraki vaka" }));
+
+    await screen.findByRole("heading", {
+      name: "Kategori listesini tekilleştir",
+    });
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 90));
+    });
+
+    expect(screen.queryByRole("table", { name: "Sorgu sonucu" })).toBeNull();
+    expect(document.querySelector(".studio-result-strip")).toBeNull();
+    const restored = await loadProgress();
+    expect(restored.tasks["m1-t1"]?.lastQuery).toBe(
+      "SELECT product_name, category FROM products;",
+    );
+    expect(restored.tasks["m1-t1"]?.attempts ?? 0).toBe(0);
+    expect(restored.tasks["m1-t2"]?.attempts ?? 0).toBe(0);
+  });
+
+  it("opens all 52 SQL cases in the persistent Studio route and preserves drafts", async () => {
     window.location.hash = "#/lab/m1-t1";
     const user = userEvent.setup();
     render(<QueryvaleApp />);
@@ -1951,31 +1991,28 @@ describe("QueryvaleApp", () => {
     });
     const draft = "SELECT product_name, category FROM products;";
     fireEvent.change(editor, { target: { value: draft } });
-    const routeTrigger = screen.getByText("SQL rotası").closest("summary");
-    const routeMenu = routeTrigger?.closest("details");
-    expect(routeTrigger).not.toBeNull();
-    expect(routeMenu).not.toBeNull();
-
-    await user.click(routeTrigger!);
-    const menu = within(routeMenu!);
-    expect(menu.getByText("Analist SQL rotası")).toBeVisible();
-    expect(menu.getByText("Temelden portföy projelerine")).toBeVisible();
-    expect(menu.getByText(`0/${tasks.length}`)).toBeVisible();
-    expect(
-      routeMenu!.querySelectorAll(".studio-module-list > details"),
-    ).toHaveLength(modules.length);
+    const routeTrigger = screen.getByRole("button", {
+      name: `Rota · Vaka 1/${tasks.length}`,
+    });
+    await user.click(routeTrigger);
+    const routeMenu = screen.getByRole("region", { name: "SQL rotası" });
+    const menu = within(routeMenu);
+    expect(menu.getByText("Tüm vakalar açık")).toBeVisible();
+    expect(routeMenu.querySelectorAll(".studio-route-group")).toHaveLength(
+      modules.length,
+    );
+    expect(menu.getAllByRole("button")).toHaveLength(tasks.length);
 
     const activeTask = menu.getByRole("button", {
       name: new RegExp(tasks[0].title, "i"),
     });
     expect(activeTask).toHaveAttribute("aria-current", "page");
 
-    await user.click(menu.getByText(modules[1].title));
     expect(
       menu.getByRole("button", {
         name: new RegExp(modules[1].tasks[0].title, "i"),
       }),
-    ).toBeDisabled();
+    ).toBeEnabled();
 
     await user.click(
       menu.getByRole("button", {
@@ -1997,19 +2034,24 @@ describe("QueryvaleApp", () => {
       expect(document.getElementById("main-content")).toHaveFocus();
     });
 
-    const nextRouteTrigger = screen.getByText("SQL rotası").closest("summary");
-    await user.click(nextRouteTrigger!);
+    const nextRouteTrigger = screen.getByRole("button", {
+      name: `Rota · Vaka 2/${tasks.length}`,
+    });
+    await user.click(nextRouteTrigger);
     await user.click(
-      within(nextRouteTrigger!.closest("details")!).getByRole("button", {
-        name: new RegExp(modules[0].tasks[0].title, "i"),
-      }),
+      within(screen.getByRole("region", { name: "SQL rotası" })).getByRole(
+        "button",
+        {
+          name: new RegExp(modules[0].tasks[0].title, "i"),
+        },
+      ),
     );
     expect(
       await screen.findByRole("textbox", { name: "SQL sorgu editörü" }),
     ).toHaveValue(draft);
   });
 
-  it("unlocks the next SQL module in the Studio route without opening later modules", async () => {
+  it("keeps later SQL modules open regardless of recommended-order progress", async () => {
     const unlockedProgress = progressWithCompletedModulesBefore(modules[1].id);
     progressPersistenceHarness.loadOverride = unlockedProgress;
     window.location.hash = `#/lab/${modules[1].tasks[0].id}`;
@@ -2017,21 +2059,23 @@ describe("QueryvaleApp", () => {
     render(<QueryvaleApp />);
 
     await screen.findByRole("heading", { name: modules[1].tasks[0].title });
-    const routeTrigger = screen.getByText("SQL rotası").closest("summary");
-    await user.click(routeTrigger!);
-    const menu = within(routeTrigger!.closest("details")!);
+    const routeTrigger = screen.getByRole("button", {
+      name: new RegExp(`Rota · Vaka \\d+/${tasks.length}`),
+    });
+    await user.click(routeTrigger);
+    const menu = within(screen.getByRole("region", { name: "SQL rotası" }));
 
     expect(
       menu.getByRole("button", {
         name: new RegExp(modules[1].tasks[0].title, "i"),
       }),
     ).toBeEnabled();
-    await user.click(menu.getByText(modules[2].title));
     expect(
       menu.getByRole("button", {
         name: new RegExp(modules[2].tasks[0].title, "i"),
       }),
-    ).toBeDisabled();
+    ).toBeEnabled();
+    expect(menu.getAllByRole("button")).toHaveLength(tasks.length);
   });
 
   it("keeps unmet prerequisites clickable as learning-path guidance", async () => {

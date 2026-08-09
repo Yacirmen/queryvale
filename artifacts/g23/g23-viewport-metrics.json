@@ -1,0 +1,28 @@
+{
+  "capturedAt": "2026-08-09",
+  "desktopSolved": {
+    "viewport": [1440, 900],
+    "documentHeightDelta": 0,
+    "resultsBottom": 825,
+    "railTop": 825,
+    "overlap": 0
+  },
+  "mobile": {
+    "viewport": [390, 844],
+    "documentHeightDelta": 0,
+    "documentWidthDelta": 0,
+    "railButtonHeights": [44, 44, 44]
+  },
+  "routeDrawer": {
+    "viewport": [1440, 900],
+    "documentHeightDelta": 0,
+    "layoutPosition": "static",
+    "sqlRouteItems": 52
+  },
+  "automatedViewportMatrix": {
+    "sql": ["1440x900", "1280x800", "1280x720", "390x844"],
+    "python": ["1440x900", "1280x800", "1280x720", "390x844"],
+    "maximumAllowedDocumentHeightDelta": 2,
+    "result": "passed"
+  }
+}

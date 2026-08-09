@@ -20,7 +20,7 @@ const tasks = [
 ];
 
 describe("module access", () => {
-  it("opens only the first module for a new learner", () => {
+  it("keeps every module open while preserving completion metadata", () => {
     expect(buildModuleAccessStates(modules, tasks, {})).toEqual([
       {
         moduleId: "module-1",
@@ -29,20 +29,18 @@ describe("module access", () => {
       },
       {
         moduleId: "module-2",
-        isUnlocked: false,
+        isUnlocked: true,
         isComplete: false,
-        blockingModule: { id: "module-1", title: "Temel" },
       },
       {
         moduleId: "module-3",
-        isUnlocked: false,
+        isUnlocked: true,
         isComplete: false,
-        blockingModule: { id: "module-1", title: "Temel" },
       },
     ]);
   });
 
-  it("opens the next module only after every earlier task is complete", () => {
+  it("reports partial and later completion without introducing a gate", () => {
     const states = buildModuleAccessStates(modules, tasks, {
       "m1-t1": { completed: true },
       "m1-t2": { completed: true },
@@ -56,33 +54,31 @@ describe("module access", () => {
     });
     expect(states[2]).toMatchObject({
       moduleId: "module-3",
-      isUnlocked: false,
-      blockingModule: { id: "module-2", title: "Filtreleme" },
+      isUnlocked: true,
+      isComplete: false,
     });
   });
 
-  it("preserves but locks legacy completion beyond the first gap", () => {
+  it("preserves completion beyond an earlier gap and keeps it repeatable", () => {
     const states = buildModuleAccessStates(modules, tasks, {
       "m3-t1": { completed: true },
     });
 
     expect(states[2]).toMatchObject({
-      isUnlocked: false,
+      isUnlocked: true,
       isComplete: true,
-      blockingModule: { id: "module-1", title: "Temel" },
     });
   });
 
-  it("redirects a locked request to the first accessible incomplete task", () => {
+  it("opens a requested later task directly", () => {
     const resolution = resolveAccessibleTask("m3-t1", modules, tasks, {
       "m3-t1": { completed: true },
     });
 
     expect(resolution).toMatchObject({
-      task: tasks[0],
+      task: tasks[4],
       requestedTask: tasks[4],
-      wasRedirected: true,
-      blockingModule: { id: "module-1", title: "Temel" },
+      wasRedirected: false,
     });
     expect(findFirstAccessibleIncompleteTask(modules, tasks, {})).toBe(
       tasks[0],

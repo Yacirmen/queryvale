@@ -11,7 +11,7 @@ Queryvale, komut ezberleten bir kurs değil; gerçek iş sorularını SQL ve Pyt
 - Satış, müşteri, şube, sipariş ve veri kalitesi gibi gerçekçi iş vakaları
 - Kullanıcı arayüzünde tek sözlük: Rota → Bölüm → Vaka / Proje
 - Temeli kur → İş sorusunu çöz → Örüntüyü keşfet → Karara dönüştür biçiminde dört bölüm
-- Önceki SQL konusu tamamlandıkça sıradaki konuyu açan, nedeni görünür modül kilitleri
+- Önerilen sırayı görünür tutarken ihtiyaç duyulan herhangi bir SQL veya Python vakasına doğrudan geçiş
 - Son durak olarak 12 ilişkili veri setine dayalı pazarlama analitiği portföy projesi
 - Tarayıcı içinde çalışan PGlite tabanlı SQL motoru
 - Tarayıcı içinde ayrı Web Worker’da çalışan, aynı origin’den yüklenen Pyodide + pandas Python motoru
@@ -34,12 +34,14 @@ Queryvale, komut ezberleten bir kurs değil; gerçek iş sorularını SQL ve Pyt
 - Başlangıç rehberi, otomatik kayıt/taşıma açıklaması, destek bağlantısı ve profil-veri silme eylemini birleştiren `Yardım ve veri` alanı
 - `SQL Studio` ve `Python Studio` üzerinden profil kapısını zorunlu kılmadan iki çalışma alanına misafir erişimi
 - Ana sayfa anlatısının sonuna ulaşılana kadar iki Studio hedefini açıklamalı kilit simgesiyle bekleten; doğrudan rotaları ve diğer ekranları engellemeyen oturumluk tanıtım geçidi
-- Header'ı kalabalıklaştırmadan her stüdyonun içinde açılan rota menüsü: SQL'de 11 modül/52 vaka-proje, Python'da 4 modül/12 vaka
+- İki stüdyoda da sonucu örtmeden kalan kalıcı aksiyon rail'i; önceki/sonraki vaka, rota özeti ve klavye kısayolları
+- Akış içinde yukarı açılan, kendi içinde kaydırılan ve bütün vakaları erişilebilir tutan rota çekmecesi: SQL'de 11 modül/52 vaka-proje, Python'da 4 modül/12 vaka
 - Yazarken otomatik kaydedilen SQL taslakları; `⌘/Ctrl+S` ile anında kayıt
 - Açık/koyu tema, editör tercihleri ve reduced-motion desteği
 - Dışa/içe aktarılabilir ilerleme verisi
-- Masaüstü öncelikli; SQL Studio'da belgeyi değil yalnız vaka/sonuç panellerini kaydıran tek-viewport çalışma alanı ve mobilde `Vaka | Veri | SQL | Sonuç` sekmeli responsive deneyim
+- Masaüstü öncelikli; her iki Studio'da belgeyi değil yalnız ilgili paneli kaydıran tek-viewport çalışma alanı ve mobilde dört sekmeli responsive deneyim
 - Python Studio’da mobil `Vaka | Veri | Python | Sonuç` akışı, otomatik taslak kaydı ve `⌘/Ctrl+Enter` çalıştırma
+- `⌘/Ctrl+K` ile rota; Monaco'nun satır hareketini koruyan `⌘/Ctrl+Shift+←/→` ile vaka geçişi
 
 ## Teknoloji yığını
 

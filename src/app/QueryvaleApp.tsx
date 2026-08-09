@@ -28,10 +28,7 @@ import {
   type ProgressState,
   updateProfileName,
 } from "../features/progress/progressStore";
-import {
-  resolveAccessibleTask,
-  type TaskAccessResolution,
-} from "../features/progress/moduleAccess";
+import { resolveAccessibleTask } from "../features/progress/moduleAccess";
 import { selectResumeTask } from "../features/progress/resumeTask";
 import { resolveAccessiblePythonTask } from "../features/progress/pythonAccess";
 import { PythonRuntimeClient } from "../features/python-engine";
@@ -72,26 +69,6 @@ function pythonTaskIdFromHash(hash: string): string | undefined {
 function taskIdFromHash(hash: string): string | undefined {
   if (!hash.startsWith("#/lab/")) return undefined;
   return decodeURIComponent(hash.slice("#/lab/".length));
-}
-
-function moduleLockMessage(
-  resolution: TaskAccessResolution<(typeof tasks)[number]>,
-): string {
-  const requestedModule = modules.find(
-    (module) => module.id === resolution.requestedTask?.moduleId,
-  );
-  return `“${requestedModule?.title ?? "Bu modül"}” henüz kilitli. Önce “${
-    resolution.blockingModule?.title ?? "önceki"
-  }” modülündeki tüm vakaları tamamla. Seni ilk açık eksik vakaya yönlendirdik.`;
-}
-
-function pythonLockMessage(
-  resolution: ReturnType<typeof resolveAccessiblePythonTask>,
-): string {
-  if (resolution.blockingTask) {
-    return `“${resolution.requestedTask?.title ?? "Bu vaka"}” henüz kilitli. Önce “${resolution.blockingTask.title}” vakasını tamamla. Seni açık olan vakaya yönlendirdik.`;
-  }
-  return `“${resolution.requestedTask?.title ?? "Bu Python modülü"}” henüz kilitli. Önce “${resolution.blockingModule?.title ?? "önceki"}” modülünü tamamla. Seni ilk açık Python vakasına yönlendirdik.`;
 }
 
 export function QueryvaleApp() {
@@ -303,11 +280,6 @@ export function QueryvaleApp() {
               : "Kalıcı depolama kullanılamıyor; ilerleme bu oturum boyunca bellekte tutulacak.",
         });
       }
-      if (requestedScreen === "python" && pythonAccess.wasRedirected) {
-        setNotice({ tone: "error", message: pythonLockMessage(pythonAccess) });
-      } else if (access.wasRedirected) {
-        setNotice({ tone: "error", message: moduleLockMessage(access) });
-      }
     });
     return () => {
       current = false;
@@ -461,7 +433,6 @@ export function QueryvaleApp() {
             "",
             routeFor("workspace", accessibleTask.id),
           );
-          setNotice({ tone: "error", message: moduleLockMessage(access) });
         }
         setActiveTaskId(accessibleTask?.id ?? "");
         if (isLoadedRef.current) {
@@ -496,9 +467,6 @@ export function QueryvaleApp() {
             "",
             routeFor("python", accessibleTask.id),
           );
-          if (access.wasRedirected) {
-            setNotice({ tone: "error", message: pythonLockMessage(access) });
-          }
         }
         setActivePythonTaskId(accessibleTask?.id ?? "");
         if (
@@ -612,9 +580,6 @@ export function QueryvaleApp() {
           progressRef.current.tasks,
         );
         nextTaskId = access.task?.id ?? nextTaskId;
-        if (access.wasRedirected) {
-          setNotice({ tone: "error", message: moduleLockMessage(access) });
-        }
         if (nextTaskId) {
           setActiveTaskId(nextTaskId);
           const nextProgress = {
@@ -638,9 +603,6 @@ export function QueryvaleApp() {
           progressRef.current.pythonTasks,
         );
         nextTaskId = access.task?.id ?? pythonTasks[0]?.id;
-        if (access.wasRedirected) {
-          setNotice({ tone: "error", message: pythonLockMessage(access) });
-        }
         if (nextTaskId) {
           setActivePythonTaskId(nextTaskId);
           persist({
@@ -1258,6 +1220,7 @@ export function QueryvaleApp() {
             persistenceAvailable={persistenceAvailable}
             onProgressChange={persistPythonProgress}
             onSelectTask={(taskId) => navigate("python", { taskId })}
+            onCompleteRoute={() => navigate("progress")}
           />
         )}
         {screen === "progress" && (

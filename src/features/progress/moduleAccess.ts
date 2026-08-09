@@ -33,9 +33,8 @@ export interface TaskAccessResolution<Task extends ModuleAccessTask> {
 }
 
 /**
- * Builds a strict prefix lock: the first module is always open and each later
- * module opens only after every task in every preceding module is complete.
- * Completion data in a locked later module is intentionally left untouched.
+ * Builds progress metadata without using curriculum order as an access gate.
+ * Module order remains the recommended sequence; every valid case stays open.
  */
 export function buildModuleAccessStates<
   Module extends ModuleAccessModule,
@@ -45,28 +44,16 @@ export function buildModuleAccessStates<
   tasks: readonly Task[],
   taskProgress: TaskCompletionById,
 ): ModuleAccessState[] {
-  let firstIncompleteModule: BlockingModule | undefined;
-
-  return modules.map((module, index) => {
+  return modules.map((module) => {
     const moduleTasks = tasks.filter((task) => task.moduleId === module.id);
     const isComplete = moduleTasks.every(
       (task) => taskProgress[task.id]?.completed === true,
     );
-    const isUnlocked = index === 0 || firstIncompleteModule === undefined;
-    const state: ModuleAccessState = {
+    return {
       moduleId: module.id,
-      isUnlocked,
+      isUnlocked: true,
       isComplete,
-      ...(!isUnlocked && firstIncompleteModule
-        ? { blockingModule: firstIncompleteModule }
-        : {}),
     };
-
-    if (!isComplete && !firstIncompleteModule) {
-      firstIncompleteModule = { id: module.id, title: module.title };
-    }
-
-    return state;
   });
 }
 
@@ -98,26 +85,18 @@ export function findFirstAccessibleIncompleteTask<
   return undefined;
 }
 
-/** Resolves a requested task without ever discarding stored later progress. */
+/** Resolves any valid task; curriculum order is guidance rather than a guard. */
 export function resolveAccessibleTask<
   Module extends ModuleAccessModule,
   Task extends ModuleAccessTask,
 >(
   requestedTaskId: string | undefined,
-  modules: readonly Module[],
+  _modules: readonly Module[],
   tasks: readonly Task[],
   taskProgress: TaskCompletionById,
 ): TaskAccessResolution<Task> {
   const requestedTask = tasks.find((task) => task.id === requestedTaskId);
-  const accessStates = buildModuleAccessStates(modules, tasks, taskProgress);
-  const accessByModuleId = new Map(
-    accessStates.map((state) => [state.moduleId, state]),
-  );
-  const requestedAccess = requestedTask
-    ? accessByModuleId.get(requestedTask.moduleId)
-    : undefined;
-
-  if (requestedTask && requestedAccess?.isUnlocked) {
+  if (requestedTask) {
     return {
       task: requestedTask,
       requestedTask,
@@ -126,21 +105,13 @@ export function resolveAccessibleTask<
   }
 
   const fallback =
-    findFirstAccessibleIncompleteTask(modules, tasks, taskProgress) ??
-    modules
-      .filter((module) => accessByModuleId.get(module.id)?.isUnlocked)
-      .flatMap((module) => tasks.filter((task) => task.moduleId === module.id))
-      .at(-1) ??
+    tasks.find((task) => taskProgress[task.id]?.completed !== true) ??
+    [...tasks].reverse().find((task) => taskProgress[task.id]?.completed) ??
     tasks[0];
 
   return {
     task: fallback,
     requestedTask,
-    wasRedirected: Boolean(
-      requestedTask && requestedAccess && !requestedAccess.isUnlocked,
-    ),
-    ...(requestedAccess?.blockingModule
-      ? { blockingModule: requestedAccess.blockingModule }
-      : {}),
+    wasRedirected: false,
   };
 }

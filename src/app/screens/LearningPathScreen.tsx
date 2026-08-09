@@ -7,7 +7,6 @@ import {
   ChevronRight,
   CircleAlert,
   Clock3,
-  LockKeyhole,
   Play,
   RotateCcw,
   Route,
@@ -20,7 +19,6 @@ import {
 } from "../../content";
 import type { CurriculumModule, LessonTask } from "../../types/lesson";
 import type { ProgressState } from "../../features/progress/progressStore";
-import { buildModuleAccessStates } from "../../features/progress/moduleAccess";
 import {
   getAwardedCaseScore,
   summarizeScores,
@@ -65,7 +63,7 @@ const chapterStatusCopy = {
   completed: "Bölüm tamamlandı",
   active: "İlerliyorsun",
   recommended: "Önerilen odak",
-  open: "Sırasıyla açılır",
+  open: "Serbest erişim",
 } as const;
 
 function hasMeaningfulActivity(
@@ -137,17 +135,7 @@ export function LearningPathScreen({
     () => new Map(taskStates.map((item) => [item.task.id, item])),
     [taskStates],
   );
-  const moduleAccess = useMemo(
-    () => buildModuleAccessStates(modules, tasks, progress.tasks),
-    [modules, progress.tasks, tasks],
-  );
-  const moduleAccessById = useMemo(
-    () => new Map(moduleAccess.map((state) => [state.moduleId, state])),
-    [moduleAccess],
-  );
-  const accessibleTaskStates = taskStates.filter(
-    (item) => moduleAccessById.get(item.task.moduleId)?.isUnlocked,
-  );
+  const accessibleTaskStates = taskStates;
   const completedTaskIds = useMemo(
     () =>
       new Set(
@@ -224,9 +212,7 @@ export function LearningPathScreen({
       ),
     [progress.tasks, tasks],
   );
-  const unlockedModules = modules.filter(
-    (module) => moduleAccessById.get(module.id)?.isUnlocked,
-  );
+  const unlockedModules = modules;
   const allExpanded = unlockedModules.every((module) =>
     expandedModules.has(module.id),
   );
@@ -248,7 +234,6 @@ export function LearningPathScreen({
                 : "Önerilen sonraki adım";
 
   const toggleModule = (moduleId: string) => {
-    if (!moduleAccessById.get(moduleId)?.isUnlocked) return;
     setExpandedModules((current) => {
       const next = new Set(current);
       if (next.has(moduleId)) next.delete(moduleId);
@@ -278,8 +263,8 @@ export function LearningPathScreen({
             <p>
               SQL temellerinden güvenilir bir yönetici çıktısına uzanan dört
               bölümde ilerle. Nerede kaldığını ve işte hangi sonucu üretebilir
-              hâle geldiğini gör. Her SQL konusu, önceki konuları tamamladığında
-              açılır.
+              hâle geldiğini gör. Önerilen sırayı takip et veya ihtiyaç duyduğun
+              herhangi bir vakaya doğrudan geç.
             </p>
           </div>
 
@@ -527,9 +512,6 @@ export function LearningPathScreen({
                       module.contentKind === "projects"
                         ? "projelerini"
                         : "vakalarını";
-                    const access = moduleAccessById.get(module.id);
-                    const isUnlocked = access?.isUnlocked ?? false;
-                    const blockingModule = access?.blockingModule;
                     const moduleItems = module.tasks.flatMap((task) => {
                       const item = taskStateById.get(task.id);
                       return item ? [item] : [];
@@ -556,55 +538,40 @@ export function LearningPathScreen({
                       module.tasks.map((task) => task.id),
                       progress.tasks,
                     );
-                    const isExpanded =
-                      isUnlocked && expandedModules.has(module.id);
+                    const isExpanded = expandedModules.has(module.id);
                     const isComplete = completedTasks === module.tasks.length;
                     const isCurrent = moduleItems.some(
                       (item) => item.isCurrent,
                     );
                     const hasAttention = retryTasks + skippedTasks > 0;
-                    const moduleState = !isUnlocked
-                      ? "locked"
-                      : isComplete
-                        ? "completed"
-                        : isCurrent
-                          ? "current"
-                          : hasAttention
-                            ? "attention"
-                            : completedTasks + activeTasks > 0
-                              ? "active"
-                              : containsNext
-                                ? "next"
-                                : "upcoming";
-                    const moduleStateLabel = !isUnlocked
-                      ? "Kilitli"
-                      : isComplete
-                        ? "Tamamlandı"
-                        : isCurrent
-                          ? "Şu an buradasın"
-                          : hasAttention
-                            ? "Eksik adımlar var"
-                            : completedTasks + activeTasks > 0
-                              ? "Devam ediyor"
-                              : containsNext
-                                ? "Sıradaki konu"
-                                : "Başlamadı";
-                    const moduleSignals = !isUnlocked
-                      ? [
-                          blockingModule
-                            ? `Önce “${blockingModule.title}” modülünü tamamla`
-                            : "Önceki modülü tamamla",
-                          completedTasks
-                            ? `${completedTasks} eski tamamlama korunuyor`
-                            : "",
-                        ].filter(Boolean)
-                      : [
-                          retryTasks ? `${retryTasks} tekrar` : "",
-                          skippedTasks ? `${skippedTasks} atlandı` : "",
-                          activeTasks ? `${activeTasks} devam ediyor` : "",
-                          containsNext ? `sıradaki ${itemLabel} hazır` : "",
-                        ].filter(Boolean);
-                    const lockDescriptionId = `${module.id}-lock-description`;
+                    const moduleState = isComplete
+                      ? "completed"
+                      : isCurrent
+                        ? "current"
+                        : hasAttention
+                          ? "attention"
+                          : completedTasks + activeTasks > 0
+                            ? "active"
+                            : containsNext
+                              ? "next"
+                              : "upcoming";
+                    const moduleStateLabel = isComplete
+                      ? "Tamamlandı"
+                      : isCurrent
+                        ? "Şu an buradasın"
+                        : hasAttention
+                          ? "Eksik adımlar var"
+                          : completedTasks + activeTasks > 0
+                            ? "Devam ediyor"
+                            : containsNext
+                              ? "Sıradaki konu"
+                              : "Başlamadı";
+                    const moduleSignals = [
+                      retryTasks ? `${retryTasks} tekrar` : "",
+                      skippedTasks ? `${skippedTasks} atlandı` : "",
+                      activeTasks ? `${activeTasks} devam ediyor` : "",
+                      containsNext ? `sıradaki ${itemLabel} hazır` : "",
+                    ].filter(Boolean);
 
                     return (
                       <section
@@ -615,29 +582,15 @@ export function LearningPathScreen({
                           <button
                             type="button"
                             className="module-summary-toggle"
-                            onClick={() => {
-                              if (isUnlocked) toggleModule(module.id);
-                            }}
-                            aria-disabled={!isUnlocked}
-                            aria-expanded={isUnlocked ? isExpanded : false}
-                            aria-controls={
-                              isUnlocked ? `${module.id}-tasks` : undefined
-                            }
-                            aria-describedby={
-                              isUnlocked ? undefined : lockDescriptionId
-                            }
-                            aria-label={
-                              isUnlocked
-                                ? `${module.title} ${itemLabelPlural} ${
-                                    isExpanded ? "daralt" : "aç"
-                                  }`
-                                : `${module.title} modülü kilitli`
-                            }
+                            onClick={() => toggleModule(module.id)}
+                            aria-expanded={isExpanded}
+                            aria-controls={`${module.id}-tasks`}
+                            aria-label={`${module.title} ${itemLabelPlural} ${
+                              isExpanded ? "daralt" : "aç"
+                            }`}
                           />
                           <span className="module-index">
-                            {!isUnlocked ? (
-                              <LockKeyhole size={16} />
-                            ) : isComplete ? (
+                            {isComplete ? (
                               <Check size={17} />
                             ) : (
                               String(module.order).padStart(2, "0")
@@ -666,9 +619,7 @@ export function LearningPathScreen({
                               <strong>{completedTasks}</strong>/
                               {module.tasks.length} tamamlandı
                             </span>
-                            <small
-                              id={isUnlocked ? undefined : lockDescriptionId}
-                            >
+                            <small>
                               {moduleSignals.join(" · ") ||
                                 (isComplete
                                   ? "Tüm adımlar hazır"
@@ -689,9 +640,7 @@ export function LearningPathScreen({
                             className="module-toggle-icon"
                             aria-hidden="true"
                           >
-                            {!isUnlocked ? (
-                              <LockKeyhole size={16} />
-                            ) : isExpanded ? (
+                            {isExpanded ? (
                               <ChevronDown size={17} />
                             ) : (
                               <ChevronRight size={17} />
@@ -699,7 +648,7 @@ export function LearningPathScreen({
                           </span>
                         </div>
 
-                        {isUnlocked && isExpanded && (
+                        {isExpanded && (
                           <div className="task-list" id={`${module.id}-tasks`}>
                             <div className="module-detail-intro">
                               <p>{module.description}</p>

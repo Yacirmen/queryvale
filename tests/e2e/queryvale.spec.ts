@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { tasks } from "../../src/content/curriculum";
 import { pythonTasks } from "../../src/content/pythonCurriculum";
 
-test("Python Studio executes a real pandas result before offering the next case", async ({
+test("Python Studio keeps the next case available and validates a real pandas result", async ({
   page,
   isMobile,
 }) => {
@@ -21,8 +22,8 @@ test("Python Studio executes a real pandas result before offering the next case"
     page.getByRole("heading", { name: firstTask.title }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Sonraki açık Python vakası" }),
-  ).toBeDisabled();
+    page.getByRole("button", { name: "Sonraki vaka" }),
+  ).toBeEnabled();
 
   await expect
     .poll(() =>
@@ -57,30 +58,31 @@ test("Python Studio executes a real pandas result before offering the next case"
   await expect(resultTable).toContainText("row_count");
   await expect(resultTable).toContainText("missing_cells");
   await expect(resultTable).toContainText("6");
-  await expect(
-    page.getByText("Analiz çıktısı doğrulandı", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("status", { name: /Doğru —/ })).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`#\\/python\\/${firstTask.id}$`));
   await expect(
-    page.getByRole("button", { name: "Sonraki vakaya geç" }),
+    page.getByRole("button", { name: "Sonraki vaka" }),
   ).toBeVisible();
 });
 
-test("locked module links return a new learner to the first accessible case", async ({
+test("a learner can deep-link to any valid SQL case without a route guard", async ({
   page,
 }) => {
-  await page.goto("/#/lab/m11-t1");
+  const projectTask = tasks.find((task) => task.id === "m11-t1");
+  expect(projectTask).toBeTruthy();
 
-  await expect(page).toHaveURL(/#\/lab\/m1-t1$/);
+  await page.goto(`/#/lab/${projectTask!.id}`);
+
+  await expect(page).toHaveURL(new RegExp(`#\\/lab\\/${projectTask!.id}$`));
   await expect(
-    page.getByRole("heading", { name: "Katalog görünümünü hazırla" }),
+    page.getByRole("heading", { name: projectTask!.title }),
   ).toBeVisible();
-  const lockNotice = page.locator(".toast[role='status']");
-  await expect(lockNotice).toContainText("Pazarlama analitiği proje stüdyosu");
-  await expect(lockNotice).toContainText("Veriyle ilk temas");
+  await expect(
+    page.getByRole("navigation", { name: "SQL vaka gezintisi" }),
+  ).toBeVisible();
 });
 
-test("SQL Studio exposes the full route without changing its module locks", async ({
+test("SQL Studio exposes all 52 cases in its in-flow route drawer", async ({
   page,
 }) => {
   await page.goto("/#/lab/m1-t1");
@@ -89,38 +91,27 @@ test("SQL Studio exposes the full route without changing its module locks", asyn
     "false",
   );
 
-  const routeMenu = page.locator(".studio-curriculum-menu");
-  await routeMenu.locator(":scope > summary").click();
-  const popover = routeMenu.locator(".studio-curriculum-popover");
-  await expect(popover).toBeVisible();
-  await expect(routeMenu.locator(":scope > summary")).toContainText("0/52");
-  await expect(popover.getByText("Analist SQL rotası")).toBeVisible();
-  await expect(popover.getByText("Temelden portföy projelerine")).toBeVisible();
-  await expect(popover.locator(".studio-module-list > details")).toHaveCount(
-    11,
-  );
-  await expect(popover.locator(".studio-module-list button")).toHaveCount(52);
+  await page.getByRole("button", { name: "Rota · Vaka 1/52" }).click();
+  const drawer = page.getByRole("region", { name: "SQL rotası" });
+  await expect(drawer).toBeVisible();
+  await expect(drawer.getByText("Tüm vakalar açık")).toBeVisible();
+  await expect(drawer.locator(".studio-route-group")).toHaveCount(11);
+  await expect(drawer.locator(".studio-route-task")).toHaveCount(52);
   await expect(
-    popover.getByRole("button", { name: /Katalog görünümünü hazırla/i }),
+    drawer.getByRole("button", { name: /Katalog görünümünü hazırla/i }),
   ).toHaveAttribute("aria-current", "page");
 
-  const lockedModule = popover
-    .locator(".studio-module-list > details")
-    .filter({ hasText: "Veriyi filtreleme" });
-  await lockedModule.locator(":scope > summary").click();
-  await expect(
-    lockedModule.getByRole("button", {
-      name: /Yüksek tutarlı siparişleri ayır/i,
-    }),
-  ).toBeDisabled();
+  const allRouteTasks = drawer.locator(".studio-route-task");
+  for (let index = 0; index < 52; index += 1) {
+    await expect(allRouteTasks.nth(index)).toBeEnabled();
+  }
 
-  await popover
-    .getByRole("button", { name: /Kategori listesini tekilleştir/i })
+  const target = tasks.find((task) => task.id === "m11-t1")!;
+  await drawer
+    .getByRole("button", { name: new RegExp(target.title, "i") })
     .click();
-  await expect(page).toHaveURL(/#\/lab\/m1-t2$/);
-  await expect(
-    page.getByRole("heading", { name: "Kategori listesini tekilleştir" }),
-  ).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`#\\/lab\\/${target.id}$`));
+  await expect(page.getByRole("heading", { name: target.title })).toBeVisible();
 });
 
 test("SQL Studio keeps the document fixed across the target viewport matrix", async ({
@@ -132,6 +123,7 @@ test("SQL Studio keeps the document fixed across the target viewport matrix", as
   const viewports = [
     { width: 1440, height: 900 },
     { width: 1280, height: 800 },
+    { width: 1280, height: 720 },
     { width: 390, height: 844 },
   ] as const;
 
@@ -157,6 +149,7 @@ test("SQL Studio keeps the document fixed across the target viewport matrix", as
         ".brief-scroll:not([hidden])",
       );
       const workbench = document.querySelector<HTMLElement>(".workbench");
+      const rail = document.querySelector<HTMLElement>(".studio-action-zone");
       const scrollingElement = document.scrollingElement;
       if (
         !header ||
@@ -164,12 +157,15 @@ test("SQL Studio keeps the document fixed across the target viewport matrix", as
         !body ||
         !brief ||
         !workbench ||
+        !rail ||
         !scrollingElement
       ) {
         throw new Error("SQL Studio layout düğümleri bulunamadı.");
       }
       const headerBounds = header.getBoundingClientRect();
       const workspaceBounds = workspace.getBoundingClientRect();
+      const bodyBounds = body.getBoundingClientRect();
+      const railBounds = rail.getBoundingClientRect();
       return {
         documentHeightDelta: Math.abs(
           scrollingElement.scrollHeight - window.innerHeight,
@@ -178,6 +174,8 @@ test("SQL Studio keeps the document fixed across the target viewport matrix", as
         workspaceBottomDelta: Math.abs(
           workspaceBounds.bottom - window.innerHeight,
         ),
+        bodyRailGap: Math.abs(bodyBounds.bottom - railBounds.top),
+        railBottomDelta: Math.abs(railBounds.bottom - window.innerHeight),
         bodyMinHeight: getComputedStyle(body).minHeight,
         bodyOverflow: getComputedStyle(body).overflow,
         briefMinHeight: getComputedStyle(brief).minHeight,
@@ -190,6 +188,8 @@ test("SQL Studio keeps the document fixed across the target viewport matrix", as
     expect(layout.documentHeightDelta).toBeLessThanOrEqual(2);
     expect(layout.workspaceTopDelta).toBeLessThanOrEqual(1);
     expect(layout.workspaceBottomDelta).toBeLessThanOrEqual(1);
+    expect(layout.bodyRailGap).toBeLessThanOrEqual(1);
+    expect(layout.railBottomDelta).toBeLessThanOrEqual(1);
     expect(layout.bodyMinHeight).toBe("0px");
     expect(layout.bodyOverflow).toBe("hidden");
     expect(layout.briefMinHeight).toBe("0px");
@@ -202,6 +202,17 @@ test("SQL Studio keeps the document fixed across the target viewport matrix", as
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
 
     if (viewport.width <= 820) {
+      const railButtons = page
+        .getByRole("navigation", { name: "SQL vaka gezintisi" })
+        .locator(".studio-action-row > button");
+      await expect(railButtons).toHaveCount(3);
+      for (let index = 0; index < 3; index += 1) {
+        expect(
+          await railButtons
+            .nth(index)
+            .evaluate((element) => element.getBoundingClientRect().height),
+        ).toBeGreaterThanOrEqual(44);
+      }
       for (const tabName of [
         "Veri görünümü",
         "SQL görünümü",
@@ -251,6 +262,126 @@ test("SQL Studio keeps the document fixed across the target viewport matrix", as
     return matches;
   });
   expect(legacyViewportDeclarations).toEqual([]);
+});
+
+test("the workspace flex budget absorbs a two-times taller action rail", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "The flex-budget contract only needs one Chromium run.");
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto("/#/lab/m1-t1");
+  await expect(page.locator(".app-shell")).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
+
+  const measurement = await page.evaluate(() => {
+    const rail = document.querySelector<HTMLElement>(".studio-action-zone");
+    const body = document.querySelector<HTMLElement>(".workspace-body");
+    if (!rail || !body || !document.scrollingElement) {
+      throw new Error("Aksiyon rail bütçesi için gerekli düğümler bulunamadı.");
+    }
+    const initialHeight = rail.getBoundingClientRect().height;
+    rail.style.minHeight = `${initialHeight * 2}px`;
+    const railBounds = rail.getBoundingClientRect();
+    const bodyBounds = body.getBoundingClientRect();
+    return {
+      initialHeight,
+      doubledHeight: railBounds.height,
+      documentHeightDelta: Math.abs(
+        document.scrollingElement.scrollHeight - window.innerHeight,
+      ),
+      bodyRailGap: Math.abs(bodyBounds.bottom - railBounds.top),
+      railBottomDelta: Math.abs(railBounds.bottom - window.innerHeight),
+    };
+  });
+
+  expect(measurement.doubledHeight).toBeGreaterThanOrEqual(
+    measurement.initialHeight * 2 - 1,
+  );
+  expect(measurement.documentHeightDelta).toBeLessThanOrEqual(2);
+  expect(measurement.bodyRailGap).toBeLessThanOrEqual(1);
+  expect(measurement.railBottomDelta).toBeLessThanOrEqual(1);
+});
+
+test("Python Studio shares the fixed document and action-rail viewport contract", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "The explicit viewport matrix runs once in Chromium.");
+
+  const viewports = [
+    { width: 1440, height: 900 },
+    { width: 1280, height: 800 },
+    { width: 1280, height: 720 },
+    { width: 390, height: 844 },
+  ] as const;
+
+  for (const viewport of viewports) {
+    await page.setViewportSize(viewport);
+    await page.goto("/#/python/py-m1-t1");
+    await expect(page.locator(".app-shell")).toHaveAttribute(
+      "aria-busy",
+      "false",
+    );
+
+    const layout = await page.evaluate(() => {
+      const header = document.querySelector<HTMLElement>(".app-header");
+      const pageElement = document.querySelector<HTMLElement>(
+        ".python-studio-page",
+      );
+      const body = document.querySelector<HTMLElement>(".python-studio-body");
+      const rail = document.querySelector<HTMLElement>(".studio-action-zone");
+      const scrollingElement = document.scrollingElement;
+      if (!header || !pageElement || !body || !rail || !scrollingElement) {
+        throw new Error("Python Studio viewport düğümleri bulunamadı.");
+      }
+      const headerBounds = header.getBoundingClientRect();
+      const pageBounds = pageElement.getBoundingClientRect();
+      const bodyBounds = body.getBoundingClientRect();
+      const railBounds = rail.getBoundingClientRect();
+      return {
+        documentHeightDelta: Math.abs(
+          scrollingElement.scrollHeight - window.innerHeight,
+        ),
+        pageTopDelta: Math.abs(pageBounds.top - headerBounds.bottom),
+        pageBottomDelta: Math.abs(pageBounds.bottom - window.innerHeight),
+        bodyRailGap: Math.abs(bodyBounds.bottom - railBounds.top),
+        railBottomDelta: Math.abs(railBounds.bottom - window.innerHeight),
+        bodyMinHeight: getComputedStyle(body).minHeight,
+        bodyOverflow: getComputedStyle(body).overflow,
+      };
+    });
+
+    expect(layout.documentHeightDelta).toBeLessThanOrEqual(2);
+    expect(layout.pageTopDelta).toBeLessThanOrEqual(1);
+    expect(layout.pageBottomDelta).toBeLessThanOrEqual(1);
+    expect(layout.bodyRailGap).toBeLessThanOrEqual(1);
+    expect(layout.railBottomDelta).toBeLessThanOrEqual(1);
+    expect(layout.bodyMinHeight).toBe("0px");
+    expect(layout.bodyOverflow).toBe("hidden");
+
+    await page.evaluate(() => window.scrollTo(0, 1_000));
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+
+    if (viewport.width <= 820) {
+      await expect(
+        page.getByRole("tablist", { name: "Python çalışma alanı" }),
+      ).toBeVisible();
+      const railButtons = page
+        .getByRole("navigation", { name: "Python vaka gezintisi" })
+        .locator(".studio-action-row > button");
+      await expect(railButtons).toHaveCount(3);
+      for (let index = 0; index < 3; index += 1) {
+        expect(
+          await railButtons
+            .nth(index)
+            .evaluate((element) => element.getBoundingClientRect().height),
+        ).toBeGreaterThanOrEqual(44);
+      }
+    }
+  }
 });
 
 test("a 200-row SQL result scrolls only inside the result panel", async ({
@@ -881,6 +1012,30 @@ test("landing, onboarding and first real SQL task", async ({
       if (!model) throw new Error("Monaco modeli bulunamadı.");
       model.setValue(nextSql);
     }, sql);
+  const readRailGeometry = () =>
+    page.evaluate(() => {
+      const rail = document.querySelector<HTMLElement>(".studio-action-zone");
+      const next = document.querySelector<HTMLElement>(".studio-action-next");
+      if (!rail || !next)
+        throw new Error("Aksiyon rail geometrisi bulunamadı.");
+      const railBounds = rail.getBoundingClientRect();
+      const nextBounds = next.getBoundingClientRect();
+      return {
+        top: railBounds.top,
+        height: railBounds.height,
+        nextWidth: nextBounds.width,
+      };
+    });
+  const expectStableRail = (
+    actual: { top: number; height: number; nextWidth: number },
+    expected: { top: number; height: number; nextWidth: number },
+  ) => {
+    expect(Math.abs(actual.top - expected.top)).toBeLessThanOrEqual(1);
+    expect(Math.abs(actual.height - expected.height)).toBeLessThanOrEqual(1);
+    expect(Math.abs(actual.nextWidth - expected.nextWidth)).toBeLessThanOrEqual(
+      1,
+    );
+  };
 
   await expect
     .poll(() =>
@@ -911,6 +1066,7 @@ test("landing, onboarding and first real SQL task", async ({
   await expect(
     page.getByRole("heading", { name: "Katalog görünümünü hazırla" }),
   ).toBeVisible();
+  const idleRailGeometry = await readRailGeometry();
 
   await helpToggle.click();
   await expect(helpToggle).toHaveAttribute("aria-expanded", "true");
@@ -978,9 +1134,10 @@ test("landing, onboarding and first real SQL task", async ({
   ).toBeVisible();
 
   await editor.press("ControlOrMeta+K");
-  const commandDialog = page.getByRole("dialog", { name: "Komut paneli" });
-  await expect(commandDialog).toBeVisible();
-  await commandDialog.getByRole("button", { name: "Kapat" }).click();
+  const routeDrawer = page.getByRole("region", { name: "SQL rotası" });
+  await expect(routeDrawer).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(routeDrawer).toHaveCount(0);
 
   await editor.focus();
   await editor.press("ControlOrMeta+Enter");
@@ -993,6 +1150,7 @@ test("landing, onboarding and first real SQL task", async ({
     page.getByText("Kolonları yeniden kontrol et", { exact: true }),
   ).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText("İstenen iki bilgi alanına dön")).toBeVisible();
+  expectStableRail(await readRailGeometry(), idleRailGeometry);
   await expect
     .poll(() =>
       page.evaluate(() => {
@@ -1022,9 +1180,10 @@ test("landing, onboarding and first real SQL task", async ({
     await expect(resultTab).toBeFocused();
   }
 
-  await expect(page.getByText("Doğru çözüm", { exact: true })).toBeVisible({
+  await expect(page.getByRole("status", { name: /Doğru —/ })).toBeVisible({
     timeout: 20_000,
   });
+  expectStableRail(await readRailGeometry(), idleRailGeometry);
   const resultTable = page.getByRole("table", { name: "Sorgu sonucu" });
   await expect(resultTable).toBeVisible();
   await expect(resultTable.getByText("Desk Lamp")).toBeVisible();
@@ -1065,11 +1224,7 @@ test("landing, onboarding and first real SQL task", async ({
     completionPanel.getByText("Bu vakanın temel mantığı"),
   ).toBeVisible();
   await expect(resultTable.getByText("Desk Lamp")).toBeVisible();
-  await completionPanel
-    .getByRole("button", {
-      name: "Sonraki vakaya geç: Kategori listesini tekilleştir",
-    })
-    .click();
+  await page.getByRole("button", { name: "Sonraki vaka" }).click();
   await expect(
     page.getByRole("heading", { name: "Kategori listesini tekilleştir" }),
   ).toBeVisible();
@@ -1117,7 +1272,7 @@ test("landing, onboarding and first real SQL task", async ({
   await expect(restoredNotebook.getByText(caveat)).toBeVisible();
 });
 
-test("legacy learning path and settings remain usable on a narrow viewport", async ({
+test("learning path, settings and the in-flow route remain usable on a narrow viewport", async ({
   page,
   isMobile,
 }) => {
@@ -1214,7 +1369,6 @@ test("legacy learning path and settings remain usable on a narrow viewport", asy
   await expect(
     page.getByRole("tablist", { name: "Vaka çalışma adımları" }),
   ).toBeVisible();
-  const sqlRouteMenu = page.locator(".studio-curriculum-menu");
   for (const studioTarget of [
     page.getByRole("button", { name: "SQL Studio — SQL Laboratuvarı" }),
     page.getByRole("button", { name: "Python Studio" }),
@@ -1222,28 +1376,37 @@ test("legacy learning path and settings remain usable on a narrow viewport", asy
     const bounds = await studioTarget.boundingBox();
     expect(bounds?.height ?? 0).toBeGreaterThanOrEqual(43.9);
   }
-  await sqlRouteMenu.locator(":scope > summary").click();
-  const sqlRoutePopover = sqlRouteMenu.locator(".studio-curriculum-popover");
-  await expect(sqlRoutePopover).toBeVisible();
-  const popoverBounds = await sqlRoutePopover.boundingBox();
-  expect(popoverBounds?.x ?? -1).toBeGreaterThanOrEqual(0);
+  await page.getByRole("button", { name: /Rota · Vaka 1\/52/ }).click();
+  const routeDrawer = page.getByRole("region", { name: "SQL rotası" });
+  await expect(routeDrawer).toBeVisible();
+  await expect(routeDrawer).toHaveCSS("position", "static");
+  const drawerBounds = await routeDrawer.boundingBox();
+  expect(drawerBounds?.x ?? -1).toBeGreaterThanOrEqual(0);
   expect(
-    (popoverBounds?.x ?? 0) + (popoverBounds?.width ?? 321),
+    (drawerBounds?.x ?? 0) + (drawerBounds?.width ?? 321),
   ).toBeLessThanOrEqual(320);
   expect(
-    (popoverBounds?.y ?? 0) + (popoverBounds?.height ?? 701),
+    (drawerBounds?.y ?? 0) + (drawerBounds?.height ?? 701),
   ).toBeLessThanOrEqual(700);
   expect(
-    await sqlRoutePopover
-      .locator(".studio-module-list")
+    await routeDrawer
+      .locator(".studio-route-list")
       .evaluate((element) => element.scrollHeight > element.clientHeight),
   ).toBe(true);
+  expect(
+    await page.evaluate(() =>
+      Math.abs(
+        (document.scrollingElement?.scrollHeight ?? 0) - window.innerHeight,
+      ),
+    ),
+  ).toBeLessThanOrEqual(2);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,
     ),
   ).toBeLessThanOrEqual(0);
   await page.keyboard.press("Escape");
+  await expect(routeDrawer).toHaveCount(0);
   await page.getByRole("tab", { name: "SQL görünümü" }).click();
   await expect(page.getByRole("button", { name: /Çalıştır/i })).toBeVisible();
 });

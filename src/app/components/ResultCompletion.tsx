@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  ArrowRight,
   Check,
   CheckCircle2,
   Lightbulb,
@@ -45,9 +44,7 @@ interface ResultCompletionProps {
   rowCount: number;
   scoreAwarded: number;
   evidence?: CompletionEvidence;
-  nextTaskTitle?: string;
   onSaveNote: (note: ResultCompletionNoteInput) => void;
-  onNext: () => void;
 }
 
 export function ResultCompletion({
@@ -56,9 +53,7 @@ export function ResultCompletion({
   rowCount,
   scoreAwarded,
   evidence,
-  nextTaskTitle,
   onSaveNote,
-  onNext,
 }: ResultCompletionProps) {
   const [finding, setFinding] = useState(evidence?.note?.finding ?? "");
   const [recommendation, setRecommendation] = useState(
@@ -78,12 +73,6 @@ export function ResultCompletion({
       : scoreHintCount === 0
         ? "Yardım almadan tamamlandı · ilk doğrulamada kilitlendi"
         : `${MAX_CASE_SCORE} başlangıç − ${scoreHintCount} ipucu × ${HINT_SCORE_PENALTY} = ${scoreAwarded} · ilk doğrulamada kilitlendi`;
-  const nextLabel = nextTaskTitle
-    ? `Sonraki vaka: ${nextTaskTitle}`
-    : "İlerlemeyi görüntüle";
-  const nextAriaLabel = nextTaskTitle
-    ? `Sonraki vakaya geç: ${nextTaskTitle}`
-    : "İlerlemeyi görüntüle";
   const normalizedDraft = useMemo(
     () => ({
       finding: finding.trim(),
@@ -361,17 +350,9 @@ export function ResultCompletion({
 
       <div className="result-completion-actions">
         <span>
-          Sonuç ekranda kalır. Karar notunu yazabilir veya hazır olduğunda devam
-          edebilirsin.
+          Sonuç ekranda kalır. Karar notunu yazabilir; hazır olduğunda aşağıdaki
+          vaka gezintisinden devam edebilirsin.
         </span>
-        <button
-          className="primary-button"
-          type="button"
-          aria-label={nextAriaLabel}
-          onClick={onNext}
-        >
-          {nextLabel} <ArrowRight size={15} />
-        </button>
       </div>
     </section>
   );

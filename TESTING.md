@@ -28,7 +28,7 @@ Kullanıcının gördüğü/duyduğu davranış:
 - şema paneli ve ipucu açma,
 - çalıştırma sırasında disabled/loading durumu,
 - hata ve değerlendirme `aria-live` mesajı,
-- başarı özeti ve sonraki görev eylemi,
+- sonuç alanındaki tek satırlık başarı/hata şeridi ve kalıcı vaka rail'i,
 - reset/import onay akışları.
 
 Monaco, PGlite ve Pyodide Worker component testlerinde sözleşme seviyesinde adapter ile kontrol edilebilir; evaluator’lar mock’lanıp unutulmaz, ayrı gerçek entegrasyon testleri vardır.
@@ -56,10 +56,11 @@ Monaco, PGlite ve Pyodide Worker component testlerinde sözleşme seviyesinde ad
 - tema/ayar kalıcılığı,
 - klavye kısayolları,
 - mobil viewport’ta temel görev akışı,
-- header'da yalnız iki Studio hedefi ve her iki çalışma alanında klavye/mobil uyumlu rota menüsü,
+- header'da yalnız iki Studio hedefi ve her iki çalışma alanında klavye/mobil uyumlu akış içi rota çekmecesi,
 - ana sayfa başında iki Studio hedefinin açıklamalı biçimde pasif kalması, footer sonunda birlikte açılması ve doğrudan Studio rotalarının bu geçitten etkilenmemesi,
-- SQL rota menüsünde 11 modül/52 çalışma, aktif vaka, tamamlanma ve modül bazlı kilit davranışı,
-- Python Studio’ya header’dan giriş, dört mobil panel, gerçek DataFrame çalıştırma ve sonuçtan sonra açık sonraki-vaka eylemi,
+- SQL rota çekmecesinde 11 modül/52 erişilebilir çalışma, aktif vaka, deneme, tamamlanma ve puan durumu,
+- Python Studio’ya header’dan giriş, 12 erişilebilir vaka, dört mobil panel, gerçek DataFrame çalıştırma ve her durumda açık sonraki-vaka eylemi,
+- 1440×900, 1280×800, 1280×720 ve 390×844 boyutlarında belge yüksekliği, rail geometrisi ve 2× rail flex bütçesi,
 - export/import ve onaylı reset,
 - yerel profil oluşturma → çıkış → yenileme → aynı profile giriş yaşam döngüsü,
 - profil silmede iptal/onay ayrımı ve silinen verinin yeniden görünmemesi.
@@ -123,8 +124,8 @@ Otomatik testlerden sonra üretim build’inde:
 8. Export alınır, reset onaylanır, import ile geri yüklenir.
 9. Profil ekranından çıkış yapılır; header'ın misafir durumuna döndüğü, yenilemede çıkışın korunduğu ve yeniden girişte son vakaya dönüldüğü doğrulanır.
 10. Ayarlar'da `İlerlemeyi sıfırla` ile `Profili sil` açıklamaları karşılaştırılır; profil silme önce iptal edilir, sonra onaylanır ve yeni misafir durumu doğrulanır.
-11. Python Studio ilk EDA vakasında çalıştırılır; gerçek tablo, geri bildirim, ipucu/çözüm puanı, sonraki vaka kilidi ve yenileme sonrası taslak kontrol edilir.
-12. SQL Studio rota menüsü açılır; aktif vaka, 11 modül/52 çalışma, sonraki modül kilidi ve açık modül içindeki vaka geçişi kontrol edilir. Mobilde menünün yatay taşmadığı ve `Escape` ile kapandığı doğrulanır.
+11. Python Studio ilk EDA vakasında çalıştırılır; gerçek tablo, geri bildirim, ipucu/çözüm puanı, açık sonraki-vaka eylemi ve yenileme sonrası taslak kontrol edilir.
+12. SQL Studio rota çekmecesi açılır; aktif vaka, 11 modül/52 erişilebilir çalışma, durum ikonları ve uzak bir vakaya doğrudan geçiş kontrol edilir. Mobilde çekmecenin belgeyi büyütmediği ve `Escape` ile kapandığı doğrulanır.
 
 ## Hata ayıklama raporu
 

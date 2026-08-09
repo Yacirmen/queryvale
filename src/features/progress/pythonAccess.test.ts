@@ -27,25 +27,24 @@ describe("Python task access", () => {
     { id: "py-m2", title: "Temizlik" },
   ] as PythonCurriculumModule[];
 
-  it("keeps the first case open and locks later cases and modules", () => {
+  it("keeps every valid case open while prerequisites remain guidance", () => {
     expect(isPythonTaskAccessible(tasks[0], modules, tasks, {})).toBe(true);
-    expect(isPythonTaskAccessible(tasks[1], modules, tasks, {})).toBe(false);
-    expect(isPythonTaskAccessible(tasks[2], modules, tasks, {})).toBe(false);
+    expect(isPythonTaskAccessible(tasks[1], modules, tasks, {})).toBe(true);
+    expect(isPythonTaskAccessible(tasks[2], modules, tasks, {})).toBe(true);
   });
 
-  it("redirects a locked deep link to the first accessible incomplete case", () => {
+  it("opens a later deep link without redirecting", () => {
     const resolution = resolveAccessiblePythonTask(
       "py-m2-t1",
       modules,
       tasks,
       {},
     );
-    expect(resolution.wasRedirected).toBe(true);
-    expect(resolution.task?.id).toBe("py-m1-t1");
-    expect(resolution.blockingModule?.id).toBe("py-m1");
+    expect(resolution.wasRedirected).toBe(false);
+    expect(resolution.task?.id).toBe("py-m2-t1");
   });
 
-  it("opens the next case only after its prerequisite is complete", () => {
+  it("continues to resolve recommended-order cases after progress changes", () => {
     const progress = { "py-m1-t1": { completed: true } };
     expect(isPythonTaskAccessible(tasks[1], modules, tasks, progress)).toBe(
       true,

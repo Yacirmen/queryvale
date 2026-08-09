@@ -426,12 +426,7 @@ export function ProgressScreen({
             hasPythonTaskActivity(task.id, progress),
         );
         const suggested = module.tasks.find(
-          (task) =>
-            progress.pythonTasks[task.id]?.completed !== true &&
-            task.prerequisites.every(
-              (prerequisiteId) =>
-                progress.pythonTasks[prerequisiteId]?.completed === true,
-            ),
+          (task) => progress.pythonTasks[task.id]?.completed !== true,
         );
         const rate = module.tasks.length
           ? Math.round((completed / module.tasks.length) * 100)

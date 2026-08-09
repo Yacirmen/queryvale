@@ -339,7 +339,10 @@ export function SettingsScreen({
                   <div className="data-actions" aria-label="Klavye kısayolları">
                     <span className="keycap">⌘/Ctrl + Enter · Çalıştır</span>
                     <span className="keycap">⌘/Ctrl + S · Kaydet</span>
-                    <span className="keycap">⌘/Ctrl + K · Komutlar</span>
+                    <span className="keycap">⌘/Ctrl + K · Rota</span>
+                    <span className="keycap">
+                      ⇧ + ⌘/Ctrl + ←/→ · Önceki/sonraki vaka
+                    </span>
                     <span className="keycap">Esc · Kapat</span>
                   </div>
                 </div>
