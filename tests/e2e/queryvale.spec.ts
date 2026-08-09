@@ -522,6 +522,7 @@ test("the unified fixed header keeps both Studio controls visible across every r
     const brand = header.getByRole("button", {
       name: "Queryvale ana sayfa",
     });
+    const logo = brand.locator("img.brand-logo");
     const sqlStudio = header.getByRole("button", {
       name: "SQL Studio — SQL Laboratuvarı",
     });
@@ -532,6 +533,28 @@ test("the unified fixed header keeps both Studio controls visible across every r
     for (const control of [brand, sqlStudio, pythonStudio, start]) {
       await expect(control).toBeVisible();
     }
+    await expect(logo).toHaveAttribute("alt", "");
+    await expect(logo).toHaveAttribute("aria-hidden", "true");
+    await expect
+      .poll(() =>
+        logo.evaluate(
+          (element) =>
+            (element as HTMLImageElement).complete &&
+            (element as HTMLImageElement).naturalWidth > 0 &&
+            (element as HTMLImageElement).naturalHeight > 0,
+        ),
+      )
+      .toBe(true);
+    const brandBounds = await brand.boundingBox();
+    const logoBounds = await logo.boundingBox();
+    expect(logoBounds?.x ?? -1).toBeGreaterThanOrEqual(brandBounds?.x ?? 0);
+    expect(
+      (logoBounds?.x ?? 0) + (logoBounds?.width ?? Number.POSITIVE_INFINITY),
+    ).toBeLessThanOrEqual((brandBounds?.x ?? 0) + (brandBounds?.width ?? 0));
+    expect(logoBounds?.y ?? -1).toBeGreaterThanOrEqual(brandBounds?.y ?? 0);
+    expect(
+      (logoBounds?.y ?? 0) + (logoBounds?.height ?? Number.POSITIVE_INFINITY),
+    ).toBeLessThanOrEqual((brandBounds?.y ?? 0) + (brandBounds?.height ?? 0));
     await expect(
       header.getByRole("button", { name: "Rota", exact: true }),
     ).toHaveCount(0);
@@ -635,6 +658,8 @@ test("the local profile survives sign-out and can be deliberately deleted", asyn
   await page.getByRole("button", { name: "Başlangıç rehberini kapat" }).click();
 
   const header = page.locator(".app-header");
+  const brand = header.getByRole("button", { name: "Queryvale ana sayfa" });
+  const logo = brand.locator("img.brand-logo");
   const profile = header.getByRole("button", {
     name: "Profil — Ada Analist",
   });
@@ -645,6 +670,10 @@ test("the local profile survives sign-out and can be deliberately deleted", asyn
   await expect(profile).toBeVisible();
   await expect(profile).toContainText("Profil");
   await expect(settings).toBeVisible();
+  await expect(logo).toBeVisible();
+  if (isMobile) {
+    await expect(brand.locator(".brand-word")).toBeHidden();
+  }
 
   for (const control of [profile, settings]) {
     const bounds = await control.boundingBox();

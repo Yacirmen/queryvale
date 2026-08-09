@@ -65,6 +65,16 @@ export function AppHeader({
             aria-label="Queryvale ana sayfa"
             aria-current={screen === "home" ? "page" : undefined}
           >
+            {/* Shared Vite/Next header needs a base-path-relative portable asset. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              className="brand-logo"
+              src="./queryvale-logo.svg"
+              width={42}
+              height={30}
+              alt=""
+              aria-hidden="true"
+            />
             <strong className="brand-word">Queryvale</strong>
           </button>
 

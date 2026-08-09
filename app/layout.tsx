@@ -21,6 +21,10 @@ export const metadata: Metadata = {
   description:
     "Gerçek iş sorularını SQL ve Python ile çöz, sonucunu doğrula ve veri analisti gibi yorumla.",
   applicationName: "Queryvale",
+  icons: {
+    icon: [{ url: "/queryvale-logo.svg", type: "image/svg+xml" }],
+    shortcut: ["/queryvale-logo.svg"],
+  },
   alternates: {
     canonical: "https://yacirmen.github.io/queryvale/",
   },

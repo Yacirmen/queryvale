@@ -4,6 +4,26 @@ import { describe, expect, it, vi } from "vitest";
 import { AppHeader } from "./AppHeader";
 
 describe("AppHeader", () => {
+  it("uses the supplied logo as a decorative mark inside the accessible home action", async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    render(<AppHeader screen="home" onNavigate={onNavigate} />);
+
+    const brand = screen.getByRole("button", { name: "Queryvale ana sayfa" });
+    const logo = brand.querySelector("img.brand-logo");
+
+    expect(logo).toBeInTheDocument();
+    expect(logo).toHaveAttribute("src", "./queryvale-logo.svg");
+    expect(logo).toHaveAttribute("alt", "");
+    expect(logo).toHaveAttribute("aria-hidden", "true");
+    expect(logo).toHaveAttribute("width", "42");
+    expect(logo).toHaveAttribute("height", "30");
+    expect(brand).toHaveTextContent("Queryvale");
+
+    await user.click(brand);
+    expect(onNavigate).toHaveBeenCalledWith("home");
+  });
+
   it("shows both studios without a separate route button", () => {
     const { rerender } = render(
       <AppHeader screen="workspace" onNavigate={vi.fn()} />,

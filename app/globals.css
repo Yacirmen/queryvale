@@ -8248,6 +8248,7 @@ body:has(.app-shell[data-screen="workspace"]) {
   padding: 8px 0;
   display: inline-flex;
   align-items: center;
+  gap: 10px;
   background: transparent;
   box-shadow: none;
   cursor: pointer;
@@ -8255,6 +8256,15 @@ body:has(.app-shell[data-screen="workspace"]) {
   transition:
     filter 180ms ease,
     transform 180ms ease;
+}
+
+.app-header .brand-logo {
+  width: 42px;
+  height: auto;
+  aspect-ratio: 760 / 542;
+  flex: 0 0 auto;
+  display: block;
+  object-fit: contain;
 }
 
 .app-header .brand:hover,
@@ -8642,6 +8652,11 @@ body:has(.app-shell[data-screen="python"]) {
     grid-column: 1;
     grid-row: 1;
     justify-self: start;
+    gap: 7px;
+  }
+
+  .app-header .brand-logo {
+    width: 34px;
   }
 
   .app-header .brand-word {
@@ -8719,6 +8734,18 @@ body:has(.app-shell[data-screen="python"]) {
   .workspace-body[data-mobile-view="results"] .workbench {
     height: 100%;
     min-height: 0;
+  }
+}
+
+@media (max-width: 360px) {
+  .app-header .brand {
+    width: 44px;
+    justify-content: center;
+    padding-inline: 5px;
+  }
+
+  .app-header .brand-word {
+    display: none;
   }
 }
 
