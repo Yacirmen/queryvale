@@ -97,6 +97,37 @@ test("SQL Studio exposes all 52 cases in its in-flow route drawer", async ({
   await expect(drawer.getByText("Tüm vakalar açık")).toBeVisible();
   await expect(drawer.locator(".studio-route-group")).toHaveCount(11);
   await expect(drawer.locator(".studio-route-task")).toHaveCount(52);
+  const groupRects = await drawer
+    .locator(".studio-route-group")
+    .evaluateAll((groups) =>
+      groups.map((group) => {
+        const rect = group.getBoundingClientRect();
+        return {
+          left: rect.left,
+          right: rect.right,
+          top: rect.top,
+          bottom: rect.bottom,
+        };
+      }),
+    );
+  for (let first = 0; first < groupRects.length; first += 1) {
+    for (let second = first + 1; second < groupRects.length; second += 1) {
+      const horizontalOverlap = Math.max(
+        0,
+        Math.min(groupRects[first].right, groupRects[second].right) -
+          Math.max(groupRects[first].left, groupRects[second].left),
+      );
+      const verticalOverlap = Math.max(
+        0,
+        Math.min(groupRects[first].bottom, groupRects[second].bottom) -
+          Math.max(groupRects[first].top, groupRects[second].top),
+      );
+      expect(
+        horizontalOverlap * verticalOverlap,
+        `SQL rota grupları ${first + 1} ve ${second + 1} üst üste binmemeli`,
+      ).toBeLessThanOrEqual(1);
+    }
+  }
   await expect(
     drawer.getByRole("button", { name: /Katalog görünümünü hazırla/i }),
   ).toHaveAttribute("aria-current", "page");
