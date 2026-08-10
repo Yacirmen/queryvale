@@ -126,6 +126,8 @@ const firstContactTasks: LessonTask[] = [
       "products adlı ürün tablosundan product_name (ürün adı) ve category (kategori) kolonlarını bu sırayla getir.",
     difficulty: "beginner",
     estimatedMinutes: 5,
+    routeOrder: 1,
+    curriculumConcepts: ["K01"],
     prerequisites: [],
     concepts: ["SELECT"],
     setupSql: productSetupSql,
@@ -167,6 +169,8 @@ const firstContactTasks: LessonTask[] = [
       "products tablosundaki category (kategori) kolonunu getir; aynı kategori birden fazla üründe bulunsa da sonuçta yalnız bir kez görünsün.",
     difficulty: "beginner",
     estimatedMinutes: 6,
+    routeOrder: 2,
+    curriculumConcepts: ["K01", "K13"],
     prerequisites: ["m1-t1"],
     concepts: ["SELECT", "DISTINCT"],
     setupSql: productSetupSql,
@@ -201,7 +205,9 @@ const firstContactTasks: LessonTask[] = [
       "products tablosundaki ürünleri stock_quantity (stok miktarı) küçükten büyüğe sırala. İlk 3 satırın product_name (ürün adı) ve stock_quantity kolonlarını bu sırayla getir.",
     difficulty: "beginner",
     estimatedMinutes: 8,
-    prerequisites: ["m1-t2"],
+    routeOrder: 8,
+    curriculumConcepts: ["K01", "K03", "K04", "K19"],
+    prerequisites: ["m1-t4"],
     concepts: ["SELECT", "ORDER_BY", "LIMIT"],
     setupSql: productSetupSql,
     schema: productSchema,
@@ -239,7 +245,9 @@ const firstContactTasks: LessonTask[] = [
       "products tablosundan product_name (ürün adı) ve unit_price (birim fiyat) kolonlarını getir. Hiçbir ürünü elemeden unit_price değerini yüksekten düşüğe sırala.",
     difficulty: "beginner",
     estimatedMinutes: 6,
-    prerequisites: ["m1-t3"],
+    routeOrder: 7,
+    curriculumConcepts: ["K01", "K03"],
+    prerequisites: ["m2-t4"],
     concepts: ["SELECT", "ORDER_BY"],
     setupSql: productSetupSql,
     schema: productSchema,
@@ -365,7 +373,9 @@ const filteringTasks: LessonTask[] = [
       "total_amount değeri 500 veya daha yüksek olan siparişlerin order_id, customer_name ve total_amount kolonlarını getir.",
     difficulty: "beginner",
     estimatedMinutes: 7,
-    prerequisites: ["m1-t4"],
+    routeOrder: 3,
+    curriculumConcepts: ["K01", "K06"],
+    prerequisites: ["m1-t2"],
     concepts: ["SELECT", "WHERE", "COMPARISON"],
     setupSql: orderSetupSql,
     schema: orderSchema,
@@ -403,6 +413,8 @@ const filteringTasks: LessonTask[] = [
       "city değeri Ankara veya Istanbul olan ve status değeri pending olan siparişlerin order_id, customer_name ve city kolonlarını getir.",
     difficulty: "beginner",
     estimatedMinutes: 9,
+    routeOrder: 4,
+    curriculumConcepts: ["K01", "K05", "K07", "K10"],
     prerequisites: ["m2-t1"],
     concepts: ["WHERE", "AND", "IN"],
     setupSql: orderSetupSql,
@@ -440,6 +452,8 @@ const filteringTasks: LessonTask[] = [
       "ordered_at değeri 2026-01-04 ile 2026-01-07 arasında olan siparişlerin order_id, ordered_at ve total_amount kolonlarını tarihe göre artan sırada getir.",
     difficulty: "beginner",
     estimatedMinutes: 9,
+    routeOrder: 5,
+    curriculumConcepts: ["K01", "K03", "K11"],
     prerequisites: ["m2-t2"],
     concepts: ["WHERE", "BETWEEN", "ORDER_BY"],
     setupSql: orderSetupSql,
@@ -479,6 +493,8 @@ const filteringTasks: LessonTask[] = [
       "delivered_at değeri NULL olan ve customer_name içinde küçük 'e' harfi bulunan kayıtların customer_name ve status kolonlarını customer_name artan sırada getir.",
     difficulty: "beginner",
     estimatedMinutes: 10,
+    routeOrder: 6,
+    curriculumConcepts: ["K01", "K03", "K07", "K09", "K12"],
     prerequisites: ["m2-t3"],
     concepts: ["WHERE", "AND", "LIKE", "IS_NULL", "ORDER_BY"],
     setupSql: orderSetupSql,
@@ -504,6 +520,430 @@ const filteringTasks: LessonTask[] = [
     completionMessage:
       "Eksik teslimat listesi hazır. NULL ve metin desenlerini güvenle filtreleyebiliyorsun.",
     nextTaskId: "m3-t1",
+  }),
+];
+
+/**
+ * These drills are deliberately grouped immediately before the case whose
+ * order fixture they reuse. They introduce only the narrow part that would
+ * otherwise make the following beginner case carry several new operations.
+ */
+const filteringBridgeDrills: LessonTask[] = [
+  createTask({
+    id: "m2-d1",
+    slug: "distinct-order-cities",
+    moduleId: "module-2",
+    title: "Şehirleri tekilleştir",
+    subtitle: "Tekrar eden şehir adlarını kısa bir seçim listesine indir.",
+    scenario:
+      "Operasyon ekibi şehir filtresinde her seçeneği yalnız bir kez görmek istiyor.",
+    objective:
+      "orders tablosundan city kolonundaki her farklı şehri bir kez getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 3,
+    type: "drill_practice",
+    scored: false,
+    routeOrder: 2.1,
+    conceptsReinforced: ["K01", "K13"],
+    curriculumConcepts: ["K01", "K13"],
+    drillConcept:
+      "DISTINCT, seçtiğin şehir değeri tekrar etse bile sonucu bir kez bırakır. Burada satırları filtrelemez; yalnız aynı değeri yeniden yazmaz.",
+    prerequisites: [],
+    concepts: ["SELECT", "DISTINCT"],
+    setupSql: orderSetupSql,
+    schema: orderSchema,
+    sampleRows: orderSamples,
+    expectedColumns: ["city"],
+    validationMode: "result-and-concepts",
+    expectedResult: [["Istanbul"], ["Ankara"], ["Izmir"], ["Bursa"]],
+    orderSensitive: false,
+    requiredConcepts: ["DISTINCT"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "SELECT DISTINCT city FROM orders yapısıyla şehir değerlerini tekilleştir.",
+    ],
+    explanation:
+      "DISTINCT, aynı şehir adını birden çok sipariş verse bile sonuçta yalnız bir kez gösterir.",
+    completionMessage:
+      "Şehir seçimi temizlendi. DISTINCT'i yeni bir veri dünyasında tekrar kullandın.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m2-m1",
+    slug: "distinct-high-value-cities",
+    moduleId: "module-2",
+    title: "Tekrarsız kontrol şehirleri",
+    subtitle: "Bir seçim ve eşik filtresini aynı kısa listede buluştur.",
+    scenario:
+      "Finans ekibi, yalnız yüksek tutarlı siparişi olan şehirleri tekrar etmeden görmek istiyor.",
+    objective:
+      "total_amount değeri en az 500 olan siparişlerden city değerlerini tekrarsız getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 5,
+    type: "drill_mix",
+    scored: false,
+    routeOrder: 3.1,
+    conceptsReinforced: ["K01", "K13", "K06"],
+    curriculumConcepts: ["K01", "K13", "K06"],
+    drillConcept:
+      "DISTINCT sonuçta hangi tekrarların kalkacağını, WHERE ise hangi siparişlerin önce kalacağını belirler. Önce eşiği uygular, sonra kalan şehirleri tekilleştirirsin.",
+    prerequisites: [],
+    concepts: ["SELECT", "DISTINCT", "WHERE", "COMPARISON"],
+    setupSql: orderSetupSql,
+    schema: orderSchema,
+    sampleRows: orderSamples,
+    expectedColumns: ["city"],
+    validationMode: "result-and-concepts",
+    expectedResult: [["Istanbul"], ["Izmir"], ["Ankara"]],
+    orderSensitive: false,
+    requiredConcepts: ["DISTINCT", "WHERE", "COMPARISON"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "SELECT DISTINCT city ile başla; WHERE total_amount >= 500 koşulunu FROM orders sonrasına ekle.",
+    ],
+    explanation:
+      "Bu kısa çıktı, filtrelemenin ve tekilleştirmenin aynı sonuç üzerinde farklı işler yaptığını gösterir.",
+    completionMessage:
+      "Yüksek tutarlı şehirler tekilleşti. İki tanıdık yapıyı birlikte kullandın.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m2-d2",
+    slug: "pending-status-equality",
+    moduleId: "module-2",
+    title: "Tek durum eşitliği",
+    subtitle: "Bir metin değerine eşit olan siparişleri seç.",
+    scenario:
+      "Operasyon ekibi yalnız pending durumundaki siparişleri hızlıca görmek istiyor.",
+    objective:
+      "status değeri pending olan siparişlerin order_id ve status kolonlarını getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 3,
+    type: "drill_intro",
+    scored: false,
+    routeOrder: 3.2,
+    conceptNew: "K05",
+    conceptsReinforced: ["K01"],
+    curriculumConcepts: ["K01", "K05"],
+    drillConcept:
+      "WHERE içindeki = işareti, bir kolonu tek bir hedef değerle eşleştirir. Burada yalnız pending satırları kalır; diğer durumlar sonuçta görünmez.",
+    prerequisites: [],
+    concepts: ["SELECT", "WHERE"],
+    setupSql: orderSetupSql,
+    schema: orderSchema,
+    sampleRows: orderSamples,
+    expectedColumns: ["order_id", "status"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      [202, "pending"],
+      [207, "pending"],
+    ],
+    orderSensitive: false,
+    requiredConcepts: ["WHERE"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: ["FROM orders sonrasına WHERE status = 'pending' koşulunu ekle."],
+    explanation: "Eşitlik filtresi, tek bir iş durumuna ait satırları seçer.",
+    completionMessage: "Pending kuyruğu hazır. İlk eşitlik filtresini kurdun.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m2-d3",
+    slug: "city-set-filter",
+    moduleId: "module-2",
+    title: "Şehir kümesini seç",
+    subtitle: "Birden fazla kabul edilen şehri tek koşulda tanımla.",
+    scenario:
+      "Dağıtım ekibi iki öncelikli şehirdeki siparişleri aynı listede inceleyecek.",
+    objective:
+      "city değeri Ankara veya Istanbul olan siparişlerin order_id ve city kolonlarını getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 3,
+    type: "drill_intro",
+    scored: false,
+    routeOrder: 3.3,
+    conceptNew: "K10",
+    conceptsReinforced: ["K01"],
+    curriculumConcepts: ["K01", "K10"],
+    drillConcept:
+      "IN, aynı kolon için kabul edilen birkaç değeri okunaklı bir kümede toplar. Şehir değerini her biri için ayrı WHERE yazmadan karşılaştırırsın.",
+    prerequisites: [],
+    concepts: ["SELECT", "WHERE", "IN"],
+    setupSql: orderSetupSql,
+    schema: orderSchema,
+    sampleRows: orderSamples,
+    expectedColumns: ["order_id", "city"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      [201, "Istanbul"],
+      [202, "Ankara"],
+      [203, "Istanbul"],
+      [206, "Ankara"],
+      [207, "Istanbul"],
+    ],
+    orderSensitive: false,
+    requiredConcepts: ["IN"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: ["WHERE city IN ('Ankara', 'Istanbul') koşulunu kullan."],
+    explanation:
+      "IN, tek kolon için birden fazla eşitlik seçeneğini tek bir koşulda anlatır.",
+    completionMessage:
+      "Şehir kümesi seçildi. IN ile iki değeri tek koşulda yönettin.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m2-d4",
+    slug: "two-condition-filter",
+    moduleId: "module-2",
+    title: "İki koşulu birlikte tut",
+    subtitle: "Aynı satırın iki iş koşulunu da sağlamasını iste.",
+    scenario:
+      "Dağıtım ekibi Istanbul'daki yüksek tutarlı siparişi öncelikli kontrol listesine alacak.",
+    objective:
+      "city değeri Istanbul ve total_amount değeri en az 500 olan siparişlerin order_id ile customer_name kolonlarını getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 3,
+    type: "drill_intro",
+    scored: false,
+    routeOrder: 3.4,
+    conceptNew: "K07",
+    conceptsReinforced: ["K01", "K05", "K06"],
+    curriculumConcepts: ["K01", "K05", "K06", "K07"],
+    drillConcept:
+      "AND, iki koşulun da aynı satır için doğru olmasını ister. Bir koşul doğru olsa bile diğeri yanlışsa satır sonuçta kalmaz.",
+    prerequisites: [],
+    concepts: ["SELECT", "WHERE", "COMPARISON", "AND"],
+    setupSql: orderSetupSql,
+    schema: orderSchema,
+    sampleRows: orderSamples,
+    expectedColumns: ["order_id", "customer_name"],
+    validationMode: "result-and-concepts",
+    expectedResult: [[201, "Arda"]],
+    orderSensitive: false,
+    requiredConcepts: ["COMPARISON", "AND"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: ["WHERE city = 'Istanbul' AND total_amount >= 500 yapısını kur."],
+    explanation: "AND, iki daraltma kuralını aynı satır üzerinde kesiştirir.",
+    completionMessage: "İki koşul kesişti. AND ile doğru satırı korudun.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m2-m2",
+    slug: "priority-city-queue",
+    moduleId: "module-2",
+    title: "Öncelikli şehir kuyruğu",
+    subtitle: "Küme, durum ve tutar koşullarını aynı daraltmada birleştir.",
+    scenario:
+      "Finans operasyonu, iki şehirdeki bekleyen ve yüksek tutarlı siparişleri ayrı bir kontrol kuyruğuna alıyor.",
+    objective:
+      "Ankara veya Istanbul'da, pending durumda ve total_amount değeri en az 300 olan siparişlerin order_id ile city kolonlarını getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 5,
+    type: "drill_mix",
+    scored: false,
+    routeOrder: 4.1,
+    conceptsReinforced: ["K01", "K05", "K06", "K07", "K10"],
+    curriculumConcepts: ["K01", "K05", "K06", "K07", "K10"],
+    drillConcept:
+      "IN şehir kümesini, = durum eşitliğini ve >= eşiğini kurar; AND ise bu üç iş kuralını aynı sipariş üzerinde birleştirir.",
+    prerequisites: [],
+    concepts: ["SELECT", "WHERE", "COMPARISON", "AND", "IN"],
+    setupSql: orderSetupSql,
+    schema: orderSchema,
+    sampleRows: orderSamples,
+    expectedColumns: ["order_id", "city"],
+    validationMode: "result-and-concepts",
+    expectedResult: [[202, "Ankara"]],
+    orderSensitive: false,
+    requiredConcepts: ["WHERE", "COMPARISON", "AND", "IN"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "Şehir için IN, durum için =, tutar için >= yaz; üç koşulu AND ile bağla.",
+    ],
+    explanation:
+      "Aynı WHERE ifadesi, farklı türden iş koşullarını birlikte taşıyabilir.",
+    completionMessage:
+      "Öncelikli kuyruk daraltıldı. Filtre yapılarını birlikte kullandın.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m2-d5",
+    slug: "date-window-repeat",
+    moduleId: "module-2",
+    title: "Tarih penceresini tekrar kur",
+    subtitle: "Başlangıç ve bitiş gününü kapsayan satırları seç.",
+    scenario:
+      "Kampanya ekibi 5–8 Ocak arasındaki siparişleri ikinci bir kontrol listesinde görüyor.",
+    objective:
+      "ordered_at değeri 2026-01-05 ile 2026-01-08 arasında olan siparişlerin order_id ve ordered_at kolonlarını getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 3,
+    type: "drill_practice",
+    scored: false,
+    routeOrder: 5.1,
+    conceptsReinforced: ["K01", "K11"],
+    curriculumConcepts: ["K01", "K11"],
+    drillConcept:
+      "BETWEEN başlangıç ve bitiş değerlerini birlikte kapsar. Aynı tarih aralığını iki ayrı karşılaştırmaya bölmek zorunda kalmazsın.",
+    prerequisites: [],
+    concepts: ["SELECT", "WHERE", "BETWEEN"],
+    setupSql: orderSetupSql,
+    schema: orderSchema,
+    sampleRows: orderSamples,
+    expectedColumns: ["order_id", "ordered_at"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      [202, "2026-01-05"],
+      [203, "2026-01-06"],
+      [204, "2026-01-07"],
+      [205, "2026-01-08"],
+    ],
+    orderSensitive: false,
+    requiredConcepts: ["BETWEEN"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "WHERE ordered_at BETWEEN DATE '2026-01-05' AND DATE '2026-01-08' yaz.",
+    ],
+    explanation:
+      "BETWEEN, iki tarih sınırını da dahil eden kısa bir aralık filtresidir.",
+    completionMessage:
+      "Tarih penceresi yeniden hazır. Sınır günlerini korudun.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m2-d6",
+    slug: "missing-delivery-check",
+    moduleId: "module-2",
+    title: "Eksik teslimatı seç",
+    subtitle: "Boş teslim tarihi olan satırları ayır.",
+    scenario:
+      "Müşteri deneyimi ekibi teslim tarihi henüz oluşmamış siparişleri takip ediyor.",
+    objective:
+      "delivered_at değeri NULL olan siparişlerin order_id ve customer_name kolonlarını getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 3,
+    type: "drill_intro",
+    scored: false,
+    routeOrder: 5.2,
+    conceptNew: "K09",
+    conceptsReinforced: ["K01"],
+    curriculumConcepts: ["K01", "K09"],
+    drillConcept:
+      "NULL bilinmeyen ya da henüz girilmemiş değerdir; = NULL ile değil IS NULL ile kontrol edilir. Böylece yalnız eksik teslim tarihi olan satırlar kalır.",
+    prerequisites: [],
+    concepts: ["SELECT", "WHERE", "IS_NULL"],
+    setupSql: orderSetupSql,
+    schema: orderSchema,
+    sampleRows: orderSamples,
+    expectedColumns: ["order_id", "customer_name"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      [202, "Deniz"],
+      [203, "Ece"],
+      [205, "Selin"],
+      [207, "Lina"],
+    ],
+    orderSensitive: false,
+    requiredConcepts: ["IS_NULL"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "WHERE delivered_at IS NULL koşulunu kullan; eşittir işareti kullanma.",
+    ],
+    explanation:
+      "IS NULL, eksik teslim tarihi taşıyan siparişleri güvenle ayırır.",
+    completionMessage:
+      "Eksik teslimatlar seçildi. NULL kontrolünün ayrı yazımını öğrendin.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m2-d7",
+    slug: "name-pattern-check",
+    moduleId: "module-2",
+    title: "İsim desenini ara",
+    subtitle: "Metnin içinde geçen ortak harfi yakala.",
+    scenario:
+      "Destek ekibi, teslimatı henüz oluşmamış ve adında küçük e harfi geçen müşteriler için bir örnek arama görünümü hazırlıyor.",
+    objective:
+      "delivered_at değeri NULL ve customer_name içinde küçük e harfi bulunan kayıtların customer_name kolonunu getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 3,
+    type: "drill_intro",
+    scored: false,
+    routeOrder: 5.3,
+    conceptNew: "K12",
+    conceptsReinforced: ["K01", "K07", "K09"],
+    curriculumConcepts: ["K01", "K07", "K09", "K12"],
+    drillConcept:
+      "LIKE, metin içindeki bir deseni arar. Desenin iki yanındaki % işaretleri, harften önce veya sonra başka karakterlerin bulunabileceğini söyler.",
+    prerequisites: [],
+    concepts: ["SELECT", "WHERE", "AND", "IS_NULL", "LIKE"],
+    setupSql: orderSetupSql,
+    schema: orderSchema,
+    sampleRows: orderSamples,
+    expectedColumns: ["customer_name"],
+    validationMode: "result-and-concepts",
+    expectedResult: [["Deniz"], ["Ece"], ["Selin"]],
+    orderSensitive: false,
+    requiredConcepts: ["AND", "IS_NULL", "LIKE"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "WHERE delivered_at IS NULL AND customer_name LIKE '%e%' ile iki koşulu bağla.",
+    ],
+    explanation:
+      "LIKE deseni müşteri adındaki küçük e harfini eşler; AND bu aramayı eksik teslimat kontrolüyle kesiştirir.",
+    completionMessage: "Metin deseni bulundu. LIKE ile ilk aramanı yaptın.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m2-m3",
+    slug: "missing-delivery-pattern-window",
+    moduleId: "module-2",
+    title: "Eksik teslimat penceresi",
+    subtitle:
+      "Eksik değer, metin deseni ve tarihi tek kontrol listesinde birleştir.",
+    scenario:
+      "Operasyon ekibi, belirli günlerde alınmış ve takip gerektiren siparişleri tek listede inceliyor.",
+    objective:
+      "Teslim tarihi NULL, müşteri adı e içeren ve 5–8 Ocak arasında alınmış siparişlerin customer_name ile status kolonlarını ada göre artan sırada getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 5,
+    type: "drill_mix",
+    scored: false,
+    routeOrder: 5.4,
+    conceptsReinforced: ["K01", "K03", "K07", "K09", "K11", "K12"],
+    curriculumConcepts: ["K01", "K03", "K07", "K09", "K11", "K12"],
+    drillConcept:
+      "IS NULL, LIKE ve BETWEEN farklı türde filtrelerdir; AND hepsinin aynı siparişte doğru olmasını ister. ORDER BY ise kalan listeyi okunur sıraya koyar.",
+    prerequisites: [],
+    concepts: [
+      "SELECT",
+      "WHERE",
+      "AND",
+      "IS_NULL",
+      "LIKE",
+      "BETWEEN",
+      "ORDER_BY",
+    ],
+    setupSql: orderSetupSql,
+    schema: orderSchema,
+    sampleRows: orderSamples,
+    expectedColumns: ["customer_name", "status"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["Deniz", "pending"],
+      ["Ece", "cancelled"],
+      ["Selin", "processing"],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["AND", "IS_NULL", "LIKE", "BETWEEN", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "IS NULL, LIKE '%e%' ve BETWEEN koşullarını AND ile bağla; ardından customer_name ile sırala.",
+    ],
+    explanation:
+      "Üç filtre aynı risk tanımını kurar; sıralama ise kontrol listesini paylaşılabilir hâle getirir.",
+    completionMessage:
+      "Takip penceresi hazır. Farklı filtre yapılarını güvenle birleştirdin.",
+    nextTaskId: null,
   }),
 ];
 
@@ -605,7 +1045,9 @@ const transformationTasks: LessonTask[] = [
       "sale_id ile quantity * unit_price hesabını revenue alias'ı altında getir.",
     difficulty: "beginner",
     estimatedMinutes: 8,
-    prerequisites: ["m2-t4"],
+    routeOrder: 9,
+    curriculumConcepts: ["K01", "K02", "K99-ARITMETIK"],
+    prerequisites: ["m1-t3"],
     concepts: ["SELECT", "ARITHMETIC", "ALIAS"],
     setupSql: saleSetupSql,
     schema: saleSchema,
@@ -646,6 +1088,8 @@ const transformationTasks: LessonTask[] = [
       "sale_id ve agent_first_name ile agent_last_name değerlerini arada bir boşluk olacak şekilde birleştirip büyük harfe çeviren agent_name kolonunu getir.",
     difficulty: "beginner",
     estimatedMinutes: 10,
+    routeOrder: 10,
+    curriculumConcepts: ["K01", "K02", "K29"],
     prerequisites: ["m3-t1"],
     concepts: ["SELECT", "STRING_FUNCTION", "ALIAS"],
     setupSql: saleSetupSql,
@@ -687,6 +1131,8 @@ const transformationTasks: LessonTask[] = [
       "sale_id ile sale_date değerinden TO_CHAR kullanarak üretilen YYYY-MM biçimindeki sale_month kolonunu getir.",
     difficulty: "beginner",
     estimatedMinutes: 9,
+    routeOrder: 11,
+    curriculumConcepts: ["K01", "K02", "K28"],
     prerequisites: ["m3-t2"],
     concepts: ["SELECT", "DATE_FUNCTION", "ALIAS"],
     setupSql: saleSetupSql,
@@ -728,6 +1174,14 @@ const transformationTasks: LessonTask[] = [
       "sale_id değerini TEXT'e dönüştürüp sale_ref adıyla getir. quantity * unit_price 1000 ve üzerindeyse Yüksek, 500 ve üzerindeyse Orta, aksi halde Standart döndüren revenue_band kolonunu ekle.",
     difficulty: "intermediate",
     estimatedMinutes: 12,
+    routeOrder: 12,
+    curriculumConcepts: [
+      "K01",
+      "K02",
+      "K26",
+      "K99-ARITMETIK",
+      "K99-TIP_DONUSUMU",
+    ],
     prerequisites: ["m3-t3"],
     concepts: ["CAST", "CASE", "ARITHMETIC", "ALIAS"],
     setupSql: saleSetupSql,
@@ -756,6 +1210,278 @@ const transformationTasks: LessonTask[] = [
     completionMessage:
       "Gelir bantları hazır. Hesaplama, dönüşüm ve iş kuralını tek sorguda birleştirdin.",
     nextTaskId: "m4-t2",
+  }),
+];
+
+/**
+ * The first two drills use the next sales fixture as a transfer surface for
+ * the moved Top-N case. The remaining drills make text and date transforms
+ * recur before the multi-concept revenue-band case asks for them together.
+ */
+const transformationBridgeDrills: LessonTask[] = [
+  createTask({
+    id: "m3-d1",
+    slug: "sales-top-two-by-quantity",
+    moduleId: "module-3",
+    title: "İlk iki satış hareketi",
+    subtitle: "Bilinen sıralama ve sınırı yeni bir tabloda tekrar kullan.",
+    scenario:
+      "Satış lideri en yüksek adetli iki hareketi hızlıca kontrol ediyor.",
+    objective:
+      "sales tablosundan sale_id ve quantity kolonlarını quantity azalan sırada getir; yalnız ilk iki satırı bırak.",
+    difficulty: "beginner",
+    estimatedMinutes: 3,
+    type: "drill_practice",
+    scored: false,
+    routeOrder: 8.1,
+    conceptsReinforced: ["K01", "K03", "K04", "K19"],
+    curriculumConcepts: ["K01", "K03", "K04", "K19"],
+    drillConcept:
+      "Top-N, önce ORDER BY ile önem sırasını kurup sonra LIMIT ile gereken kadar satırı almaktır. Yeni tablo değişse de iki adımın sırası değişmez.",
+    prerequisites: [],
+    concepts: ["SELECT", "ORDER_BY", "LIMIT"],
+    setupSql: saleSetupSql,
+    schema: saleSchema,
+    sampleRows: saleSamples,
+    expectedColumns: ["sale_id", "quantity"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      [303, 10],
+      [306, 8],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["ORDER_BY", "LIMIT"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: ["quantity için DESC sıralaması kur, ardından LIMIT 2 ekle."],
+    explanation:
+      "En büyük adetler önce sıralanır; LIMIT yalnız bu sıralı listenin iki satırını bırakır.",
+    completionMessage:
+      "İlk iki hareket seçildi. Top-N iskeletini yeni veride korudun.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m3-m1",
+    slug: "sales-top-two-by-price",
+    moduleId: "module-3",
+    title: "Fiyata göre kısa liste",
+    subtitle: "Sıralama ve sınırı başka bir iş metriğine taşı.",
+    scenario:
+      "Satış lideri bu kez en yüksek birim fiyatlı iki hareketi karşılaştırıyor.",
+    objective:
+      "sales tablosundan sale_id ve unit_price kolonlarını unit_price azalan sırada getir; ilk iki satırla sınırla.",
+    difficulty: "beginner",
+    estimatedMinutes: 5,
+    type: "drill_mix",
+    scored: false,
+    routeOrder: 8.2,
+    conceptsReinforced: ["K01", "K03", "K04", "K19"],
+    curriculumConcepts: ["K01", "K03", "K04", "K19"],
+    drillConcept:
+      "Top-N şablonu metrikten bağımsızdır: önce hangi değerin üstte olacağını ORDER BY ile söylersin, sonra LIMIT ile kısa listeyi kesersin.",
+    prerequisites: [],
+    concepts: ["SELECT", "ORDER_BY", "LIMIT"],
+    setupSql: saleSetupSql,
+    schema: saleSchema,
+    sampleRows: saleSamples,
+    expectedColumns: ["sale_id", "unit_price"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      [305, 950],
+      [304, 420],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["ORDER_BY", "LIMIT"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "unit_price için DESC sıralaması kullan; sıralamadan sonra LIMIT 2 yaz.",
+    ],
+    explanation:
+      "Aynı Top-N yapısı, stok yerine fiyat önceliği için de çalışır.",
+    completionMessage:
+      "Fiyat kısa listesi hazır. Top-N yapısını transfer ettin.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m3-d2",
+    slug: "uppercase-agent-first-name",
+    moduleId: "module-3",
+    title: "Temsilci adını büyük yaz",
+    subtitle: "Tek bir metin alanını dönüştürüp anlamlı ad ver.",
+    scenario:
+      "Satış lideri kısa listede temsilci adlarını büyük harfle görmek istiyor.",
+    objective:
+      "sale_id ile agent_first_name değerini UPPER ile büyük harfe çeviren agent_label kolonunu getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 3,
+    type: "drill_practice",
+    scored: false,
+    routeOrder: 10.1,
+    conceptsReinforced: ["K01", "K02", "K29"],
+    curriculumConcepts: ["K01", "K02", "K29"],
+    drillConcept:
+      "UPPER tek bir metin değerinin gösterimini dönüştürür; AS ise bu yeni çıktıya raporda okunacak adı verir.",
+    prerequisites: [],
+    concepts: ["SELECT", "STRING_FUNCTION", "ALIAS"],
+    setupSql: saleSetupSql,
+    schema: saleSchema,
+    sampleRows: saleSamples,
+    expectedColumns: ["sale_id", "agent_label"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      [301, "ADA"],
+      [302, "CAN"],
+      [303, "ADA"],
+      [304, "EREN"],
+      [305, "IPEK"],
+      [306, "EREN"],
+    ],
+    orderSensitive: false,
+    requiredConcepts: ["STRING_FUNCTION", "ALIAS"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "UPPER(agent_first_name) AS agent_label ifadesini SELECT listesine ekle.",
+    ],
+    explanation:
+      "Metin fonksiyonu kaynak değeri değiştirmeden sonuçtaki gösterimini standardize eder.",
+    completionMessage:
+      "Temsilci etiketi hazır. Metin dönüşümünü yeniden kullandın.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m3-m2",
+    slug: "agent-label-and-revenue",
+    moduleId: "module-3",
+    title: "Etiket ve gelir birlikte",
+    subtitle: "Dönüşmüş metni ve hesaplanmış metriği aynı satırda buluştur.",
+    scenario:
+      "Satış lideri temsilci etiketiyle beraber hareket gelirini kısa bir görünümde inceliyor.",
+    objective:
+      "agent_first_name değerini büyük harfe çevirip agent_label adıyla getir; quantity * unit_price hesabını revenue adıyla aynı satırda ekle.",
+    difficulty: "beginner",
+    estimatedMinutes: 5,
+    type: "drill_mix",
+    scored: false,
+    routeOrder: 10.2,
+    conceptsReinforced: ["K01", "K02", "K29", "K99-ARITMETIK"],
+    curriculumConcepts: ["K01", "K02", "K29", "K99-ARITMETIK"],
+    drillConcept:
+      "Bir SELECT listesinde hem metin dönüşümü hem hesaplanmış metrik bulunabilir. Her ifade kendi AS adıyla çıktının ne söylediğini açıklar.",
+    prerequisites: [],
+    concepts: ["SELECT", "STRING_FUNCTION", "ARITHMETIC", "ALIAS"],
+    setupSql: saleSetupSql,
+    schema: saleSchema,
+    sampleRows: saleSamples,
+    expectedColumns: ["agent_label", "revenue"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["ADA", 480],
+      ["CAN", 700],
+      ["ADA", 450],
+      ["EREN", 1260],
+      ["IPEK", 950],
+      ["EREN", 640],
+    ],
+    orderSensitive: false,
+    requiredConcepts: ["STRING_FUNCTION", "ARITHMETIC", "ALIAS"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "UPPER(agent_first_name) AS agent_label ve quantity * unit_price AS revenue ifadelerini yan yana yaz.",
+    ],
+    explanation:
+      "Aynı satış satırından hem okunur etiket hem sayısal metrik üretilebilir.",
+    completionMessage:
+      "Etiket ve gelir birleşti. İki dönüşümü aynı çıktı sözleşmesinde kullandın.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m3-d3",
+    slug: "sale-year-repeat",
+    moduleId: "module-3",
+    title: "Satış yılını ayır",
+    subtitle: "Tarihten yalnız ihtiyacın olan zaman parçasını çıkar.",
+    scenario:
+      "Raporlama ekibi satış kimliğinin yanında yalnız yıl bilgisini görmek istiyor.",
+    objective:
+      "sale_id ile sale_date değerinden TO_CHAR kullanarak üretilen sale_year kolonunu getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 3,
+    type: "drill_practice",
+    scored: false,
+    routeOrder: 11.1,
+    conceptsReinforced: ["K01", "K02", "K28"],
+    curriculumConcepts: ["K01", "K02", "K28"],
+    drillConcept:
+      "TO_CHAR tarih değerinden raporun istediği parçayı çıkarır. 'YYYY' biçimi, gün ve ayı bırakıp yalnız yılı gösterir.",
+    prerequisites: [],
+    concepts: ["SELECT", "DATE_FUNCTION", "ALIAS"],
+    setupSql: saleSetupSql,
+    schema: saleSchema,
+    sampleRows: saleSamples,
+    expectedColumns: ["sale_id", "sale_year"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      [301, "2026"],
+      [302, "2026"],
+      [303, "2026"],
+      [304, "2026"],
+      [305, "2026"],
+      [306, "2026"],
+    ],
+    orderSensitive: false,
+    requiredConcepts: ["DATE_FUNCTION", "ALIAS"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: ["TO_CHAR(sale_date, 'YYYY') AS sale_year ifadesini kullan."],
+    explanation:
+      "Tarih fonksiyonu, gün bazındaki veriyi daha geniş raporlama zamanına dönüştürür.",
+    completionMessage:
+      "Satış yılı hazır. Tarih dönüşümünü farklı bir biçimde tekrar kullandın.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m3-m3",
+    slug: "month-label-standardization",
+    moduleId: "module-3",
+    title: "Ay etiketini standardize et",
+    subtitle: "Tarih ve metin dönüşümünü tek kısa etikette birleştir.",
+    scenario:
+      "Raporlama ekibi ay kısaltmalarını başlıkta aynı biçimde kullanmak istiyor.",
+    objective:
+      "sale_id ile sale_date değerinden ay kısaltmasını çıkar; bu metni büyük harfe çevirip sale_month_label adıyla getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 5,
+    type: "drill_mix",
+    scored: false,
+    routeOrder: 11.2,
+    conceptsReinforced: ["K01", "K02", "K28", "K29"],
+    curriculumConcepts: ["K01", "K02", "K28", "K29"],
+    drillConcept:
+      "TO_CHAR tarihi ay metnine çevirir; UPPER ise bu yeni metni tek bir görsel standarda taşır. Dönüşümler iç içe yazılabilir.",
+    prerequisites: [],
+    concepts: ["SELECT", "DATE_FUNCTION", "STRING_FUNCTION", "ALIAS"],
+    setupSql: saleSetupSql,
+    schema: saleSchema,
+    sampleRows: saleSamples,
+    expectedColumns: ["sale_id", "sale_month_label"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      [301, "JAN"],
+      [302, "JAN"],
+      [303, "FEB"],
+      [304, "FEB"],
+      [305, "MAR"],
+      [306, "MAR"],
+    ],
+    orderSensitive: false,
+    requiredConcepts: ["DATE_FUNCTION", "STRING_FUNCTION", "ALIAS"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "UPPER(TO_CHAR(sale_date, 'Mon')) AS sale_month_label yapısını kullan.",
+    ],
+    explanation:
+      "İç içe dönüşüm, tarih bilgisini standart rapor etiketine dönüştürür.",
+    completionMessage:
+      "Ay etiketleri standardize edildi. İki dönüşümü bilinçli biçimde birleştirdin.",
+    nextTaskId: null,
   }),
 ];
 
@@ -851,7 +1577,9 @@ const aggregationTasks: LessonTask[] = [
       "channel_orders verisini channel bazında grupla. order_count, total_amount, avg_amount, min_amount ve max_amount metriklerini üret; sonucu channel artan sırada getir.",
     difficulty: "intermediate",
     estimatedMinutes: 12,
-    prerequisites: ["m3-t4"],
+    routeOrder: 14,
+    curriculumConcepts: ["K01", "K02", "K03", "K14", "K15", "K16"],
+    prerequisites: ["m4-t3"],
     concepts: ["COUNT", "SUM", "AVG", "MIN", "MAX", "GROUP_BY", "ORDER_BY"],
     setupSql: channelOrderSetupSql,
     schema: channelOrderSchema,
@@ -904,7 +1632,9 @@ const aggregationTasks: LessonTask[] = [
       "Her channel için tüm satırları order_count, NULL olmayan coupon_code değerlerini coupon_order_count olarak say; sonucu channel artan sırada getir.",
     difficulty: "intermediate",
     estimatedMinutes: 10,
-    prerequisites: ["m4-t2"],
+    routeOrder: 13,
+    curriculumConcepts: ["K01", "K02", "K03", "K14", "K16"],
+    prerequisites: ["m3-t4"],
     concepts: ["COUNT", "GROUP_BY", "ORDER_BY"],
     setupSql: channelOrderSetupSql,
     schema: channelOrderSchema,
@@ -942,7 +1672,17 @@ const aggregationTasks: LessonTask[] = [
       "Her channel için SUM ve CASE kullanarak completed_orders, pending_orders ve cancelled_orders kolonlarını üret; sonucu channel artan sırada getir.",
     difficulty: "intermediate",
     estimatedMinutes: 13,
-    prerequisites: ["m4-t3"],
+    routeOrder: 15,
+    curriculumConcepts: [
+      "K01",
+      "K02",
+      "K03",
+      "K15",
+      "K16",
+      "K26",
+      "K99-KOSULLU_OZETLEME",
+    ],
+    prerequisites: ["m4-t2"],
     concepts: [
       "SUM",
       "CASE",
@@ -981,6 +1721,230 @@ const aggregationTasks: LessonTask[] = [
   }),
 ];
 
+const aggregationBridgeDrills: LessonTask[] = [
+  createTask({
+    id: "m4-d1",
+    slug: "total-order-count",
+    moduleId: "module-4",
+    title: "Tek COUNT",
+    subtitle: "Tablodaki tüm satırları tek bir sayıya indir.",
+    scenario:
+      "Operasyon ekibi, kanal sipariş tablosunda kaç hareket olduğunu tek sayı olarak görmek istiyor.",
+    objective:
+      "channel_orders tablosundaki toplam satır sayısını order_count adıyla getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 3,
+    type: "drill_intro",
+    scored: false,
+    routeOrder: 12.3,
+    conceptNew: "K14",
+    conceptsReinforced: ["K01", "K02"],
+    curriculumConcepts: ["K01", "K02", "K14"],
+    drillConcept:
+      "COUNT, çıktı tanesinin ilk kez değiştiği yerdir: birçok satır girer, tek satır çıkar. GROUP BY olmadan COUNT tüm tabloyu tek grupta özetler.",
+    prerequisites: [],
+    concepts: ["SELECT", "COUNT", "ALIAS"],
+    setupSql: channelOrderSetupSql,
+    schema: channelOrderSchema,
+    sampleRows: channelOrderSamples,
+    expectedColumns: ["order_count"],
+    validationMode: "result-and-concepts",
+    expectedResult: [[8]],
+    orderSensitive: false,
+    requiredConcepts: ["COUNT"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: ["COUNT(*) tüm satırları sayar; sonucu order_count diye adlandır."],
+    explanation:
+      "COUNT(*) filtre veya gruplama olmadan tabloya tek bir özet satırı üretir.",
+    completionMessage:
+      "Toplam sipariş sayısı hazır. İlk tek-satır özetini ürettin.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m4-d2",
+    slug: "orders-per-channel-count",
+    moduleId: "module-4",
+    title: "GROUP BY + tek aggregate",
+    subtitle: "Siparişleri kanal kovalarına ayırıp her kovayı say.",
+    scenario:
+      "Operasyon ekibi, toplam yerine her satış kanalındaki sipariş adedini karşılaştırmak istiyor.",
+    objective:
+      "channel_orders tablosunu channel kolonuna göre grupla ve her kanalın satır sayısını order_count adıyla getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 3,
+    type: "drill_intro",
+    scored: false,
+    routeOrder: 12.4,
+    conceptNew: "K16",
+    conceptsReinforced: ["K01", "K14"],
+    curriculumConcepts: ["K01", "K02", "K14", "K16"],
+    drillConcept:
+      "GROUP BY satırları ortak channel değeri olan kovalarına ayırır; COUNT ise her kovayı tek satıra indirir. Bu nedenle sonuçta kanal başına bir satır görürsün.",
+    prerequisites: [],
+    concepts: ["SELECT", "COUNT", "GROUP_BY", "ALIAS"],
+    setupSql: channelOrderSetupSql,
+    schema: channelOrderSchema,
+    sampleRows: channelOrderSamples,
+    expectedColumns: ["channel", "order_count"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["Partner", 2],
+      ["Store", 3],
+      ["Web", 3],
+    ],
+    orderSensitive: false,
+    requiredConcepts: ["COUNT", "GROUP_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "SELECT channel, COUNT(*) AS order_count ile başla; channel için GROUP BY ekle.",
+    ],
+    explanation:
+      "Tek kolonlu GROUP BY, her kanal için tek bir COUNT çıktısı üretir.",
+    completionMessage:
+      "Kanal kovaları hazır. GROUP BY ile özet satırlarının tanesini belirledin.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m4-d4",
+    slug: "cast-order-reference",
+    moduleId: "module-4",
+    title: "Sipariş kimliğini metne çevir",
+    subtitle: "Sayısal kimliği dışa aktarım için metin etikete dönüştür.",
+    scenario:
+      "Operasyon ekibi sipariş kimliklerini dışa aktarımda metin olarak kullanacak.",
+    objective:
+      "channel_orders tablosundan order_id değerini TEXT'e dönüştürüp order_ref adıyla getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 3,
+    type: "drill_practice",
+    scored: false,
+    routeOrder: 12.1,
+    conceptsReinforced: ["K01", "K02", "K99-TIP_DONUSUMU"],
+    curriculumConcepts: ["K01", "K02", "K99-TIP_DONUSUMU"],
+    drillConcept:
+      "CAST, değerin kendisini değil sonuçtaki veri tipini değiştirir. AS order_ref ise dönüştürülmüş kimliğin rapordaki amacını açıklar.",
+    prerequisites: [],
+    concepts: ["SELECT", "CAST", "ALIAS"],
+    setupSql: channelOrderSetupSql,
+    schema: channelOrderSchema,
+    sampleRows: channelOrderSamples,
+    expectedColumns: ["order_ref"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["4101"],
+      ["4102"],
+      ["4103"],
+      ["4104"],
+      ["4105"],
+      ["4106"],
+      ["4107"],
+      ["4108"],
+    ],
+    orderSensitive: false,
+    requiredConcepts: ["CAST", "ALIAS"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "CAST(order_id AS TEXT) AS order_ref ifadesini SELECT listesine ekle.",
+    ],
+    explanation:
+      "CAST sayısal kimliği metne çevirir; kaynak tablodaki order_id değeri değişmez.",
+    completionMessage:
+      "Sipariş referansları hazır. Tip dönüşümünü kısa bir çıktıda tekrar kullandın.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m4-m1",
+    slug: "cast-and-amount-band",
+    moduleId: "module-4",
+    title: "Metin referansı ve tutar bandı",
+    subtitle: "İki satır düzeyi dönüşümü tek görünümde birleştir.",
+    scenario:
+      "Operasyon ekibi dışa aktarım referansını ve tutar önemini aynı listede okumak istiyor.",
+    objective:
+      "order_id değerini TEXT'e dönüştürüp order_ref adıyla getir; order_amount 900 veya üzerindeyse Yüksek, değilse Standart döndüren amount_band kolonunu ekle.",
+    difficulty: "beginner",
+    estimatedMinutes: 5,
+    type: "drill_mix",
+    scored: false,
+    routeOrder: 12.2,
+    conceptsReinforced: ["K01", "K02", "K26", "K99-TIP_DONUSUMU"],
+    curriculumConcepts: ["K01", "K02", "K26", "K99-TIP_DONUSUMU"],
+    drillConcept:
+      "CAST kimliğin veri tipini, CASE ise tutarın iş etiketini üretir. İkisi de satır sayısını değiştirmeden SELECT içinde yeni kolonlar oluşturur.",
+    prerequisites: [],
+    concepts: ["SELECT", "CAST", "CASE", "ALIAS"],
+    setupSql: channelOrderSetupSql,
+    schema: channelOrderSchema,
+    sampleRows: channelOrderSamples,
+    expectedColumns: ["order_ref", "amount_band"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["4101", "Yüksek"],
+      ["4102", "Standart"],
+      ["4103", "Standart"],
+      ["4104", "Yüksek"],
+      ["4105", "Standart"],
+      ["4106", "Standart"],
+      ["4107", "Yüksek"],
+      ["4108", "Standart"],
+    ],
+    orderSensitive: false,
+    requiredConcepts: ["CAST", "CASE", "ALIAS"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "CAST(order_id AS TEXT) ile referansı üret; CASE WHEN order_amount >= 900 THEN 'Yüksek' ELSE 'Standart' END kullan.",
+    ],
+    explanation:
+      "İki satır düzeyi dönüşüm, aynı ham sipariş kaydını daha okunur bir rapor satırına çevirir.",
+    completionMessage:
+      "Referans ve tutar bandı hazır. Bilinen dönüşümleri birleştirdin.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m4-m2",
+    slug: "channel-count-and-total",
+    moduleId: "module-4",
+    title: "Kanal sayısı ve toplamı",
+    subtitle: "İki tanıdık metrikle yönetici özetini sadeleştir.",
+    scenario:
+      "Satış yöneticisi, her kanalda kaç sipariş ve ne kadar tutar bulunduğunu hızlıca karşılaştırıyor.",
+    objective:
+      "channel bazında order_count ve total_amount metriklerini üret; sonucu channel artan sırada getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 5,
+    type: "drill_mix",
+    scored: false,
+    routeOrder: 14.1,
+    conceptsReinforced: ["K01", "K02", "K03", "K14", "K15", "K16"],
+    curriculumConcepts: ["K01", "K02", "K03", "K14", "K15", "K16"],
+    drillConcept:
+      "GROUP BY kanal başına bir karar satırı üretir. COUNT hacmi, SUM ise parasal toplamı aynı grup için farklı metrikler olarak verir.",
+    prerequisites: [],
+    concepts: ["SELECT", "COUNT", "SUM", "GROUP_BY", "ORDER_BY", "ALIAS"],
+    setupSql: channelOrderSetupSql,
+    schema: channelOrderSchema,
+    sampleRows: channelOrderSamples,
+    expectedColumns: ["channel", "order_count", "total_amount"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["Partner", 2, 1000],
+      ["Store", 3, 1950],
+      ["Web", 3, 3000],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["COUNT", "SUM", "GROUP_BY", "ORDER_BY", "ALIAS"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "channel için GROUP BY yap; COUNT(*) AS order_count ve SUM(order_amount) AS total_amount ekleyip channel ile sırala.",
+    ],
+    explanation:
+      "Kısa iki-metrik özet, tam sağlık raporundaki aggregate ailesini daha yönetilebilir biçimde tekrarlar.",
+    completionMessage:
+      "Kanal sayısı ve toplamı hazır. Özet yapısını yeniden kullandın.",
+    nextTaskId: null,
+  }),
+];
+
 const summaryTask = createTask({
   id: "m4-t1",
   slug: "regional-revenue-summary",
@@ -993,6 +1957,8 @@ const summaryTask = createTask({
     "completed durumundaki işlemleri region bazında grupla. transaction_count ve total_revenue kolonlarını üret, toplam geliri en az 900 olan grupları total_revenue azalan sırada getir.",
   difficulty: "intermediate",
   estimatedMinutes: 14,
+  routeOrder: 16,
+  curriculumConcepts: ["K01", "K02", "K03", "K05", "K14", "K15", "K16", "K18"],
   prerequisites: ["m4-t4"],
   concepts: ["COUNT", "SUM", "GROUP_BY", "HAVING", "WHERE", "ORDER_BY"],
   setupSql: `
@@ -1076,6 +2042,147 @@ const summaryTask = createTask({
   nextTaskId: "m5-t2",
 });
 
+/**
+ * These two repeats come after the full status-matrix case and deliberately
+ * reuse the exact regional-summary fixture. The learner sees the same
+ * transaction world that the next case will use, but practises one narrow
+ * conditional metric before returning to the richer manager brief.
+ */
+const regionalSummaryBridgeDrills: LessonTask[] = [
+  createTask({
+    id: "m4-d3",
+    slug: "completed-transactions-per-region",
+    moduleId: "module-4",
+    title: "Tek koşullu sayaç",
+    subtitle: "CASE’i bölge bazında tek bir tamamlanma metriğine dönüştür.",
+    scenario:
+      "Bölge lideri, her bölgedeki tamamlanan işlem sayısını kısa bir kontrol listesinde görmek istiyor.",
+    objective:
+      "transactions tablosunu region bazında grupla. completed durumundaki işlemleri completed_transaction_count adıyla SUM(CASE ...) kullanarak say; sonucu region artan sırada getir.",
+    difficulty: "intermediate",
+    estimatedMinutes: 3,
+    type: "drill_practice",
+    scored: false,
+    routeOrder: 15.1,
+    conceptsReinforced: [
+      "K01",
+      "K02",
+      "K03",
+      "K15",
+      "K16",
+      "K26",
+      "K99-KOSULLU_OZETLEME",
+    ],
+    curriculumConcepts: [
+      "K01",
+      "K02",
+      "K03",
+      "K15",
+      "K16",
+      "K26",
+      "K99-KOSULLU_OZETLEME",
+    ],
+    drillConcept:
+      "CASE burada her satıra etiket vermek yerine aggregate’in içine girer. Eşleşen işlem 1, diğer işlem 0 olur; SUM her bölgedeki bu 1’leri toplar.",
+    prerequisites: [],
+    concepts: ["SELECT", "SUM", "CASE", "GROUP_BY", "ORDER_BY", "ALIAS"],
+    setupSql: summaryTask.setupSql,
+    schema: summaryTask.schema,
+    sampleRows: summaryTask.sampleRows,
+    expectedColumns: ["region", "completed_transaction_count"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["East", 1],
+      ["North", 1],
+      ["West", 2],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["SUM", "CASE", "GROUP_BY", "ORDER_BY", "ALIAS"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_transaction_count ifadesini region GROUP BY içinde kullan.",
+    ],
+    explanation:
+      "Koşullu özetleme, satır düzeyindeki CASE sonucunu grup düzeyinde tek bir sayaca dönüştürür.",
+    completionMessage:
+      "Bölgesel koşullu sayaç hazır. CASE’i grup metrikleri için tekrar kullandın.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m4-m3",
+    slug: "regional-completion-summary",
+    moduleId: "module-4",
+    title: "Bölgesel tamamlama özeti",
+    subtitle: "Hacim ve koşullu sayacı tek özet satırında birleştir.",
+    scenario:
+      "Operasyon lideri, her bölgedeki işlem hacminin yanında tamamlanan işlem sayısını birlikte görmek istiyor.",
+    objective:
+      "transactions tablosunu region bazında grupla. transaction_count ve completed_transaction_count metriklerini üret; sonucu region artan sırada getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 5,
+    type: "drill_mix",
+    scored: false,
+    routeOrder: 15.2,
+    conceptsReinforced: [
+      "K01",
+      "K02",
+      "K03",
+      "K14",
+      "K15",
+      "K16",
+      "K26",
+      "K99-KOSULLU_OZETLEME",
+    ],
+    curriculumConcepts: [
+      "K01",
+      "K02",
+      "K03",
+      "K14",
+      "K15",
+      "K16",
+      "K26",
+      "K99-KOSULLU_OZETLEME",
+    ],
+    drillConcept:
+      "COUNT bütün işlem hacmini, SUM(CASE ...) ise bu hacim içindeki tamamlanan işlemleri sayar. İkisi aynı GROUP BY kovasında yan yana okunur.",
+    prerequisites: [],
+    concepts: [
+      "SELECT",
+      "COUNT",
+      "SUM",
+      "CASE",
+      "GROUP_BY",
+      "ORDER_BY",
+      "ALIAS",
+    ],
+    setupSql: summaryTask.setupSql,
+    schema: summaryTask.schema,
+    sampleRows: summaryTask.sampleRows,
+    expectedColumns: [
+      "region",
+      "transaction_count",
+      "completed_transaction_count",
+    ],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["East", 2, 1],
+      ["North", 2, 1],
+      ["West", 2, 2],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["COUNT", "SUM", "CASE", "GROUP_BY", "ORDER_BY", "ALIAS"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "COUNT(*) AS transaction_count ile SUM(CASE ...) AS completed_transaction_count ifadelerini region GROUP BY içinde kullan.",
+    ],
+    explanation:
+      "İki metrik aynı bölge kovasının hem toplam hareketini hem de tamamlanma durumunu gösterir.",
+    completionMessage:
+      "Bölgesel tamamlama özeti hazır. Koşullu metriği daha geniş bir özetle birleştirdin.",
+    nextTaskId: null,
+  }),
+];
+
 const joinFoundationTasks: LessonTask[] = [
   createTask({
     id: "m5-t2",
@@ -1089,6 +2196,18 @@ const joinFoundationTasks: LessonTask[] = [
       "orders, customers ve order_items tablolarını INNER JOIN ile birleştir. Her order_id için customer_name ve quantity * unit_price toplamını order_total adıyla getir; order_id artan sırada sırala.",
     difficulty: "intermediate",
     estimatedMinutes: 15,
+    routeOrder: 17,
+    curriculumConcepts: [
+      "K01",
+      "K02",
+      "K03",
+      "K15",
+      "K17",
+      "K20",
+      "K24",
+      "K25",
+      "K99-ARITMETIK",
+    ],
     prerequisites: ["m4-t1"],
     concepts: [
       "PRIMARY_KEY",
@@ -1514,6 +2633,429 @@ const joinFoundationTasks: LessonTask[] = [
     completionMessage:
       "Sipariş satırları doğru şirket fiyatıyla eşleşti. JOIN cardinality hatasını önledin.",
     nextTaskId: "m5-t1",
+  }),
+];
+
+/**
+ * All three bridge drills intentionally reuse the exact m5-t2 fixture.
+ * They query only its customers/orders subset so the eventual three-table
+ * case feels like a continuation of a familiar data world, not a new puzzle.
+ */
+const orderValueCase = joinFoundationTasks[0]!;
+
+const joinBridgeDrills: LessonTask[] = [
+  createTask({
+    id: "m5-d1",
+    slug: "order-item-count-threshold",
+    moduleId: "module-5",
+    title: "HAVING ile eşik koy",
+    subtitle: "Grupları oluşturduktan sonra kalanları seç.",
+    scenario:
+      "Finans ekibi, toplam sipariş değeri en az 400 TL olan siparişlerin kalem sayısını kısa bir kontrol listesinde görmek istiyor.",
+    objective:
+      "order_items tablosunu order_id bazında grupla. quantity * unit_price toplamı en az 400 olan siparişler için order_id ve item_count kolonlarını order_id artan sırada getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 3,
+    type: "drill_practice",
+    scored: false,
+    routeOrder: 16.1,
+    conceptsReinforced: [
+      "K01",
+      "K02",
+      "K03",
+      "K14",
+      "K15",
+      "K16",
+      "K18",
+      "K99-ARITMETIK",
+    ],
+    curriculumConcepts: [
+      "K01",
+      "K02",
+      "K03",
+      "K14",
+      "K15",
+      "K16",
+      "K18",
+      "K99-ARITMETIK",
+    ],
+    drillConcept:
+      "HAVING, GROUP BY ile oluşmuş sipariş gruplarını filtreler. WHERE satırları gruplamadan önce seçerken, burada COUNT sonucu üzerinden karar verirsin.",
+    prerequisites: [],
+    concepts: [
+      "SELECT",
+      "COUNT",
+      "SUM",
+      "ARITHMETIC",
+      "GROUP_BY",
+      "HAVING",
+      "ORDER_BY",
+      "ALIAS",
+    ],
+    setupSql: orderValueCase.setupSql,
+    schema: orderValueCase.schema,
+    sampleRows: orderValueCase.sampleRows,
+    expectedColumns: ["order_id", "item_count"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      [5101, 2],
+      [5102, 1],
+      [5103, 1],
+    ],
+    orderSensitive: true,
+    requiredConcepts: [
+      "COUNT",
+      "SUM",
+      "ARITHMETIC",
+      "GROUP_BY",
+      "HAVING",
+      "ORDER_BY",
+      "ALIAS",
+    ],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "GROUP BY order_id sonrasında HAVING SUM(quantity * unit_price) >= 400 kullan; COUNT(*) sonucuna item_count alias'ını ver.",
+    ],
+    explanation:
+      "HAVING, yalnız oluşmuş grupları sayım veya toplam gibi aggregate sonuçlara göre seçer.",
+    completionMessage:
+      "Sipariş grupları filtrelendi. HAVING ile özet sonrası eşiği tekrar kullandın.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m5-d2",
+    slug: "order-customer-inner-join",
+    moduleId: "module-5",
+    title: "İki tablo INNER JOIN",
+    subtitle: "Sipariş başlığını müşterinin adıyla tek satırda buluştur.",
+    scenario:
+      "Finans ekibi, sipariş numarasının yanında müşterinin adını görmek için iki tabloyu birleştirmek istiyor.",
+    objective:
+      "orders ile customers tablolarını customer_id üzerinden INNER JOIN ile birleştir. order_id ve customer_name kolonlarını order_id artan sırada getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 3,
+    type: "drill_intro",
+    scored: false,
+    routeOrder: 16.3,
+    conceptNew: "K20",
+    conceptsReinforced: ["K01", "K03"],
+    curriculumConcepts: ["K01", "K03", "K20"],
+    drillConcept:
+      "INNER JOIN iki tablodaki eşleşen parçaları tek satırda buluşturur. ON koşulu hangi siparişin hangi müşteriye ait olduğunu söyler; bu bir filtre değil, ilişki kuralıdır.",
+    prerequisites: [],
+    concepts: ["SELECT", "INNER_JOIN", "ORDER_BY"],
+    setupSql: orderValueCase.setupSql,
+    schema: orderValueCase.schema,
+    sampleRows: orderValueCase.sampleRows,
+    expectedColumns: ["order_id", "customer_name"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      [5101, "Atlas Retail"],
+      [5102, "Mavi Market"],
+      [5103, "Atlas Retail"],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["INNER_JOIN", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "FROM orders o INNER JOIN customers c ON o.customer_id = c.customer_id ile iki kaynağı bağla; sonra o.order_id ile sırala.",
+    ],
+    explanation:
+      "INNER JOIN, eşleşen sipariş ve müşteri satırlarını aynı sonuç satırına taşır.",
+    completionMessage:
+      "Sipariş ve müşteri tek satırda buluştu. İlk INNER JOIN’ini kurdun.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m5-d3",
+    slug: "order-customer-item-join",
+    moduleId: "module-5",
+    title: "Üç tabloyu ilişkilendir",
+    subtitle: "Sipariş başlığından kalem ayrıntısına güvenli biçimde ilerle.",
+    scenario:
+      "Finans ekibi, müşteri adını her sipariş kaleminin yanında görmek için üç kaynağı bağlamak istiyor.",
+    objective:
+      "orders, customers ve order_items tablolarını INNER JOIN ile birleştir. order_id, customer_name ve item_id kolonlarını order_id, sonra item_id artan sırada getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 3,
+    type: "drill_intro",
+    scored: false,
+    routeOrder: 16.4,
+    conceptNew: "K24",
+    conceptsReinforced: ["K01", "K03", "K20"],
+    curriculumConcepts: ["K01", "K03", "K20", "K24"],
+    drillConcept:
+      "Üç tablo JOIN’i, aynı iş nesnesinin farklı parçalarını iki ilişki üzerinden bağlar. Önce siparişi müşteriye, sonra siparişi kalemlerine bağlarsın; sonuç satırı artık bir kalemdir.",
+    prerequisites: [],
+    concepts: ["SELECT", "INNER_JOIN", "MULTI_JOIN", "ORDER_BY"],
+    setupSql: orderValueCase.setupSql,
+    schema: orderValueCase.schema,
+    sampleRows: orderValueCase.sampleRows,
+    expectedColumns: ["order_id", "customer_name", "item_id"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      [5101, "Atlas Retail", 1],
+      [5101, "Atlas Retail", 2],
+      [5102, "Mavi Market", 3],
+      [5103, "Atlas Retail", 4],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["INNER_JOIN", "MULTI_JOIN", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "orders'ı önce customers ile customer_id üzerinden, sonra order_items ile order_id üzerinden INNER JOIN yap; o.order_id ve i.item_id ile sırala.",
+    ],
+    explanation:
+      "Çoklu JOIN iki ilişkiyi aynı satıra taşır; burada her sonuç satırı bir sipariş kalemini temsil eder.",
+    completionMessage:
+      "Üç tablo ilişkilendi. Bir sonraki vakada bu kalem satırlarını sipariş düzeyinde özetleyeceksin.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m5-m1",
+    slug: "high-value-order-totals",
+    moduleId: "module-5",
+    title: "Sipariş toplamına eşik koy",
+    subtitle:
+      "Kalemleri sipariş seviyesinde topla, sonra yüksek değerli grupları seç.",
+    scenario:
+      "Finans ekibi, toplamı en az 450 olan siparişleri öncelikli tahsilat listesinde incelemek istiyor.",
+    objective:
+      "order_items tablosunu order_id bazında grupla. quantity * unit_price toplamı en az 450 olan siparişler için order_id ve order_amount kolonlarını order_id artan sırada getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 5,
+    type: "drill_mix",
+    scored: false,
+    routeOrder: 16.2,
+    conceptsReinforced: [
+      "K01",
+      "K02",
+      "K03",
+      "K15",
+      "K16",
+      "K18",
+      "K99-ARITMETIK",
+    ],
+    curriculumConcepts: [
+      "K01",
+      "K02",
+      "K03",
+      "K15",
+      "K16",
+      "K18",
+      "K99-ARITMETIK",
+    ],
+    drillConcept:
+      "Önce quantity * unit_price ile kalem değerini üretirsin; SUM bunu sipariş toplamına çevirir. HAVING artık oluşmuş toplam üzerinde eşik uygular.",
+    prerequisites: [],
+    concepts: [
+      "SELECT",
+      "SUM",
+      "ARITHMETIC",
+      "GROUP_BY",
+      "HAVING",
+      "ORDER_BY",
+      "ALIAS",
+    ],
+    setupSql: orderValueCase.setupSql,
+    schema: orderValueCase.schema,
+    sampleRows: orderValueCase.sampleRows,
+    expectedColumns: ["order_id", "order_amount"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      [5101, 700],
+      [5102, 450],
+    ],
+    orderSensitive: true,
+    requiredConcepts: [
+      "SUM",
+      "ARITHMETIC",
+      "GROUP_BY",
+      "HAVING",
+      "ORDER_BY",
+      "ALIAS",
+    ],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "SUM(quantity * unit_price) AS order_amount yaz; GROUP BY order_id sonrasında HAVING SUM(quantity * unit_price) >= 450 ekle.",
+    ],
+    explanation:
+      "Aritmetik değer önce kalem düzeyinde, SUM ve HAVING ise sipariş düzeyinde çalışır.",
+    completionMessage:
+      "Yüksek değerli siparişler hazır. Özet sonrası eşik ve tutar hesabını birleştirdin.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m5-d4",
+    slug: "order-price-buckets",
+    moduleId: "module-5",
+    title: "İki kolonla grupla",
+    subtitle: "Sonuç tanesini sipariş ve fiyat birleşimi olarak belirle.",
+    scenario:
+      "Finans ekibi, her siparişte hangi birim fiyatların kaç kalemde tekrarlandığını görmek istiyor.",
+    objective:
+      "order_items tablosunu order_id ve unit_price kolonlarına göre grupla. order_id, unit_price ve line_count kolonlarını order_id, sonra unit_price artan sırada getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 3,
+    type: "drill_intro",
+    scored: false,
+    routeOrder: 16.5,
+    conceptNew: "K17",
+    conceptsReinforced: ["K01", "K02", "K03", "K14", "K16"],
+    curriculumConcepts: ["K01", "K02", "K03", "K14", "K16", "K17"],
+    drillConcept:
+      "Birden fazla GROUP BY kolonu, satırları tek bir özelliğe göre değil o özelliklerin birleşimine göre kovalar. Burada bir sonuç satırı bir sipariş–fiyat çiftidir.",
+    prerequisites: [],
+    concepts: ["SELECT", "COUNT", "GROUP_BY", "ORDER_BY", "ALIAS"],
+    setupSql: orderValueCase.setupSql,
+    schema: orderValueCase.schema,
+    sampleRows: orderValueCase.sampleRows,
+    expectedColumns: ["order_id", "unit_price", "line_count"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      [5101, 100, 1],
+      [5101, 500, 1],
+      [5102, 150, 1],
+      [5103, 100, 1],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["COUNT", "GROUP_BY", "ORDER_BY", "ALIAS"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "SELECT listesinde aggregate olmayan order_id ve unit_price değerlerinin ikisini de GROUP BY listesine ekle; COUNT(*) AS line_count ile say.",
+    ],
+    explanation:
+      "Çok kolonlu GROUP BY, her sipariş–fiyat birleşimi için ayrı bir özet satırı üretir.",
+    completionMessage:
+      "Çok kolonlu kovalar hazır. Sonuç tanesini iki anahtarla belirledin.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m5-d5",
+    slug: "customer-order-count-join",
+    moduleId: "module-5",
+    title: "JOIN sonucunu özetle",
+    subtitle: "İlişkili satırları müşteri düzeyinde bir karara indir.",
+    scenario:
+      "Finans ekibi, her müşterinin kaç sipariş verdiğini kısa bir özet halinde görmek istiyor.",
+    objective:
+      "orders ile customers tablolarını INNER JOIN ile birleştir. customer_name bazında grupla ve customer_name ile order_count kolonlarını customer_name artan sırada getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 3,
+    type: "drill_intro",
+    scored: false,
+    routeOrder: 16.6,
+    conceptNew: "K25",
+    conceptsReinforced: ["K01", "K02", "K03", "K14", "K16", "K20"],
+    curriculumConcepts: ["K01", "K02", "K03", "K14", "K16", "K20", "K25"],
+    drillConcept:
+      "JOIN ile oluşan sonuç da tek tablo gibi gruplanabilir. Önce müşteri-sipariş ilişkisini kurar, sonra GROUP BY ile müşteri başına satırları kovalar ve COUNT ile sayarsın.",
+    prerequisites: [],
+    concepts: [
+      "SELECT",
+      "INNER_JOIN",
+      "COUNT",
+      "GROUP_BY",
+      "ORDER_BY",
+      "ALIAS",
+    ],
+    setupSql: orderValueCase.setupSql,
+    schema: orderValueCase.schema,
+    sampleRows: orderValueCase.sampleRows,
+    expectedColumns: ["customer_name", "order_count"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["Atlas Retail", 2],
+      ["Mavi Market", 1],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["INNER_JOIN", "COUNT", "GROUP_BY", "ORDER_BY", "ALIAS"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "orders ve customers’ı customer_id ile birleştir; c.customer_name için GROUP BY ekleyip COUNT(*) AS order_count yaz ve customer_name ile sırala.",
+    ],
+    explanation:
+      "Birleştirilmiş satırları müşteri düzeyinde gruplamak, ilişki sonrası da özet tanesini açıkça korur.",
+    completionMessage:
+      "Müşteri sipariş özeti hazır. JOIN sonucunu GROUP BY ile yönettin.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m5-m2",
+    slug: "order-customer-item-summary",
+    moduleId: "module-5",
+    title: "Sipariş kalem özetini birleştir",
+    subtitle:
+      "Üç tabloyu, çoklu grubu ve ilişkili sayımı tek teslimde buluştur.",
+    scenario:
+      "Finans ekibi, her siparişin müşteri adıyla birlikte kaç kalemden oluştuğunu doğrulamak istiyor.",
+    objective:
+      "orders, customers ve order_items tablolarını INNER JOIN ile birleştir. order_id ve customer_name bazında grupla; item_count kolonunu üret ve sonucu order_id artan sırada getir.",
+    difficulty: "beginner",
+    estimatedMinutes: 5,
+    type: "drill_mix",
+    scored: false,
+    routeOrder: 16.7,
+    conceptsReinforced: [
+      "K01",
+      "K02",
+      "K03",
+      "K14",
+      "K17",
+      "K20",
+      "K24",
+      "K25",
+    ],
+    curriculumConcepts: [
+      "K01",
+      "K02",
+      "K03",
+      "K14",
+      "K17",
+      "K20",
+      "K24",
+      "K25",
+    ],
+    drillConcept:
+      "İki JOIN aynı sipariş satırını müşteri ve kalem bilgisiyle zenginleştirir. GROUP BY sipariş–müşteri tanesini korur; COUNT ise bu siparişteki kalemleri sayar.",
+    prerequisites: [],
+    concepts: [
+      "SELECT",
+      "INNER_JOIN",
+      "MULTI_JOIN",
+      "COUNT",
+      "GROUP_BY",
+      "ORDER_BY",
+      "ALIAS",
+    ],
+    setupSql: orderValueCase.setupSql,
+    schema: orderValueCase.schema,
+    sampleRows: orderValueCase.sampleRows,
+    expectedColumns: ["order_id", "customer_name", "item_count"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      [5101, "Atlas Retail", 2],
+      [5102, "Mavi Market", 1],
+      [5103, "Atlas Retail", 1],
+    ],
+    orderSensitive: true,
+    requiredConcepts: [
+      "INNER_JOIN",
+      "MULTI_JOIN",
+      "COUNT",
+      "GROUP_BY",
+      "ORDER_BY",
+      "ALIAS",
+    ],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "İki INNER JOIN'i kur; SELECT içindeki order_id ve customer_name değerlerinin ikisini de GROUP BY listesine ekleyip COUNT(i.item_id) AS item_count kullan.",
+    ],
+    explanation:
+      "Bu kısa teslim, bir sonraki vaka için gereken çoklu JOIN ve çok kolonlu GROUP BY iskeletini aynı veri dünyasında tekrarlar.",
+    completionMessage:
+      "Sipariş kalem özeti hazır. Üç tabloyu doğru tanede birleştirdin.",
+    nextTaskId: null,
   }),
 ];
 
@@ -2929,7 +4471,7 @@ const capstoneTask = createTask({
   nextTaskId: "m10-t2",
 });
 
-export const curriculum: CurriculumModule[] = [
+const authoredCurriculum: CurriculumModule[] = [
   defineModule({
     id: "module-1",
     slug: "data-first-contact",
@@ -2960,7 +4502,6 @@ export const curriculum: CurriculumModule[] = [
     description:
       "E-ticaret siparişlerinde eşik, küme, tarih aralığı, metin deseni ve eksik değer kontrolleri uygula.",
     difficulty: "beginner",
-    estimatedMinutes: 35,
     topics: [
       "WHERE",
       "Karşılaştırma operatörleri",
@@ -2971,7 +4512,8 @@ export const curriculum: CurriculumModule[] = [
       "NULL",
     ],
     prerequisites: ["module-1"],
-    tasks: filteringTasks,
+    estimatedMinutes: 71,
+    tasks: [...filteringTasks, ...filteringBridgeDrills],
   }),
   defineModule({
     id: "module-3",
@@ -2982,7 +4524,7 @@ export const curriculum: CurriculumModule[] = [
     description:
       "Satış hareketleri üzerinde alias, matematik, metin ve tarih fonksiyonları, CASE ve CAST kullan.",
     difficulty: "beginner",
-    estimatedMinutes: 39,
+    estimatedMinutes: 63,
     topics: [
       "Alias",
       "Matematiksel ifadeler",
@@ -2992,7 +4534,7 @@ export const curriculum: CurriculumModule[] = [
       "Veri tipi dönüşümü",
     ],
     prerequisites: ["module-2"],
-    tasks: transformationTasks,
+    tasks: [...transformationTasks, ...transformationBridgeDrills],
   }),
   defineModule({
     id: "module-4",
@@ -3003,7 +4545,7 @@ export const curriculum: CurriculumModule[] = [
     description:
       "COUNT, SUM, AVG, MIN ve MAX fonksiyonlarını GROUP BY, HAVING ve koşullu aggregation ile kullan.",
     difficulty: "intermediate",
-    estimatedMinutes: 49,
+    estimatedMinutes: 76,
     topics: [
       "COUNT, SUM ve AVG",
       "MIN ve MAX",
@@ -3012,7 +4554,14 @@ export const curriculum: CurriculumModule[] = [
       "Koşullu aggregation",
     ],
     prerequisites: ["module-3"],
-    tasks: [...aggregationTasks, summaryTask],
+    // routeOrder keeps the original IDs stable while placing narrow practice
+    // before the heavier aggregate cases.
+    tasks: [
+      ...aggregationBridgeDrills,
+      ...aggregationTasks,
+      ...regionalSummaryBridgeDrills,
+      summaryTask,
+    ],
   }),
   defineModule({
     id: "module-5",
@@ -3023,7 +4572,7 @@ export const curriculum: CurriculumModule[] = [
     description:
       "Primary ve foreign key ilişkilerinden başlayarak INNER JOIN, LEFT JOIN, çoklu ve self JOIN yapılarını öğren.",
     difficulty: "intermediate",
-    estimatedMinutes: 57,
+    estimatedMinutes: 82,
     topics: [
       "Primary key ve foreign key",
       "INNER JOIN",
@@ -3033,7 +4582,7 @@ export const curriculum: CurriculumModule[] = [
       "Birden fazla anahtar üzerinden JOIN",
     ],
     prerequisites: ["module-4"],
-    tasks: [...joinFoundationTasks, joinTask],
+    tasks: [...joinBridgeDrills, ...joinFoundationTasks, joinTask],
   }),
   defineModule({
     id: "module-6",
@@ -3149,9 +4698,48 @@ export const curriculum: CurriculumModule[] = [
   marketingProjectModule,
 ];
 
+/**
+ * Route order is a learning-flow concern, not an ID convention. Legacy cases
+ * retain their original ordinal positions; short bridge drills occupy explicit
+ * fractional positions between them. Consumers always use this normalized
+ * order for navigation, resume and counters.
+ */
+function normalizeCurriculumRoute(
+  authoredModules: readonly CurriculumModule[],
+): CurriculumModule[] {
+  let nextLegacyOrder = 1;
+  const legacyRouteOrder = new Map<string, number>();
+
+  for (const curriculumModule of authoredModules) {
+    for (const task of curriculumModule.tasks) {
+      if (task.type !== "case") continue;
+      legacyRouteOrder.set(task.id, nextLegacyOrder);
+      nextLegacyOrder += 1;
+    }
+  }
+
+  return authoredModules.map((curriculumModule) => ({
+    ...curriculumModule,
+    tasks: curriculumModule.tasks
+      .map((task) => ({
+        ...task,
+        routeOrder:
+          task.routeOrder > 0
+            ? task.routeOrder
+            : (legacyRouteOrder.get(task.id) ?? task.routeOrder),
+      }))
+      .toSorted((left, right) => left.routeOrder - right.routeOrder),
+  }));
+}
+
+export const curriculum: CurriculumModule[] =
+  normalizeCurriculumRoute(authoredCurriculum);
+
 /** Flat views keep navigation, lookup and progress calculations inexpensive. */
 export const modules = curriculum;
-export const tasks: LessonTask[] = curriculum.flatMap((module) => module.tasks);
+export const tasks: LessonTask[] = curriculum
+  .flatMap((module) => module.tasks)
+  .toSorted((left, right) => left.routeOrder - right.routeOrder);
 
 export const moduleById: ReadonlyMap<string, CurriculumModule> = new Map(
   modules.map((module) => [module.id, module]),
@@ -3199,6 +4787,7 @@ export const assertCurriculumIsValid = (
   const moduleSlugs = new Set<string>();
   const taskIds = new Set<string>();
   const taskSlugs = new Set<string>();
+  const taskRouteOrders = new Set<number>();
   const authoredTasks = authoredModules.flatMap((module) => module.tasks);
 
   for (const [moduleIndex, curriculumModule] of authoredModules.entries()) {
@@ -3224,6 +4813,15 @@ export const assertCurriculumIsValid = (
     ) {
       throw new Error(`${curriculumModule.id} süre ve konu bilgisi içermeli.`);
     }
+    const calculatedMinutes = curriculumModule.tasks.reduce(
+      (total, task) => total + task.estimatedMinutes,
+      0,
+    );
+    if (curriculumModule.estimatedMinutes !== calculatedMinutes) {
+      throw new Error(
+        `${curriculumModule.id} süre bilgisi görev süreleriyle uyuşmuyor.`,
+      );
+    }
     moduleIds.add(curriculumModule.id);
     moduleSlugs.add(curriculumModule.slug);
   }
@@ -3246,8 +4844,43 @@ export const assertCurriculumIsValid = (
         `${task.id} çalıştırılabilir SQL kurulumu, hedef ve örnek çözüm içermeli.`,
       );
     }
-    if (task.estimatedMinutes <= 0 || task.hints.length !== 3) {
-      throw new Error(`${task.id} süre ve üç aşamalı ipucu içermeli.`);
+    if (!Number.isFinite(task.routeOrder) || task.routeOrder <= 0) {
+      throw new Error(`${task.id} geçerli bir routeOrder içermeli.`);
+    }
+    if (taskRouteOrders.has(task.routeOrder)) {
+      throw new Error(`${task.id} routeOrder değeri benzersiz olmalı.`);
+    }
+    taskRouteOrders.add(task.routeOrder);
+    if (task.estimatedMinutes <= 0) {
+      throw new Error(`${task.id} pozitif süre içermeli.`);
+    }
+    if (task.type === "case") {
+      if (!task.scored || task.hints.length !== 3) {
+        throw new Error(
+          `${task.id} vaka olarak puanlı ve üç aşamalı ipuçlu olmalı.`,
+        );
+      }
+    } else {
+      const isMix = task.type === "drill_mix";
+      const hasValidDuration = isMix
+        ? task.estimatedMinutes === 5
+        : task.estimatedMinutes >= 2 && task.estimatedMinutes <= 3;
+      const hasExpectedNewConcept =
+        task.type === "drill_intro"
+          ? Boolean(task.conceptNew)
+          : task.conceptNew === undefined;
+      if (
+        task.scored ||
+        task.hints.length !== 1 ||
+        !hasValidDuration ||
+        !hasExpectedNewConcept ||
+        !task.conceptsReinforced?.length ||
+        !task.drillConcept?.trim()
+      ) {
+        throw new Error(
+          `${task.id} alıştırma alt tipi için puansız, tek ipuçlu ve kavram sözleşmesini karşılamalı.`,
+        );
+      }
     }
     if (
       task.expectedColumns.length === 0 ||

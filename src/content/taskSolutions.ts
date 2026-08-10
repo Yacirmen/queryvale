@@ -64,6 +64,62 @@ export const TASK_SOLUTIONS: Readonly<Record<string, string>> = {
       AND customer_name LIKE '%e%'
     ORDER BY customer_name;
   `),
+  "m2-d1": sql(`
+    SELECT DISTINCT city
+    FROM orders;
+  `),
+  "m2-m1": sql(`
+    SELECT DISTINCT city
+    FROM orders
+    WHERE total_amount >= 500;
+  `),
+  "m2-d2": sql(`
+    SELECT order_id, status
+    FROM orders
+    WHERE status = 'pending';
+  `),
+  "m2-d3": sql(`
+    SELECT order_id, city
+    FROM orders
+    WHERE city IN ('Ankara', 'Istanbul');
+  `),
+  "m2-d4": sql(`
+    SELECT order_id, customer_name
+    FROM orders
+    WHERE city = 'Istanbul'
+      AND total_amount >= 500;
+  `),
+  "m2-m2": sql(`
+    SELECT order_id, city
+    FROM orders
+    WHERE city IN ('Ankara', 'Istanbul')
+      AND status = 'pending'
+      AND total_amount >= 300;
+  `),
+  "m2-d5": sql(`
+    SELECT order_id, ordered_at
+    FROM orders
+    WHERE ordered_at BETWEEN DATE '2026-01-05' AND DATE '2026-01-08';
+  `),
+  "m2-d6": sql(`
+    SELECT order_id, customer_name
+    FROM orders
+    WHERE delivered_at IS NULL;
+  `),
+  "m2-d7": sql(`
+    SELECT customer_name
+    FROM orders
+    WHERE delivered_at IS NULL
+      AND customer_name LIKE '%e%';
+  `),
+  "m2-m3": sql(`
+    SELECT customer_name, status
+    FROM orders
+    WHERE delivered_at IS NULL
+      AND customer_name LIKE '%e%'
+      AND ordered_at BETWEEN DATE '2026-01-05' AND DATE '2026-01-08'
+    ORDER BY customer_name;
+  `),
   "m3-t1": sql(`
     SELECT sale_id, quantity * unit_price AS revenue
     FROM sales;
@@ -76,6 +132,46 @@ export const TASK_SOLUTIONS: Readonly<Record<string, string>> = {
   `),
   "m3-t3": sql(`
     SELECT sale_id, TO_CHAR(sale_date, 'YYYY-MM') AS sale_month
+    FROM sales;
+  `),
+  "m3-d1": sql(`
+    SELECT
+      sale_id,
+      quantity
+    FROM sales
+    ORDER BY quantity DESC
+    LIMIT 2;
+  `),
+  "m3-m1": sql(`
+    SELECT
+      sale_id,
+      unit_price
+    FROM sales
+    ORDER BY unit_price DESC
+    LIMIT 2;
+  `),
+  "m3-d2": sql(`
+    SELECT
+      sale_id,
+      UPPER(agent_first_name) AS agent_label
+    FROM sales;
+  `),
+  "m3-m2": sql(`
+    SELECT
+      UPPER(agent_first_name) AS agent_label,
+      quantity * unit_price AS revenue
+    FROM sales;
+  `),
+  "m3-d3": sql(`
+    SELECT
+      sale_id,
+      TO_CHAR(sale_date, 'YYYY') AS sale_year
+    FROM sales;
+  `),
+  "m3-m3": sql(`
+    SELECT
+      sale_id,
+      UPPER(TO_CHAR(sale_date, 'Mon')) AS sale_month_label
     FROM sales;
   `),
   "m3-t4": sql(`
@@ -99,6 +195,30 @@ export const TASK_SOLUTIONS: Readonly<Record<string, string>> = {
     HAVING SUM(amount) >= 900
     ORDER BY total_revenue DESC;
   `),
+  "m4-d1": sql(`
+    SELECT COUNT(*) AS order_count
+    FROM channel_orders;
+  `),
+  "m4-d2": sql(`
+    SELECT
+      channel,
+      COUNT(*) AS order_count
+    FROM channel_orders
+    GROUP BY channel;
+  `),
+  "m4-d4": sql(`
+    SELECT CAST(order_id AS TEXT) AS order_ref
+    FROM channel_orders;
+  `),
+  "m4-m1": sql(`
+    SELECT
+      CAST(order_id AS TEXT) AS order_ref,
+      CASE
+        WHEN order_amount >= 900 THEN 'Yüksek'
+        ELSE 'Standart'
+      END AS amount_band
+    FROM channel_orders;
+  `),
   "m4-t2": sql(`
     SELECT
       channel,
@@ -119,6 +239,32 @@ export const TASK_SOLUTIONS: Readonly<Record<string, string>> = {
     FROM channel_orders
     GROUP BY channel
     ORDER BY channel;
+  `),
+  "m4-d3": sql(`
+    SELECT
+      region,
+      SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_transaction_count
+    FROM transactions
+    GROUP BY region
+    ORDER BY region;
+  `),
+  "m4-m2": sql(`
+    SELECT
+      channel,
+      COUNT(*) AS order_count,
+      SUM(order_amount) AS total_amount
+    FROM channel_orders
+    GROUP BY channel
+    ORDER BY channel;
+  `),
+  "m4-m3": sql(`
+    SELECT
+      region,
+      COUNT(*) AS transaction_count,
+      SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_transaction_count
+    FROM transactions
+    GROUP BY region
+    ORDER BY region;
   `),
   "m4-t4": sql(`
     SELECT
@@ -146,6 +292,71 @@ export const TASK_SOLUTIONS: Readonly<Record<string, string>> = {
       o.order_id,
       c.customer_name,
       SUM(i.quantity * i.unit_price) AS order_total
+    FROM orders o
+    INNER JOIN customers c ON o.customer_id = c.customer_id
+    INNER JOIN order_items i ON i.order_id = o.order_id
+    GROUP BY o.order_id, c.customer_name
+    ORDER BY o.order_id;
+  `),
+  "m5-d1": sql(`
+    SELECT
+      order_id,
+      COUNT(*) AS item_count
+    FROM order_items
+    GROUP BY order_id
+    HAVING SUM(quantity * unit_price) >= 400
+    ORDER BY order_id;
+  `),
+  "m5-d2": sql(`
+    SELECT
+      o.order_id,
+      c.customer_name
+    FROM orders o
+    INNER JOIN customers c ON o.customer_id = c.customer_id
+    ORDER BY o.order_id;
+  `),
+  "m5-d3": sql(`
+    SELECT
+      o.order_id,
+      c.customer_name,
+      i.item_id
+    FROM orders o
+    INNER JOIN customers c ON o.customer_id = c.customer_id
+    INNER JOIN order_items i ON i.order_id = o.order_id
+    ORDER BY o.order_id, i.item_id;
+  `),
+  "m5-m1": sql(`
+    SELECT
+      order_id,
+      SUM(quantity * unit_price) AS order_amount
+    FROM order_items
+    GROUP BY order_id
+    HAVING SUM(quantity * unit_price) >= 450
+    ORDER BY order_id;
+  `),
+  "m5-d4": sql(`
+    SELECT
+      order_id,
+      unit_price,
+      COUNT(*) AS line_count
+    FROM order_items
+    GROUP BY order_id, unit_price
+    ORDER BY order_id, unit_price;
+  `),
+  "m5-d5": sql(`
+    SELECT
+      c.customer_name,
+      COUNT(*) AS order_count
+    FROM orders o
+    INNER JOIN customers c ON o.customer_id = c.customer_id
+    GROUP BY c.customer_name
+    ORDER BY c.customer_name;
+  `),
+  "m5-m2": sql(`
+    SELECT
+      o.order_id,
+      c.customer_name,
+      COUNT(i.item_id) AS item_count
     FROM orders o
     INNER JOIN customers c ON o.customer_id = c.customer_id
     INNER JOIN order_items i ON i.order_id = o.order_id

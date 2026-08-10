@@ -1,7 +1,21 @@
 "use client";
 
-import { Check, ChevronUp, Circle, CircleDot, Layers3 } from "lucide-react";
+import {
+  Check,
+  ChevronUp,
+  Circle,
+  CircleDot,
+  GitMerge,
+  Layers3,
+  RotateCcw,
+  Sparkles,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  isDrillTaskType,
+  type DrillTaskType,
+  type LessonTaskType,
+} from "../../types/lesson";
 
 export type StudioRouteTaskStatus = "unstarted" | "attempted" | "completed";
 
@@ -10,6 +24,8 @@ export interface StudioRouteTaskItem {
   index: number;
   title: string;
   status: StudioRouteTaskStatus;
+  type?: LessonTaskType;
+  scored?: boolean;
   score?: number;
 }
 
@@ -29,6 +45,7 @@ interface StudioActionRailProps {
   previousTaskId?: string;
   nextTaskId?: string;
   currentTaskCorrect: boolean;
+  activeTaskType?: LessonTaskType;
   routeMenuOpen: boolean;
   onRouteMenuOpenChange: (open: boolean) => void;
   onSelectTask: (taskId: string) => void;
@@ -47,6 +64,32 @@ function statusLabel(status: StudioRouteTaskStatus): string {
   return "Başlanmadı";
 }
 
+const DRILL_ROUTE_PRESENTATIONS: Readonly<
+  Record<DrillTaskType, { label: string; badge: string }>
+> = {
+  drill_intro: { label: "Alıştırma", badge: "ALIŞTIRMA · 3 DK" },
+  drill_practice: { label: "Tekrar", badge: "TEKRAR · 3 DK" },
+  drill_mix: { label: "Birleştir", badge: "BİRLEŞTİR · 5 DK" },
+};
+
+function taskTypePresentation(type: LessonTaskType = "case") {
+  if (!isDrillTaskType(type)) {
+    return { label: "Vaka", badge: "VAKA · 10 DK" };
+  }
+  return DRILL_ROUTE_PRESENTATIONS[type];
+}
+
+function DrillRouteIcon({ type }: { type: LessonTaskType }) {
+  if (!isDrillTaskType(type)) return null;
+  if (type === "drill_practice") {
+    return <RotateCcw size={13} aria-hidden="true" />;
+  }
+  if (type === "drill_mix") {
+    return <GitMerge size={13} aria-hidden="true" />;
+  }
+  return <Sparkles size={13} aria-hidden="true" />;
+}
+
 export function StudioActionRail({
   variant,
   activeTaskId,
@@ -56,11 +99,13 @@ export function StudioActionRail({
   previousTaskId,
   nextTaskId,
   currentTaskCorrect,
+  activeTaskType = "case",
   routeMenuOpen,
   onRouteMenuOpenChange,
   onSelectTask,
   onCompleteRoute,
 }: StudioActionRailProps) {
+  const activePresentation = taskTypePresentation(activeTaskType);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const taskRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -117,8 +162,9 @@ export function StudioActionRail({
     <nav
       className="studio-action-zone"
       data-variant={variant}
+      data-task-type={activeTaskType}
       data-verified={String(currentTaskCorrect)}
-      aria-label={`${variant === "sql" ? "SQL" : "Python"} vaka gezintisi`}
+      aria-label={`${variant === "sql" ? "SQL" : "Python"} çalışma gezintisi`}
       onKeyDown={(event) => {
         if (event.key !== "Escape" || !routeMenuOpen) return;
         event.preventDefault();
@@ -135,7 +181,7 @@ export function StudioActionRail({
           <div className="studio-route-drawer-head">
             <div>
               <span>{variant === "sql" ? "SQL ROTASI" : "PYTHON ROTASI"}</span>
-              <strong>Tüm vakalar açık</strong>
+              <strong>Tüm çalışmalar açık</strong>
             </div>
             <small>
               {activeIndex + 1}/{totalCount}
@@ -179,6 +225,9 @@ export function StudioActionRail({
                 </h3>
                 <div>
                   {module.tasks.map((routeTask) => {
+                    const routeTaskType = routeTask.type ?? "case";
+                    const routeTaskPresentation =
+                      taskTypePresentation(routeTaskType);
                     const flatIndex = flatTasks.findIndex(
                       (candidate) => candidate.id === routeTask.id,
                     );
@@ -192,6 +241,7 @@ export function StudioActionRail({
                         type="button"
                         className="studio-route-task"
                         data-status={routeTask.status}
+                        data-type={routeTaskType}
                         aria-current={active ? "page" : undefined}
                         tabIndex={focusedIndex === flatIndex ? 0 : -1}
                         onFocus={() => setFocusedIndex(flatIndex)}
@@ -206,12 +256,22 @@ export function StudioActionRail({
                         <span className="studio-route-number">
                           {String(routeTask.index + 1).padStart(2, "0")}
                         </span>
+                        <span className="studio-route-kind" aria-hidden="true">
+                          <DrillRouteIcon type={routeTaskType} />
+                        </span>
                         <strong>{routeTask.title}</strong>
                         <small>
-                          {routeTask.status === "completed"
-                            ? `${routeTask.score ?? 0}/10`
-                            : "—"}
+                          {routeTask.scored === false
+                            ? "—"
+                            : routeTask.status === "completed"
+                              ? `${routeTask.score ?? 0}/10`
+                              : "—"}
                         </small>
+                        {isDrillTaskType(routeTaskType) ? (
+                          <span className="sr-only">
+                            {routeTaskPresentation.badge} · puanlanmaz
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })}
@@ -226,11 +286,11 @@ export function StudioActionRail({
         <button
           type="button"
           className="studio-action-previous"
-          aria-label="Önceki vaka"
+          aria-label="Önceki çalışma"
           aria-disabled={!previousTaskId}
           onClick={() => previousTaskId && onSelectTask(previousTaskId)}
         >
-          <span className="studio-action-desktop-label">← Önceki vaka</span>
+          <span className="studio-action-desktop-label">← Önceki çalışma</span>
           <span className="studio-action-mobile-label" aria-hidden="true">
             ←
           </span>
@@ -240,14 +300,14 @@ export function StudioActionRail({
           ref={triggerRef}
           type="button"
           className="studio-route-trigger"
-          aria-label={`Rota · Vaka ${activeIndex + 1}/${totalCount}`}
+          aria-label={`Rota · ${activePresentation.label} ${activeIndex + 1}/${totalCount}`}
           aria-expanded={routeMenuOpen}
           aria-controls={`${variant}-studio-route-drawer`}
           onClick={() => onRouteMenuOpenChange(!routeMenuOpen)}
         >
           <Layers3 size={15} aria-hidden="true" />
           <span className="studio-action-desktop-label">
-            Rota · Vaka {activeIndex + 1}/{totalCount}
+            Rota · {activePresentation.label} {activeIndex + 1}/{totalCount}
           </span>
           <span className="studio-action-mobile-label" aria-hidden="true">
             {activeIndex + 1}/{totalCount}
@@ -264,7 +324,7 @@ export function StudioActionRail({
           className="studio-action-next"
           aria-label={
             nextTaskId
-              ? "Sonraki vaka"
+              ? "Sonraki çalışma"
               : currentTaskCorrect
                 ? "Rotayı tamamla"
                 : "Rota özeti"
@@ -275,7 +335,7 @@ export function StudioActionRail({
         >
           <span className="studio-action-desktop-label">
             {nextTaskId
-              ? "Sonraki vaka →"
+              ? "Sonraki çalışma →"
               : currentTaskCorrect
                 ? "Rotayı tamamla →"
                 : "Rota özeti →"}
@@ -288,7 +348,7 @@ export function StudioActionRail({
 
       <div className="studio-shortcut-row" aria-hidden="true">
         <span>⌘/Ctrl ↵ Çalıştır</span>
-        <span>⇧ ⌘/Ctrl ←/→ Vaka</span>
+        <span>⇧ ⌘/Ctrl ←/→ Çalışma</span>
         <span>⌘/Ctrl K Rota</span>
       </div>
     </nav>

@@ -260,12 +260,12 @@ export function AccountScreen({
                     <div>
                       <dt>Tamamlanan</dt>
                       <dd>
-                        {completedCount} / {totalCount} vaka
+                        {completedCount} / {totalCount} çalışma
                       </dd>
                     </div>
                     {resumeTaskTitle ? (
                       <div>
-                        <dt>Sıradaki vaka</dt>
+                        <dt>Sıradaki çalışma</dt>
                         <dd>{resumeTaskTitle}</dd>
                       </div>
                     ) : null}
@@ -331,7 +331,7 @@ export function AccountScreen({
                   oluşturmak yerine kaldığın rotaya güvenle dönebilirsin.
                 </p>
                 <p className="account-progress-line">
-                  {completedCount} / {totalCount} vaka tamamlandı
+                  {completedCount} / {totalCount} çalışma tamamlandı
                 </p>
                 <button
                   className="account-secondary-action"

@@ -1,4 +1,10 @@
-import type { CoachingStatus, LessonTask } from "../../types/lesson";
+import {
+  isDrillTaskType,
+  type CoachingStatus,
+  type DrillTaskType,
+  type LessonTask,
+  type LessonTaskType,
+} from "../../types/lesson";
 
 export type ContentIssueSeverity = "error" | "warning";
 
@@ -76,6 +82,14 @@ const failureEvaluationStatuses: readonly CoachingStatus[] = [
   "order-wrong",
   "required-concept-missing",
 ];
+
+const drillDurations: Readonly<
+  Record<DrillTaskType, readonly [number, number]>
+> = {
+  drill_intro: [2, 3],
+  drill_practice: [2, 3],
+  drill_mix: [5, 5],
+};
 
 function nestedRecord(value: unknown): UnknownRecord | undefined {
   return value && typeof value === "object"
@@ -173,6 +187,116 @@ function validateLearningContent(
   requireNestedString(transfer, "reveal", "debrief.transfer.reveal", issues);
 }
 
+function isNonEmptyConceptList(value: unknown): value is readonly string[] {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every(
+      (concept) => typeof concept === "string" && concept.trim().length > 0,
+    )
+  );
+}
+
+function validateTaskFormat(
+  task: LessonTask,
+  source: UnknownRecord,
+  issues: ContentValidationIssue[],
+): void {
+  const rawType = source.type;
+  const isCase = rawType === "case";
+  const isDrill =
+    typeof rawType === "string" && isDrillTaskType(rawType as LessonTaskType);
+
+  if (!isCase && !isDrill) {
+    issues.push({
+      severity: "error",
+      path: "type",
+      message:
+        "type case, drill_intro, drill_practice veya drill_mix olmalıdır.",
+    });
+    return;
+  }
+
+  if (isCase) {
+    if (task.hints.length !== 3 || task.scored !== true) {
+      issues.push({
+        severity: "error",
+        path: "case",
+        message: "Vaka üç aşamalı ipucu ve puanlı sözleşme içermelidir.",
+      });
+    }
+    return;
+  }
+
+  const type = rawType as DrillTaskType;
+  const [minimumMinutes, maximumMinutes] = drillDurations[type];
+  const commonInvalid =
+    task.hints.length !== 1 ||
+    task.scored !== false ||
+    !isNonEmptyConceptList(source.conceptsReinforced) ||
+    typeof task.drillConcept !== "string" ||
+    task.drillConcept.trim().length === 0 ||
+    task.estimatedMinutes < minimumMinutes ||
+    task.estimatedMinutes > maximumMinutes;
+
+  if (commonInvalid) {
+    const durationLabel =
+      minimumMinutes === maximumMinutes
+        ? `${minimumMinutes} dakika`
+        : `${minimumMinutes}–${maximumMinutes} dakika`;
+    issues.push({
+      severity: "error",
+      path: type,
+      message: `${type} tek ücretsiz ipucu, puansız sözleşme, pekiştirilen kavramlar, dört bölümlü brief metni ve ${durationLabel} taşımalıdır.`,
+    });
+  }
+
+  if (
+    !Array.isArray(source.prerequisites) ||
+    source.prerequisites.length !== 0
+  ) {
+    issues.push({
+      severity: "error",
+      path: `${type}.prerequisites`,
+      message:
+        "Alıştırmalar rota kilidi oluşturmaz; prerequisites alanı boş bir dizi olmalıdır.",
+    });
+  }
+
+  if (type === "drill_intro") {
+    if (
+      typeof task.conceptNew !== "string" ||
+      task.conceptNew.trim().length === 0
+    ) {
+      issues.push({
+        severity: "error",
+        path: "drill_intro.conceptNew",
+        message:
+          "drill_intro tam bir yeni kavramı conceptNew alanında tanımlamalıdır.",
+      });
+    } else if (
+      Array.isArray(task.curriculumConcepts) &&
+      !task.curriculumConcepts.includes(task.conceptNew)
+    ) {
+      issues.push({
+        severity: "error",
+        path: "drill_intro.conceptNew",
+        message:
+          "drill_intro conceptNew değeri tanımlı curriculumConcepts haritasında yer almalıdır.",
+      });
+    }
+    return;
+  }
+
+  if (task.conceptNew !== undefined) {
+    issues.push({
+      severity: "error",
+      path: `${type}.conceptNew`,
+      message: `${type} yeni kavram getiremez; conceptNew alanı tanımlanmamalıdır.`,
+    });
+  }
+}
+
 export function validateTaskDefinition(
   task: LessonTask,
 ): ContentValidationIssue[] {
@@ -262,6 +386,27 @@ export function validateTaskDefinition(
     });
   }
 
+  if (source.curriculumConcepts !== undefined) {
+    if (!isNonEmptyConceptList(source.curriculumConcepts)) {
+      issues.push({
+        severity: "error",
+        path: "curriculumConcepts",
+        message:
+          "curriculumConcepts tanımlandığında boş olmayan kavram kodları içermelidir.",
+      });
+    } else if (
+      new Set(source.curriculumConcepts.map((concept) => concept.trim()))
+        .size !== source.curriculumConcepts.length
+    ) {
+      issues.push({
+        severity: "error",
+        path: "curriculumConcepts",
+        message:
+          "curriculumConcepts içindeki kavram kodları benzersiz olmalıdır.",
+      });
+    }
+  }
+
   if (task.validationMode === "mutation") {
     const verification = source.mutationVerification as
       UnknownRecord | undefined;
@@ -318,12 +463,14 @@ export function validateTaskDefinition(
     });
   }
 
-  if (!Array.isArray(source.hints) || source.hints.length < 3) {
+  if (!Array.isArray(source.hints)) {
     issues.push({
       severity: "error",
       path: "hints",
-      message: "Her görev en az üç aşamalı ipucu içermelidir.",
+      message: "Görev ipucu listesi içermelidir.",
     });
+  } else {
+    validateTaskFormat(task, source, issues);
   }
 
   const schema = source.schema as UnknownRecord | undefined;
@@ -389,6 +536,7 @@ export function validateTaskCollection(
   );
   const ids = new Map<string, number>();
   const slugs = new Map<string, number>();
+  const routeOrders = new Map<number, number>();
 
   tasks.forEach((task, index) => {
     if (ids.has(task.id)) {
@@ -409,6 +557,22 @@ export function validateTaskCollection(
       });
     } else {
       slugs.set(task.slug, index);
+    }
+
+    if (!Number.isFinite(task.routeOrder) || task.routeOrder <= 0) {
+      issues.push({
+        severity: "error",
+        path: `tasks[${index}].routeOrder`,
+        message: "routeOrder pozitif ve sonlu bir sayı olmalıdır.",
+      });
+    } else if (routeOrders.has(task.routeOrder)) {
+      issues.push({
+        severity: "error",
+        path: `tasks[${index}].routeOrder`,
+        message: `routeOrder ${task.routeOrder} değeri benzersiz olmalıdır.`,
+      });
+    } else {
+      routeOrders.set(task.routeOrder, index);
     }
   });
 

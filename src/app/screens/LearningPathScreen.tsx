@@ -84,21 +84,21 @@ export function buildLearningPathTaskStates(
   tasks: LessonTask[],
   progress: ProgressState,
 ): LearningPathTaskState[] {
-  const furthestActivityIndex = tasks.reduce(
+  const routeTasks = [...tasks].toSorted(
+    (left, right) => left.routeOrder - right.routeOrder,
+  );
+  const furthestActivityIndex = routeTasks.reduce(
     (furthest, task, index) =>
       hasMeaningfulActivity(task.id, progress) ? index : furthest,
     -1,
   );
-  const nextTask =
-    tasks.find(
-      (task) =>
-        !progress.tasks[task.id]?.completed &&
-        task.prerequisites.every(
-          (prerequisite) => progress.tasks[prerequisite]?.completed,
-        ),
-    ) ?? tasks.find((task) => !progress.tasks[task.id]?.completed);
+  // G3 keeps every route item open. The explicit learning route, not legacy
+  // prerequisite metadata, determines the next suggested item.
+  const nextTask = routeTasks.find(
+    (task) => !progress.tasks[task.id]?.completed,
+  );
 
-  return tasks.map((task, index) => {
+  return routeTasks.map((task, index) => {
     const taskProgress = progress.tasks[task.id];
     const isCurrent = task.id === progress.lastOpenedTaskId;
     let status: LearningPathTaskStatus = "upcoming";
@@ -207,7 +207,7 @@ export function LearningPathScreen({
   const routeScore = useMemo(
     () =>
       summarizeScores(
-        tasks.map((task) => task.id),
+        tasks.filter((task) => task.scored).map((task) => task.id),
         progress.tasks,
       ),
     [progress.tasks, tasks],
@@ -224,13 +224,13 @@ export function LearningPathScreen({
         : focusItem?.status === "in-progress" && focusItem.isCurrent
           ? "Kaldığın yer"
           : focusItem?.status === "in-progress"
-            ? "Devam eden vaka"
+            ? "Devam eden çalışma"
             : focusItem?.status === "next"
               ? completedCount === 0
                 ? "Önerilen başlangıç"
                 : "Önerilen sonraki adım"
               : focusItem?.isCurrent
-                ? "Son açtığın vaka"
+                ? "Son açtığın çalışma"
                 : "Önerilen sonraki adım";
 
   const toggleModule = (moduleId: string) => {
@@ -264,7 +264,7 @@ export function LearningPathScreen({
               SQL temellerinden güvenilir bir yönetici çıktısına uzanan dört
               bölümde ilerle. Nerede kaldığını ve işte hangi sonucu üretebilir
               hâle geldiğini gör. Önerilen sırayı takip et veya ihtiyaç duyduğun
-              herhangi bir vakaya doğrudan geç.
+              herhangi bir çalışmaya doğrudan geç.
             </p>
           </div>
 
@@ -535,7 +535,9 @@ export function LearningPathScreen({
                       ? Math.round((completedTasks / module.tasks.length) * 100)
                       : 0;
                     const moduleScore = summarizeScores(
-                      module.tasks.map((task) => task.id),
+                      module.tasks
+                        .filter((task) => task.scored)
+                        .map((task) => task.id),
                       progress.tasks,
                     );
                     const isExpanded = expandedModules.has(module.id);
@@ -660,22 +662,13 @@ export function LearningPathScreen({
                             {moduleItems.map(
                               ({ task, status, isCurrent: taskIsCurrent }) => {
                                 const taskProgress = progress.tasks[task.id];
-                                const taskScore =
-                                  getAwardedCaseScore(taskProgress);
-                                const unmetPrerequisite = task.prerequisites
-                                  .map((id) =>
-                                    tasks.find(
-                                      (candidate) => candidate.id === id,
-                                    ),
-                                  )
-                                  .find(
-                                    (prerequisite) =>
-                                      prerequisite &&
-                                      !progress.tasks[prerequisite.id]
-                                        ?.completed,
-                                  );
+                                const taskScore = task.scored
+                                  ? getAwardedCaseScore(taskProgress)
+                                  : undefined;
                                 const progressNote = taskProgress?.completed
-                                  ? `${taskScore}/10 puan`
+                                  ? task.scored
+                                    ? `${taskScore}/10 puan`
+                                    : "Alıştırma tamamlandı"
                                   : taskProgress?.attempts
                                     ? `${taskProgress.attempts} deneme`
                                     : taskProgress?.lastQuery.trim()
@@ -714,12 +707,6 @@ export function LearningPathScreen({
                                         )}
                                       </span>
                                       <span>{task.subtitle}</span>
-                                      {unmetPrerequisite && (
-                                        <span className="task-prerequisite-note">
-                                          Önce “{unmetPrerequisite.title}”
-                                          önerilir
-                                        </span>
-                                      )}
                                     </span>
                                     <span className="task-row-meta">
                                       <span

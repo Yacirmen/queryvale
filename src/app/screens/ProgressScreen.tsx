@@ -18,7 +18,11 @@ import {
   X,
 } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import type { CurriculumModule, LessonTask } from "../../types/lesson";
+import {
+  isDrillTask,
+  type CurriculumModule,
+  type LessonTask,
+} from "../../types/lesson";
 import type {
   PythonCurriculumModule,
   PythonLessonTask,
@@ -236,7 +240,7 @@ export function ProgressScreen({
       0,
     );
     const sqlScore = summarizeScores(
-      tasks.map((task) => task.id),
+      tasks.filter((task) => task.scored).map((task) => task.id),
       progress.tasks,
     );
     const pythonScore = summarizeScores(
@@ -332,7 +336,7 @@ export function ProgressScreen({
         ? Math.round((completed / module.tasks.length) * 100)
         : 0;
       const score = summarizeScores(
-        module.tasks.map((task) => task.id),
+        module.tasks.filter((task) => task.scored).map((task) => task.id),
         progress.tasks,
       );
       const isComplete = rate === 100;
@@ -354,7 +358,12 @@ export function ProgressScreen({
         title: module.title,
         completed,
         total: module.tasks.length,
-        contentLabel: module.contentKind === "projects" ? "proje" : "vaka",
+        contentLabel:
+          module.contentKind === "projects"
+            ? "proje"
+            : module.tasks.some(isDrillTask)
+              ? "çalışma"
+              : "vaka",
         rate,
         score,
         next: isUnlocked
@@ -496,7 +505,8 @@ export function ProgressScreen({
           moduleTitle: curriculumModule?.title ?? "SQL rotası",
           completedAt: taskState.lastCompletedAt,
           attempts: taskState.attempts,
-          score: getAwardedCaseScore(taskState),
+          score: task.scored ? getAwardedCaseScore(taskState) : undefined,
+          scored: task.scored,
           screen: "workspace" as const,
         },
       ];
@@ -515,6 +525,7 @@ export function ProgressScreen({
           completedAt: taskState.lastCompletedAt,
           attempts: taskState.attempts,
           score: getAwardedCaseScore(taskState),
+          scored: true,
           screen: "python" as const,
         },
       ];
@@ -1424,9 +1435,11 @@ export function ProgressScreen({
                       <span className="recent-progress-meta">
                         {formatDate(item.completedAt)} · {item.attempts} deneme
                         ·{" "}
-                        {item.score > 0
-                          ? "+" + item.score + " puan"
-                          : "0 puan · tam çözümle"}
+                        {item.scored
+                          ? item.score && item.score > 0
+                            ? "+" + item.score + " puan"
+                            : "0 puan · tam çözümle"
+                          : "puanlanmayan alıştırma"}
                       </span>
                       <ArrowRight size={14} aria-hidden="true" />
                     </button>

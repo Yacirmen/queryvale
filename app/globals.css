@@ -2430,6 +2430,114 @@ body:has(.app-shell[data-screen="workspace"]) {
   background: color-mix(in srgb, var(--amber) 8%, transparent);
 }
 
+.brief-drill-tag {
+  --drill-accent: var(--cyan);
+  width: fit-content;
+  border: 1px solid color-mix(in srgb, var(--drill-accent) 42%, var(--line));
+  border-radius: 999px;
+  padding: 5px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: color-mix(in srgb, var(--drill-accent) 76%, var(--text));
+  background: color-mix(in srgb, var(--drill-accent) 10%, transparent);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: var(--font-size-micro);
+  font-weight: 780;
+  letter-spacing: 0.07em;
+}
+
+.drill-brief[data-drill-type="drill_practice"] .brief-drill-tag {
+  --drill-accent: var(--amber);
+}
+
+.drill-brief[data-drill-type="drill_mix"] .brief-drill-tag {
+  --drill-accent: var(--accent-strong);
+}
+
+.drill-brief {
+  --drill-accent: var(--cyan);
+}
+
+.drill-brief[data-drill-type="drill_practice"] {
+  --drill-accent: var(--amber);
+}
+
+.drill-brief[data-drill-type="drill_mix"] {
+  --drill-accent: var(--accent-strong);
+}
+
+.drill-brief > h1 {
+  margin: 12px 0 20px;
+}
+
+.drill-brief-section {
+  border-top: 1px solid var(--line);
+  padding: 13px 0;
+}
+
+.drill-brief-section:last-child {
+  border-bottom: 1px solid var(--line);
+}
+
+.drill-brief-section h2 {
+  margin: 0 0 6px;
+  color: var(--text-faint);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: var(--font-size-micro);
+  font-weight: 760;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.drill-brief-section p {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: var(--font-size-body-sm);
+  line-height: 1.55;
+}
+
+.drill-brief-section .expected-columns {
+  margin-top: 2px;
+}
+
+.drill-brief-section .expected-columns code {
+  display: inline-flex;
+  border: 1px solid color-mix(in srgb, var(--drill-accent) 26%, var(--line));
+  border-radius: 7px;
+  padding: 5px 7px;
+  color: var(--drill-accent);
+  background: color-mix(in srgb, var(--drill-accent) 5%, transparent);
+  font-size: var(--font-size-caption);
+}
+
+.drill-hint-button,
+.drill-free-hint {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 13px;
+  border: 1px solid color-mix(in srgb, var(--drill-accent) 28%, var(--line));
+  border-radius: 9px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-soft);
+  background: color-mix(in srgb, var(--drill-accent) 4%, var(--surface-strong));
+  font-size: var(--font-size-caption);
+  text-align: left;
+}
+
+.drill-hint-button {
+  color: color-mix(in srgb, var(--drill-accent) 78%, var(--text));
+  cursor: pointer;
+}
+
+.drill-hint-button:hover {
+  border-color: color-mix(in srgb, var(--drill-accent) 58%, var(--line));
+  background: color-mix(in srgb, var(--drill-accent) 9%, var(--surface-strong));
+}
+
 .brief-time {
   color: var(--text-soft);
 }
@@ -15729,6 +15837,18 @@ body:has(.app-shell[data-screen="python"]) {
   --studio-action-accent: var(--python-accent);
 }
 
+.studio-action-zone[data-task-type="drill_intro"] {
+  --studio-action-accent: var(--cyan);
+}
+
+.studio-action-zone[data-task-type="drill_practice"] {
+  --studio-action-accent: var(--amber);
+}
+
+.studio-action-zone[data-task-type="drill_mix"] {
+  --studio-action-accent: var(--accent-strong);
+}
+
 .studio-action-row {
   padding: 4px 12px;
   display: grid;
@@ -15949,7 +16069,7 @@ body:has(.app-shell[data-screen="python"]) {
   border-radius: 8px;
   padding: 5px 7px;
   display: grid;
-  grid-template-columns: 22px 28px minmax(0, 1fr) auto;
+  grid-template-columns: 22px 28px 16px minmax(0, 1fr) auto;
   align-items: center;
   gap: 6px;
   color: var(--workbench-text);
@@ -15986,6 +16106,35 @@ body:has(.app-shell[data-screen="python"]) {
   color: var(--success);
 }
 
+.studio-route-task[data-type^="drill_"] {
+  --route-task-accent: var(--cyan);
+  background: color-mix(in srgb, var(--route-task-accent) 3%, transparent);
+}
+
+.studio-route-task[data-type="drill_practice"] {
+  --route-task-accent: var(--amber);
+}
+
+.studio-route-task[data-type="drill_mix"] {
+  --route-task-accent: var(--accent-strong);
+}
+
+.studio-route-task[data-type^="drill_"]:hover,
+.studio-route-task[data-type^="drill_"][aria-current="page"] {
+  background: color-mix(
+    in srgb,
+    var(--route-task-accent) 10%,
+    var(--workbench-control)
+  );
+}
+
+.studio-route-kind {
+  min-width: 0;
+  color: var(--route-task-accent, var(--cyan));
+  display: grid;
+  place-items: center;
+}
+
 .studio-route-number,
 .studio-route-task small {
   color: var(--workbench-text-faint);
@@ -16000,6 +16149,51 @@ body:has(.app-shell[data-screen="python"]) {
   font-weight: 660;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.drill-completion {
+  --drill-completion-accent: var(--cyan);
+  margin: 14px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--drill-completion-accent) 36%,
+      var(--workbench-line)
+    );
+  border-radius: 10px;
+  padding: 11px 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: var(--drill-completion-accent);
+  background: color-mix(
+    in srgb,
+    var(--drill-completion-accent) 7%,
+    var(--workbench-surface)
+  );
+}
+
+.drill-completion[data-drill-type="drill_practice"] {
+  --drill-completion-accent: var(--amber);
+}
+
+.drill-completion[data-drill-type="drill_mix"] {
+  --drill-completion-accent: var(--accent-strong);
+}
+
+.drill-completion > div {
+  display: grid;
+  gap: 2px;
+}
+
+.drill-completion strong {
+  color: var(--workbench-text-strong);
+  font-size: var(--font-size-caption);
+}
+
+.drill-completion span {
+  color: var(--workbench-text-muted);
+  font-size: var(--font-size-caption);
 }
 
 .studio-result-strip {

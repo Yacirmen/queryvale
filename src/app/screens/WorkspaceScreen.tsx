@@ -9,6 +9,7 @@ import {
   Columns3,
   Copy,
   Database,
+  GitMerge,
   KeyRound,
   Lightbulb,
   LoaderCircle,
@@ -31,9 +32,11 @@ import {
 import type { OnMount } from "@monaco-editor/react";
 import type {
   CurriculumModule,
+  DrillTaskType,
   LessonTask,
   SqlScalar,
 } from "../../types/lesson";
+import { isDrillTask } from "../../types/lesson";
 import {
   createTaskDatabaseForLesson,
   type QueryExecutionResult,
@@ -139,6 +142,111 @@ const HINT_ACTION_LABELS = [
   "Gerekli parçaları göster",
   "Sorgu iskeletini göster",
 ] as const;
+
+interface DrillBriefProps {
+  task: LessonTask;
+  hintVisible: boolean;
+  onRevealHint: () => void;
+}
+
+const DRILL_PRESENTATIONS: Readonly<
+  Record<
+    DrillTaskType,
+    {
+      badge: string;
+      label: string;
+      completionLabel: string;
+      Icon: typeof Lightbulb;
+    }
+  >
+> = {
+  drill_intro: {
+    badge: "ALIŞTIRMA · 3 DK",
+    label: "Alıştırma",
+    completionLabel: "Alıştırma tamamlandı",
+    Icon: Lightbulb,
+  },
+  drill_practice: {
+    badge: "TEKRAR · 3 DK",
+    label: "Tekrar",
+    completionLabel: "Tekrar tamamlandı",
+    Icon: RotateCcw,
+  },
+  drill_mix: {
+    badge: "BİRLEŞTİR · 5 DK",
+    label: "Birleştir",
+    completionLabel: "Birleştirme tamamlandı",
+    Icon: GitMerge,
+  },
+};
+
+function drillPresentation(type: DrillTaskType) {
+  return DRILL_PRESENTATIONS[type];
+}
+
+function taskKindLabel(task: LessonTask): string {
+  return isDrillTask(task) ? drillPresentation(task.type).label : "Vaka";
+}
+
+/** The drill brief intentionally avoids the case's manager-request scaffolding. */
+function DrillBrief({ task, hintVisible, onRevealHint }: DrillBriefProps) {
+  if (!isDrillTask(task)) return null;
+  const presentation = drillPresentation(task.type);
+  const DrillIcon = presentation.Icon;
+  const freeHint = task.hints[0];
+  return (
+    <article
+      className="drill-brief"
+      data-drill-type={task.type}
+      aria-label={task.title}
+    >
+      <span className="brief-drill-tag">
+        <DrillIcon size={13} aria-hidden="true" />
+        {presentation.badge}
+      </span>
+      <h1>{task.title}</h1>
+
+      <section className="drill-brief-section">
+        <h2>Durum</h2>
+        <p>{task.scenario}</p>
+      </section>
+      <section className="drill-brief-section">
+        <h2>Görev</h2>
+        <p>{task.objective}</p>
+      </section>
+      <section className="drill-brief-section">
+        <h2>Beklenen kolonlar</h2>
+        <ul className="expected-columns" aria-label="Beklenen kolonlar">
+          {task.expectedColumns.map((column) => (
+            <li key={column}>
+              <code>{column}</code>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <section className="drill-brief-section">
+        <h2>Kavram</h2>
+        <p>{task.drillConcept ?? task.learningBrief.conceptAnchor}</p>
+        {freeHint ? (
+          hintVisible ? (
+            <div className="drill-free-hint" role="status">
+              <Lightbulb size={14} aria-hidden="true" />
+              <span>{freeHint}</span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="drill-hint-button"
+              onClick={onRevealHint}
+            >
+              <Lightbulb size={14} aria-hidden="true" /> Ücretsiz ipucunu aç
+            </button>
+          )
+        ) : null}
+      </section>
+    </article>
+  );
+}
 const DRAFT_AUTOSAVE_DELAY_MS = 700;
 const MOBILE_WORKSPACE_VIEWS = [
   { id: "brief", label: "Vaka" },
@@ -221,12 +329,13 @@ export function WorkspaceScreen({
 
   const taskIndex = tasks.findIndex((candidate) => candidate.id === task.id);
   const previousTask = taskIndex > 0 ? tasks[taskIndex - 1] : undefined;
-  const nextTask =
-    task.nextTaskId !== null
-      ? tasks.find((candidate) => candidate.id === task.nextTaskId)
-      : tasks[taskIndex + 1];
+  const nextTask = tasks[taskIndex + 1];
   const currentModule = modules.find((module) => module.id === task.moduleId);
   const isProject = currentModule?.contentKind === "projects";
+  const isDrill = isDrillTask(task);
+  const activeDrillPresentation = isDrill
+    ? drillPresentation(task.type)
+    : undefined;
   const routeModules = useMemo<StudioRouteModuleItem[]>(
     () =>
       modules.map((module) => {
@@ -234,19 +343,24 @@ export function WorkspaceScreen({
           id: module.id,
           order: module.order,
           title: module.title,
-          tasks: module.tasks.map((candidate) => ({
-            id: candidate.id,
-            index: tasks.findIndex((item) => item.id === candidate.id),
-            title: candidate.title,
-            status: progress.tasks[candidate.id]?.completed
-              ? "completed"
-              : (progress.tasks[candidate.id]?.attempts ?? 0) > 0
-                ? "attempted"
-                : "unstarted",
-            score: progress.tasks[candidate.id]?.completed
-              ? getAwardedCaseScore(progress.tasks[candidate.id])
-              : undefined,
-          })),
+          tasks: [...module.tasks]
+            .toSorted((left, right) => left.routeOrder - right.routeOrder)
+            .map((candidate) => ({
+              id: candidate.id,
+              index: tasks.findIndex((item) => item.id === candidate.id),
+              title: candidate.title,
+              type: candidate.type,
+              scored: candidate.scored,
+              status: progress.tasks[candidate.id]?.completed
+                ? "completed"
+                : (progress.tasks[candidate.id]?.attempts ?? 0) > 0
+                  ? "attempted"
+                  : "unstarted",
+              score:
+                candidate.scored && progress.tasks[candidate.id]?.completed
+                  ? getAwardedCaseScore(progress.tasks[candidate.id])
+                  : undefined,
+            })),
         };
       }),
     [modules, progress.tasks, tasks],
@@ -458,9 +572,10 @@ export function WorkspaceScreen({
       showResultsAndFocus();
       const hasNewerSavedDraft =
         draftRevisionRef.current !== draftRevisionAtRunStart;
-      const verifiedSnapshot = nextEvaluation.correct
-        ? createVerifiedRunSnapshot(task.id, query, execution)
-        : undefined;
+      const verifiedSnapshot =
+        nextEvaluation.correct && task.scored
+          ? createVerifiedRunSnapshot(task.id, query, execution)
+          : undefined;
       onProgressChange((current) => {
         const latestQuery = current.tasks[task.id]?.lastQuery ?? "";
         let nextProgress = recordAttempt(
@@ -471,6 +586,7 @@ export function WorkspaceScreen({
           elapsed,
           new Date(),
           assistanceAtRunStart,
+          { scored: task.scored },
         );
         if (verifiedSnapshot) {
           nextProgress = recordVerifiedRun(nextProgress, verifiedSnapshot);
@@ -509,7 +625,16 @@ export function WorkspaceScreen({
         draftRevisionRef.current !== draftRevisionAtRunStart;
       onProgressChange((current) => {
         const latestQuery = current.tasks[task.id]?.lastQuery ?? "";
-        const nextProgress = recordAttempt(current, task.id, query, false, 0);
+        const nextProgress = recordAttempt(
+          current,
+          task.id,
+          query,
+          false,
+          0,
+          new Date(),
+          undefined,
+          { scored: task.scored },
+        );
         const attemptedTask = nextProgress.tasks[task.id];
         return {
           ...nextProgress,
@@ -653,9 +778,11 @@ export function WorkspaceScreen({
     setVisibleHints((current) => [...current, index].sort());
     onProgressChange((current) => recordHint(current, task.id, index));
     setScoreAnnouncement(
-      taskCompleted
-        ? `${index + 1}. ipucu açıldı. Kazanılmış ${awardedCaseScore} puan değişmedi.`
-        : `${index + 1}. ipucu açıldı. Bu vaka için ${calculateCaseScore([...visibleHints, index], solutionUsed)} puan kaldı.`,
+      isDrill
+        ? "Ücretsiz alıştırma ipucu açıldı. Puanın etkilenmez."
+        : taskCompleted
+          ? `${index + 1}. ipucu açıldı. Kazanılmış ${awardedCaseScore} puan değişmedi.`
+          : `${index + 1}. ipucu açıldı. Bu vaka için ${calculateCaseScore([...visibleHints, index], solutionUsed)} puan kaldı.`,
     );
   };
 
@@ -910,7 +1037,8 @@ export function WorkspaceScreen({
         </div>
         <div className="workspace-topbar-actions">
           <span className="mission-counter">
-            {isProject ? "Proje" : "Vaka"} {taskIndex + 1}/{tasks.length}
+            {isProject ? "Proje" : taskKindLabel(task)} {taskIndex + 1}/
+            {tasks.length}
           </span>
           <button
             className="icon-button"
@@ -927,10 +1055,12 @@ export function WorkspaceScreen({
         <nav
           className="workspace-mobile-tabs"
           role="tablist"
-          aria-label="Vaka çalışma adımları"
+          aria-label={`${isDrill ? taskKindLabel(task) : "Vaka"} çalışma adımları`}
         >
           {MOBILE_WORKSPACE_VIEWS.map((view, index) => {
             const isActive = mobileView === view.id;
+            const viewLabel =
+              view.id === "brief" && isDrill ? taskKindLabel(task) : view.label;
             const resultStatus =
               view.id === "results" && evaluation
                 ? evaluation.correct
@@ -946,7 +1076,7 @@ export function WorkspaceScreen({
                 }}
                 type="button"
                 role="tab"
-                aria-label={`${view.label} görünümü`}
+                aria-label={`${viewLabel} görünümü`}
                 aria-describedby={
                   resultStatus ? `mobile-${task.id}-result-status` : undefined
                 }
@@ -965,7 +1095,7 @@ export function WorkspaceScreen({
                 onKeyDown={(event) => handleMobileViewKeyDown(event, index)}
               >
                 <span>{String(index + 1).padStart(2, "0")}</span>
-                <strong>{view.label}</strong>
+                <strong>{viewLabel}</strong>
                 {resultStatus && (
                   <small id={`mobile-${task.id}-result-status`}>
                     {resultStatus}
@@ -993,13 +1123,18 @@ export function WorkspaceScreen({
         <aside
           id="workspace-brief-panel"
           className="brief-panel"
-          aria-label={`${task.title} vaka bilgileri`}
+          data-task-type={task.type}
+          aria-label={`${task.title} ${
+            isDrill ? taskKindLabel(task).toLocaleLowerCase("tr-TR") : "vaka"
+          } bilgileri`}
         >
           {!isCompactWorkspace && (
             <div
               className="panel-tabs"
               role="tablist"
-              aria-label="Vaka bilgileri"
+              aria-label={
+                isDrill ? `${taskKindLabel(task)} bilgileri` : "Vaka bilgileri"
+              }
             >
               <button
                 id={`${task.id}-brief-tab`}
@@ -1013,7 +1148,7 @@ export function WorkspaceScreen({
                 onClick={() => activatePanelTab("brief")}
                 onKeyDown={handlePanelTabKeyDown}
               >
-                Vaka
+                {isDrill ? taskKindLabel(task) : "Vaka"}
               </button>
               <button
                 id={`${task.id}-schema-tab`}
@@ -1045,390 +1180,426 @@ export function WorkspaceScreen({
             tabIndex={0}
             hidden={panelTab !== "brief"}
           >
-            {showFirstCaseGuide && (
+            {!isDrill && showFirstCaseGuide && (
               <FirstCaseGuide
                 onDismiss={dismissFirstCaseGuide}
                 onShowData={() => activatePanelTab("schema", true)}
                 onFocusEditor={focusEditor}
               />
             )}
-            <div className="brief-kicker">
-              <span className="brief-case-tag">
-                {difficultyLabel(task)} vaka
-              </span>
-              <span className="brief-time">
-                <Clock3 size={10} /> {task.estimatedMinutes} dk
-              </span>
-            </div>
-            <h1>{task.title}</h1>
-            <ol className="task-sequence" aria-label="Vakaya başlama sırası">
-              <li className="task-sequence-step task-sequence-step-primary">
-                <span className="task-step-index" aria-hidden="true">
-                  1
-                </span>
-                <div className="task-step-heading">
-                  <span>Önce</span>
-                  <h2 id={`${task.id}-objective-title`}>İstenen teslim</h2>
-                </div>
-                <p className="task-objective">{task.objective}</p>
-              </li>
-
-              <li className="task-sequence-step">
-                <span className="task-step-index" aria-hidden="true">
-                  2
-                </span>
-                <div className="task-step-heading">
-                  <span>Sonra</span>
-                  <h2>Çıktını tanı</h2>
-                </div>
-                <div className="task-output-grain">
-                  <span>Bir sonuç satırı neyi temsil eder?</span>
-                  <strong>{task.learningBrief.outputGrain}</strong>
-                </div>
-                <div className="task-column-contract">
-                  <div
-                    id={`${task.id}-columns-title`}
-                    className="output-contract-label"
-                  >
-                    <Columns3 size={12} /> Beklenen kolonlar
-                  </div>
-                  <ul
-                    className="expected-columns"
-                    aria-labelledby={`${task.id}-columns-title`}
-                  >
-                    {task.expectedColumns.map((column) => (
-                      <li key={column}>
-                        <button
-                          className="expected-column"
-                          type="button"
-                          onClick={() => void copyExpectedColumn(column)}
-                          aria-label={`${column} kolonunu kopyala`}
-                          title="Kolon adını panoya kopyala"
-                        >
-                          <code>{column}</code>
-                          <Copy size={11} />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <details className="task-disclosure task-check-disclosure">
-                  <summary>
-                    <CheckCircle2 size={13} />
-                    <span>Kendini kontrol et</span>
-                    <small>
-                      {task.learningBrief.acceptanceChecks.length} madde
-                    </small>
-                  </summary>
-                  <ul className="task-check-list">
-                    {task.learningBrief.acceptanceChecks.map((check) => (
-                      <li key={check}>{check}</li>
-                    ))}
-                  </ul>
-                </details>
-              </li>
-
-              <li className="task-sequence-step">
-                <span className="task-step-index" aria-hidden="true">
-                  3
-                </span>
-                <div className="task-step-heading">
-                  <span>Başla</span>
-                  <h2>Veriyi gör, sorgunu yaz</h2>
-                </div>
-                <div className="task-step-actions">
-                  <button
-                    className="brief-action primary"
-                    type="button"
-                    onClick={() => activatePanelTab("schema", true)}
-                  >
-                    <span className="task-action-index" aria-hidden="true">
-                      1
-                    </span>
-                    Şemayı incele <ArrowRight size={12} />
-                  </button>
-                  <button
-                    className="brief-action task-action-secondary"
-                    type="button"
-                    onClick={focusEditor}
-                  >
-                    <span className="task-action-index" aria-hidden="true">
-                      2
-                    </span>
-                    Sorguyu yaz <ArrowRight size={12} />
-                  </button>
-                </div>
-                <details className="task-disclosure task-concept-disclosure">
-                  <summary>
-                    <Braces size={13} />
-                    <span>Bu vakada ne çalışıyorsun?</span>
-                    <small>Kavram</small>
-                  </summary>
-                  <p className="task-concept-copy">
-                    {task.learningBrief.conceptAnchor}
-                  </p>
-                </details>
-              </li>
-            </ol>
-
-            <details className="task-disclosure task-context-disclosure">
-              <summary>
-                <TerminalSquare size={13} />
-                <span>İş bağlamı</span>
-                <small>İsteğe bağlı</small>
-              </summary>
-              <div className="task-disclosure-copy">
-                <strong>{task.subtitle}</strong>
-                <p>{task.scenario}</p>
-              </div>
-            </details>
-
-            <section className="task-help-console" aria-label="Vaka yardımı">
-              <button
-                id={`${task.id}-help-toggle`}
-                className="task-help-toggle"
-                type="button"
-                onClick={() => setHelpExpanded((current) => !current)}
-                aria-expanded={helpExpanded}
-                aria-controls={`${task.id}-help-panel`}
-                aria-label={
-                  helpExpanded
-                    ? "Yardım adımlarını kapat"
-                    : "Yardım adımlarını aç"
-                }
-              >
-                <span className="task-help-icon" aria-hidden="true">
-                  <Lightbulb size={15} />
-                </span>
-                <span className="task-help-copy">
-                  <strong>Takıldın mı?</strong>
-                  <small>
-                    {helpExpanded ? "Yardımı kapat" : "Adım adım yardım al"}
-                  </small>
-                </span>
-                <span className="hint-progress" aria-hidden="true">
-                  {revealedHintCount}/{task.hints.length} ipucu
-                </span>
-                <ArrowRight
-                  className={helpExpanded ? "is-open" : undefined}
-                  size={13}
-                  aria-hidden="true"
-                />
-              </button>
-              {helpExpanded && (
-                <div
-                  id={`${task.id}-help-panel`}
-                  className="task-help-panel"
-                  role="region"
-                  aria-labelledby={`${task.id}-help-toggle`}
-                >
-                  <p className="hint-section-intro">
-                    Her seferinde yalnız bir sonraki adımı aç. Son adımın
-                    ardından çalışan bir sorguyu da görebilirsin.
-                  </p>
-                  <div className="task-score-guide">
-                    <span className="task-score-guide-icon" aria-hidden="true">
-                      <Target size={14} />
-                    </span>
-                    <span>
-                      <strong>
-                        {taskCompleted
-                          ? `${awardedCaseScore}/${MAX_CASE_SCORE} vaka puanı · kilitli`
-                          : `${currentCaseScore}/${MAX_CASE_SCORE} puan kullanılabilir`}
-                      </strong>
-                      <small>
-                        {taskCompleted
-                          ? "İnceleme modundasın; şimdi açacağın yardım kazanılmış puanını değiştirmez."
-                          : "Her ipucu −3 puan. Tam çözüm 0 puan; tamamlanman ve rota erişimin etkilenmez."}
-                      </small>
-                    </span>
-                  </div>
-                  <div className="hint-stack">
-                    {revealedHintCount > 0 && (
-                      <ol
-                        key="revealed-hints"
-                        className="revealed-hint-list"
-                        aria-label="Açılan ipuçları"
-                      >
-                        {task.hints.map((hint, index) =>
-                          visibleHints.includes(index) ? (
-                            <li className="revealed-hint" key={hint}>
-                              <span className="hint-index">{index + 1}</span>
-                              <span>
-                                <strong>
-                                  {index + 1}. adım · {HINT_STAGE_LABELS[index]}
-                                </strong>
-                                <span>{hint}</span>
-                              </span>
-                            </li>
-                          ) : null,
-                        )}
-                      </ol>
-                    )}
-                    {nextHintIndex >= 0 ? (
-                      <button
-                        key="next-hint"
-                        className="hint-button"
-                        type="button"
-                        onClick={() => revealHint(nextHintIndex)}
-                        aria-label={`${nextHintIndex + 1}. ipucunu aç`}
-                      >
-                        <span className="hint-button-icon">
-                          <Lightbulb size={14} />
-                        </span>
-                        <span className="hint-button-copy">
-                          <strong>{HINT_ACTION_LABELS[nextHintIndex]}</strong>
-                          <small>
-                            {taskCompleted
-                              ? `${nextHintIndex + 1}. yardım adımı · puanın değişmez`
-                              : `−3 puan · açınca ${scoreAfterNextHint} puan kalır`}
-                          </small>
-                        </span>
-                        <ArrowRight size={13} />
-                      </button>
-                    ) : (
-                      <>
-                        <div className="hint-complete">
-                          <CheckCircle2 size={13} />
-                          {taskCompleted
-                            ? "Üç hazırlık adımını gördün · puanın kilitli"
-                            : `Üç hazırlık adımını gördün · ${currentCaseScore} puan kaldı`}
-                        </div>
-                        <button
-                          ref={solutionTriggerRef}
-                          className="hint-button solution-trigger"
-                          type="button"
-                          onClick={() => toggleSolution()}
-                          aria-expanded={solutionVisible}
-                          aria-controls={`${task.id}-solution`}
-                        >
-                          <span className="hint-button-icon">
-                            <TerminalSquare size={14} />
-                          </span>
-                          <span className="hint-button-copy">
-                            <strong>
-                              {solutionVisible
-                                ? "Çalışan çözümü gizle"
-                                : "Bir doğru sorguyu göster"}
-                            </strong>
-                            <small>
-                              {taskCompleted
-                                ? "İnceleme modu · kazanılmış puanın değişmez"
-                                : solutionUsed
-                                  ? "0 puan kaydedildi · yeniden görüntüle"
-                                  : "Tam çözüm açılır · bu vaka 0 puan olur"}
-                            </small>
-                          </span>
-                          <ArrowRight
-                            className={solutionVisible ? "is-open" : undefined}
-                            size={13}
-                          />
-                        </button>
-                        {solutionConfirmVisible && !solutionVisible && (
-                          <div
-                            className="solution-score-confirmation"
-                            role="group"
-                            aria-labelledby={`${task.id}-solution-confirm-title`}
-                            aria-describedby={`${task.id}-solution-confirm-description`}
-                            onKeyDown={(event) => {
-                              if (event.key !== "Escape") return;
-                              event.preventDefault();
-                              cancelSolutionReveal();
-                            }}
-                          >
-                            <div>
-                              <strong id={`${task.id}-solution-confirm-title`}>
-                                Tam çözümü açmak istiyor musun?
-                              </strong>
-                              <p id={`${task.id}-solution-confirm-description`}>
-                                Bu vaka 0 analiz puanı olur. Yine de doğru
-                                tamamlanır, ilerlemen ve sonraki vakalar
-                                etkilenmez.
-                              </p>
-                            </div>
-                            <div className="solution-score-confirmation-actions">
-                              <button
-                                ref={solutionCancelRef}
-                                type="button"
-                                onClick={cancelSolutionReveal}
-                              >
-                                Kendim deneyeyim
-                              </button>
-                              <button
-                                type="button"
-                                className="confirm"
-                                onClick={confirmSolutionReveal}
-                              >
-                                0 puanla çözümü göster
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                        {solutionVisible && (
-                          <div
-                            id={`${task.id}-solution`}
-                            className="solution-reveal"
-                            role="region"
-                            aria-labelledby={`${task.id}-solution-title`}
-                          >
-                            <div className="solution-reveal-heading">
-                              <span className="solution-reveal-icon">
-                                <Braces size={14} />
-                              </span>
-                              <div>
-                                <strong id={`${task.id}-solution-title`}>
-                                  Çalışan çözüm örneği
-                                </strong>
-                                <span>Tam SQL · gerçek motorla doğrulandı</span>
-                              </div>
-                            </div>
-                            <p className="solution-reveal-note">
-                              Bu, geçerli çözümlerden biridir. Aynı sonucu
-                              farklı bir sorguyla da üretebilirsin.
-                            </p>
-                            <pre
-                              className="solution-code"
-                              tabIndex={0}
-                              aria-label={`${task.title} için örnek SQL sorgusu`}
-                            >
-                              <code>{task.solutionSql}</code>
-                            </pre>
-                            <p className="solution-reveal-footnote">
-                              {taskCompleted
-                                ? "Vaka puanın ilk doğrulamada kilitlendi. Bu inceleme puanını veya ilerlemeni değiştirmez."
-                                : "Tam çözüm kullanımı bu vaka puanını 0 yaptı; tamamlanmanı veya rota erişimini etkilemez. Sorguyu editörde yine sen çalıştırırsın."}
-                            </p>
-                            <div className="solution-reveal-actions">
-                              <button
-                                className="solution-action"
-                                type="button"
-                                onClick={() => void copySolution()}
-                              >
-                                <Copy size={13} /> SQL’i kopyala
-                              </button>
-                              <button
-                                className="solution-action primary"
-                                type="button"
-                                onClick={focusEditor}
-                              >
-                                Editöre dön ve kendin yaz
-                                <ArrowRight size={13} />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                        <span className="sr-only" role="status">
-                          {solutionAnnouncement}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                  <span className="sr-only" role="status" aria-live="polite">
-                    {scoreAnnouncement}
+            {isDrill ? (
+              <DrillBrief
+                task={task}
+                hintVisible={visibleHints.includes(0)}
+                onRevealHint={() => revealHint(0)}
+              />
+            ) : (
+              <>
+                <div className="brief-kicker">
+                  <span className="brief-case-tag">
+                    VAKA · {task.estimatedMinutes} DK
+                  </span>
+                  <span className="brief-time">
+                    <Clock3 size={10} /> {difficultyLabel(task)}
                   </span>
                 </div>
-              )}
-            </section>
+                <h1>{task.title}</h1>
+                <ol
+                  className="task-sequence"
+                  aria-label="Vakaya başlama sırası"
+                >
+                  <li className="task-sequence-step task-sequence-step-primary">
+                    <span className="task-step-index" aria-hidden="true">
+                      1
+                    </span>
+                    <div className="task-step-heading">
+                      <span>Önce</span>
+                      <h2 id={`${task.id}-objective-title`}>İstenen teslim</h2>
+                    </div>
+                    <p className="task-objective">{task.objective}</p>
+                  </li>
+
+                  <li className="task-sequence-step">
+                    <span className="task-step-index" aria-hidden="true">
+                      2
+                    </span>
+                    <div className="task-step-heading">
+                      <span>Sonra</span>
+                      <h2>Çıktını tanı</h2>
+                    </div>
+                    <div className="task-output-grain">
+                      <span>Bir sonuç satırı neyi temsil eder?</span>
+                      <strong>{task.learningBrief.outputGrain}</strong>
+                    </div>
+                    <div className="task-column-contract">
+                      <div
+                        id={`${task.id}-columns-title`}
+                        className="output-contract-label"
+                      >
+                        <Columns3 size={12} /> Beklenen kolonlar
+                      </div>
+                      <ul
+                        className="expected-columns"
+                        aria-labelledby={`${task.id}-columns-title`}
+                      >
+                        {task.expectedColumns.map((column) => (
+                          <li key={column}>
+                            <button
+                              className="expected-column"
+                              type="button"
+                              onClick={() => void copyExpectedColumn(column)}
+                              aria-label={`${column} kolonunu kopyala`}
+                              title="Kolon adını panoya kopyala"
+                            >
+                              <code>{column}</code>
+                              <Copy size={11} />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <details className="task-disclosure task-check-disclosure">
+                      <summary>
+                        <CheckCircle2 size={13} />
+                        <span>Kendini kontrol et</span>
+                        <small>
+                          {task.learningBrief.acceptanceChecks.length} madde
+                        </small>
+                      </summary>
+                      <ul className="task-check-list">
+                        {task.learningBrief.acceptanceChecks.map((check) => (
+                          <li key={check}>{check}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  </li>
+
+                  <li className="task-sequence-step">
+                    <span className="task-step-index" aria-hidden="true">
+                      3
+                    </span>
+                    <div className="task-step-heading">
+                      <span>Başla</span>
+                      <h2>Veriyi gör, sorgunu yaz</h2>
+                    </div>
+                    <div className="task-step-actions">
+                      <button
+                        className="brief-action primary"
+                        type="button"
+                        onClick={() => activatePanelTab("schema", true)}
+                      >
+                        <span className="task-action-index" aria-hidden="true">
+                          1
+                        </span>
+                        Şemayı incele <ArrowRight size={12} />
+                      </button>
+                      <button
+                        className="brief-action task-action-secondary"
+                        type="button"
+                        onClick={focusEditor}
+                      >
+                        <span className="task-action-index" aria-hidden="true">
+                          2
+                        </span>
+                        Sorguyu yaz <ArrowRight size={12} />
+                      </button>
+                    </div>
+                    <details className="task-disclosure task-concept-disclosure">
+                      <summary>
+                        <Braces size={13} />
+                        <span>Bu vakada ne çalışıyorsun?</span>
+                        <small>Kavram</small>
+                      </summary>
+                      <p className="task-concept-copy">
+                        {task.learningBrief.conceptAnchor}
+                      </p>
+                    </details>
+                  </li>
+                </ol>
+
+                <details className="task-disclosure task-context-disclosure">
+                  <summary>
+                    <TerminalSquare size={13} />
+                    <span>İş bağlamı</span>
+                    <small>İsteğe bağlı</small>
+                  </summary>
+                  <div className="task-disclosure-copy">
+                    <strong>{task.subtitle}</strong>
+                    <p>{task.scenario}</p>
+                  </div>
+                </details>
+
+                <section
+                  className="task-help-console"
+                  aria-label="Vaka yardımı"
+                >
+                  <button
+                    id={`${task.id}-help-toggle`}
+                    className="task-help-toggle"
+                    type="button"
+                    onClick={() => setHelpExpanded((current) => !current)}
+                    aria-expanded={helpExpanded}
+                    aria-controls={`${task.id}-help-panel`}
+                    aria-label={
+                      helpExpanded
+                        ? "Yardım adımlarını kapat"
+                        : "Yardım adımlarını aç"
+                    }
+                  >
+                    <span className="task-help-icon" aria-hidden="true">
+                      <Lightbulb size={15} />
+                    </span>
+                    <span className="task-help-copy">
+                      <strong>Takıldın mı?</strong>
+                      <small>
+                        {helpExpanded ? "Yardımı kapat" : "Adım adım yardım al"}
+                      </small>
+                    </span>
+                    <span className="hint-progress" aria-hidden="true">
+                      {revealedHintCount}/{task.hints.length} ipucu
+                    </span>
+                    <ArrowRight
+                      className={helpExpanded ? "is-open" : undefined}
+                      size={13}
+                      aria-hidden="true"
+                    />
+                  </button>
+                  {helpExpanded && (
+                    <div
+                      id={`${task.id}-help-panel`}
+                      className="task-help-panel"
+                      role="region"
+                      aria-labelledby={`${task.id}-help-toggle`}
+                    >
+                      <p className="hint-section-intro">
+                        Her seferinde yalnız bir sonraki adımı aç. Son adımın
+                        ardından çalışan bir sorguyu da görebilirsin.
+                      </p>
+                      <div className="task-score-guide">
+                        <span
+                          className="task-score-guide-icon"
+                          aria-hidden="true"
+                        >
+                          <Target size={14} />
+                        </span>
+                        <span>
+                          <strong>
+                            {taskCompleted
+                              ? `${awardedCaseScore}/${MAX_CASE_SCORE} vaka puanı · kilitli`
+                              : `${currentCaseScore}/${MAX_CASE_SCORE} puan kullanılabilir`}
+                          </strong>
+                          <small>
+                            {taskCompleted
+                              ? "İnceleme modundasın; şimdi açacağın yardım kazanılmış puanını değiştirmez."
+                              : "Her ipucu −3 puan. Tam çözüm 0 puan; tamamlanman ve rota erişimin etkilenmez."}
+                          </small>
+                        </span>
+                      </div>
+                      <div className="hint-stack">
+                        {revealedHintCount > 0 && (
+                          <ol
+                            key="revealed-hints"
+                            className="revealed-hint-list"
+                            aria-label="Açılan ipuçları"
+                          >
+                            {task.hints.map((hint, index) =>
+                              visibleHints.includes(index) ? (
+                                <li className="revealed-hint" key={hint}>
+                                  <span className="hint-index">
+                                    {index + 1}
+                                  </span>
+                                  <span>
+                                    <strong>
+                                      {index + 1}. adım ·{" "}
+                                      {HINT_STAGE_LABELS[index]}
+                                    </strong>
+                                    <span>{hint}</span>
+                                  </span>
+                                </li>
+                              ) : null,
+                            )}
+                          </ol>
+                        )}
+                        {nextHintIndex >= 0 ? (
+                          <button
+                            key="next-hint"
+                            className="hint-button"
+                            type="button"
+                            onClick={() => revealHint(nextHintIndex)}
+                            aria-label={`${nextHintIndex + 1}. ipucunu aç`}
+                          >
+                            <span className="hint-button-icon">
+                              <Lightbulb size={14} />
+                            </span>
+                            <span className="hint-button-copy">
+                              <strong>
+                                {HINT_ACTION_LABELS[nextHintIndex]}
+                              </strong>
+                              <small>
+                                {taskCompleted
+                                  ? `${nextHintIndex + 1}. yardım adımı · puanın değişmez`
+                                  : `−3 puan · açınca ${scoreAfterNextHint} puan kalır`}
+                              </small>
+                            </span>
+                            <ArrowRight size={13} />
+                          </button>
+                        ) : (
+                          <>
+                            <div className="hint-complete">
+                              <CheckCircle2 size={13} />
+                              {taskCompleted
+                                ? "Üç hazırlık adımını gördün · puanın kilitli"
+                                : `Üç hazırlık adımını gördün · ${currentCaseScore} puan kaldı`}
+                            </div>
+                            <button
+                              ref={solutionTriggerRef}
+                              className="hint-button solution-trigger"
+                              type="button"
+                              onClick={() => toggleSolution()}
+                              aria-expanded={solutionVisible}
+                              aria-controls={`${task.id}-solution`}
+                            >
+                              <span className="hint-button-icon">
+                                <TerminalSquare size={14} />
+                              </span>
+                              <span className="hint-button-copy">
+                                <strong>
+                                  {solutionVisible
+                                    ? "Çalışan çözümü gizle"
+                                    : "Bir doğru sorguyu göster"}
+                                </strong>
+                                <small>
+                                  {taskCompleted
+                                    ? "İnceleme modu · kazanılmış puanın değişmez"
+                                    : solutionUsed
+                                      ? "0 puan kaydedildi · yeniden görüntüle"
+                                      : "Tam çözüm açılır · bu vaka 0 puan olur"}
+                                </small>
+                              </span>
+                              <ArrowRight
+                                className={
+                                  solutionVisible ? "is-open" : undefined
+                                }
+                                size={13}
+                              />
+                            </button>
+                            {solutionConfirmVisible && !solutionVisible && (
+                              <div
+                                className="solution-score-confirmation"
+                                role="group"
+                                aria-labelledby={`${task.id}-solution-confirm-title`}
+                                aria-describedby={`${task.id}-solution-confirm-description`}
+                                onKeyDown={(event) => {
+                                  if (event.key !== "Escape") return;
+                                  event.preventDefault();
+                                  cancelSolutionReveal();
+                                }}
+                              >
+                                <div>
+                                  <strong
+                                    id={`${task.id}-solution-confirm-title`}
+                                  >
+                                    Tam çözümü açmak istiyor musun?
+                                  </strong>
+                                  <p
+                                    id={`${task.id}-solution-confirm-description`}
+                                  >
+                                    Bu vaka 0 analiz puanı olur. Yine de doğru
+                                    tamamlanır, ilerlemen ve sonraki vakalar
+                                    etkilenmez.
+                                  </p>
+                                </div>
+                                <div className="solution-score-confirmation-actions">
+                                  <button
+                                    ref={solutionCancelRef}
+                                    type="button"
+                                    onClick={cancelSolutionReveal}
+                                  >
+                                    Kendim deneyeyim
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="confirm"
+                                    onClick={confirmSolutionReveal}
+                                  >
+                                    0 puanla çözümü göster
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                            {solutionVisible && (
+                              <div
+                                id={`${task.id}-solution`}
+                                className="solution-reveal"
+                                role="region"
+                                aria-labelledby={`${task.id}-solution-title`}
+                              >
+                                <div className="solution-reveal-heading">
+                                  <span className="solution-reveal-icon">
+                                    <Braces size={14} />
+                                  </span>
+                                  <div>
+                                    <strong id={`${task.id}-solution-title`}>
+                                      Çalışan çözüm örneği
+                                    </strong>
+                                    <span>
+                                      Tam SQL · gerçek motorla doğrulandı
+                                    </span>
+                                  </div>
+                                </div>
+                                <p className="solution-reveal-note">
+                                  Bu, geçerli çözümlerden biridir. Aynı sonucu
+                                  farklı bir sorguyla da üretebilirsin.
+                                </p>
+                                <pre
+                                  className="solution-code"
+                                  tabIndex={0}
+                                  aria-label={`${task.title} için örnek SQL sorgusu`}
+                                >
+                                  <code>{task.solutionSql}</code>
+                                </pre>
+                                <p className="solution-reveal-footnote">
+                                  {taskCompleted
+                                    ? "Vaka puanın ilk doğrulamada kilitlendi. Bu inceleme puanını veya ilerlemeni değiştirmez."
+                                    : "Tam çözüm kullanımı bu vaka puanını 0 yaptı; tamamlanmanı veya rota erişimini etkilemez. Sorguyu editörde yine sen çalıştırırsın."}
+                                </p>
+                                <div className="solution-reveal-actions">
+                                  <button
+                                    className="solution-action"
+                                    type="button"
+                                    onClick={() => void copySolution()}
+                                  >
+                                    <Copy size={13} /> SQL’i kopyala
+                                  </button>
+                                  <button
+                                    className="solution-action primary"
+                                    type="button"
+                                    onClick={focusEditor}
+                                  >
+                                    Editöre dön ve kendin yaz
+                                    <ArrowRight size={13} />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                            <span className="sr-only" role="status">
+                              {solutionAnnouncement}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      <span
+                        className="sr-only"
+                        role="status"
+                        aria-live="polite"
+                      >
+                        {scoreAnnouncement}
+                      </span>
+                    </div>
+                  )}
+                </section>
+              </>
+            )}
           </div>
           <div
             id={`${task.id}-schema-panel`}
@@ -1522,7 +1693,7 @@ export function WorkspaceScreen({
           className="resize-rail"
           role="separator"
           tabIndex={0}
-          aria-label="Vaka panelini yeniden boyutlandır"
+          aria-label={`${isDrill ? taskKindLabel(task) : "Vaka"} panelini yeniden boyutlandır`}
           aria-orientation="vertical"
           aria-controls="workspace-brief-panel"
           aria-valuemin={300}
@@ -1666,7 +1837,7 @@ export function WorkspaceScreen({
                       }),
                       editor.addAction({
                         id: "queryvale.previous-case",
-                        label: "Önceki vakaya geç",
+                        label: "Önceki çalışmaya geç",
                         keybindings: [
                           monaco.KeyMod.CtrlCmd |
                             monaco.KeyMod.Shift |
@@ -1676,7 +1847,7 @@ export function WorkspaceScreen({
                       }),
                       editor.addAction({
                         id: "queryvale.next-case",
-                        label: "Sonraki vakaya geç",
+                        label: "Sonraki çalışmaya geç",
                         keybindings: [
                           monaco.KeyMod.CtrlCmd |
                             monaco.KeyMod.Shift |
@@ -1799,7 +1970,9 @@ export function WorkspaceScreen({
                 status={evaluation.correct ? "correct" : "wrong"}
                 summary={
                   evaluation.correct
-                    ? `${result?.rowCount ?? evaluation.actualRowCount ?? 0} satır · beklenen çıktıyla eşleşti · ${awardedCaseScore}/10 puan`
+                    ? isDrill
+                      ? `${result?.rowCount ?? evaluation.actualRowCount ?? 0} satır · beklenen çıktıyla eşleşti · ${activeDrillPresentation?.completionLabel.toLocaleLowerCase("tr-TR")}`
+                      : `${result?.rowCount ?? evaluation.actualRowCount ?? 0} satır · beklenen çıktıyla eşleşti · ${awardedCaseScore}/10 puan`
                     : evaluation.actualRowCount !== undefined &&
                         evaluation.expectedRowCount !== undefined
                       ? `${evaluation.actualRowCount} satır döndü, ${evaluation.expectedRowCount} bekleniyordu`
@@ -1878,9 +2051,12 @@ export function WorkspaceScreen({
                         activatePanelTab("brief", true);
                       }}
                     >
-                      <Lightbulb size={12} /> {nextHintIndex + 1}. ipucunu aç
+                      <Lightbulb size={12} />{" "}
+                      {isDrill
+                        ? "Ücretsiz ipucunu aç"
+                        : `${nextHintIndex + 1}. ipucunu aç`}
                     </button>
-                  ) : !solutionVisible ? (
+                  ) : !isDrill && !solutionVisible ? (
                     <button
                       className="coaching-hint-action"
                       type="button"
@@ -1895,21 +2071,39 @@ export function WorkspaceScreen({
                   ) : null}
                 </aside>
               )}
-              {evaluation?.correct && result && (
-                <ResultCompletion
-                  task={task}
-                  attempts={Math.max(1, taskAttempts)}
-                  rowCount={result.rowCount}
-                  scoreAwarded={awardedCaseScore}
-                  evidence={progress.evidenceByTaskId[task.id]}
-                  onSaveNote={(note) => {
-                    onProgressChange((current) =>
-                      saveDecisionNote(current, task.id, note),
-                    );
-                    setToast("Karar notu Kanıt Defteri’ne kaydedildi.");
-                  }}
-                />
-              )}
+              {evaluation?.correct &&
+                result &&
+                (isDrill ? (
+                  <div
+                    className="drill-completion"
+                    data-drill-type={task.type}
+                    role="status"
+                  >
+                    <CheckCircle2 size={16} aria-hidden="true" />
+                    <div>
+                      <strong>
+                        {activeDrillPresentation?.completionLabel}
+                      </strong>
+                      <span>
+                        Bir sonraki adıma hazır olduğunda ilerleyebilirsin.
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <ResultCompletion
+                    task={task}
+                    attempts={Math.max(1, taskAttempts)}
+                    rowCount={result.rowCount}
+                    scoreAwarded={awardedCaseScore}
+                    evidence={progress.evidenceByTaskId[task.id]}
+                    onSaveNote={(note) => {
+                      onProgressChange((current) =>
+                        saveDecisionNote(current, task.id, note),
+                      );
+                      setToast("Karar notu Kanıt Defteri’ne kaydedildi.");
+                    }}
+                  />
+                ))}
             </div>
           </section>
         </div>
@@ -1924,6 +2118,7 @@ export function WorkspaceScreen({
         previousTaskId={previousTask?.id}
         nextTaskId={nextTask?.id}
         currentTaskCorrect={evaluation ? evaluation.correct : taskCompleted}
+        activeTaskType={task.type}
         routeMenuOpen={routeMenuOpen}
         onRouteMenuOpenChange={setRouteMenuOpen}
         onSelectTask={navigateToTask}

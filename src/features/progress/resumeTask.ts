@@ -4,6 +4,8 @@ export interface ResumeTaskCandidate {
   id: string;
   prerequisites: readonly string[];
   nextTaskId: string | null;
+  /** Optional for legacy callers; present on current SQL curriculum tasks. */
+  routeOrder?: number;
 }
 
 export type ResumeTaskReason =
@@ -45,7 +47,10 @@ export function selectResumeTask<Task extends ResumeTaskCandidate>(
   tasks: readonly Task[],
   progress: ProgressState,
 ): ResumeTaskSelection<Task> {
-  const firstTask = tasks[0];
+  const routeTasks = [...tasks].toSorted(
+    (left, right) => (left.routeOrder ?? 0) - (right.routeOrder ?? 0),
+  );
+  const firstTask = routeTasks[0];
   if (!firstTask) {
     return {
       task: undefined,
@@ -55,11 +60,11 @@ export function selectResumeTask<Task extends ResumeTaskCandidate>(
     };
   }
 
-  const taskById = new Map(tasks.map((task) => [task.id, task]));
+  const taskById = new Map(routeTasks.map((task) => [task.id, task]));
   const hasActivity = (task: Task) =>
     hasStoredTaskActivity(progress.tasks[task.id]) ||
     Boolean(progress.evidenceByTaskId[task.id]);
-  const activeTasks = tasks.filter(hasActivity);
+  const activeTasks = routeTasks.filter(hasActivity);
   const lastOpened = taskById.get(progress.lastOpenedTaskId);
   const hasSavedLocation = Boolean(
     lastOpened && lastOpened.id !== firstTask.id,
@@ -78,9 +83,10 @@ export function selectResumeTask<Task extends ResumeTaskCandidate>(
   const isCompleted = (task: Task) =>
     progress.tasks[task.id]?.completed === true;
   const nextIncompleteAfter = (task: Task) => {
-    const nextTask = task.nextTaskId
-      ? taskById.get(task.nextTaskId)
-      : undefined;
+    const currentIndex = routeTasks.findIndex(
+      (candidate) => candidate.id === task.id,
+    );
+    const nextTask = routeTasks[currentIndex + 1];
     return nextTask && !isCompleted(nextTask) ? nextTask : undefined;
   };
   const returnLastOpened = (task: Task) => {
@@ -130,14 +136,14 @@ export function selectResumeTask<Task extends ResumeTaskCandidate>(
   }
 
   const completionAnchor = activeTasks.findLast(isCompleted);
-  const nextTask = completionAnchor?.nextTaskId
-    ? taskById.get(completionAnchor.nextTaskId)
+  const nextTask = completionAnchor
+    ? nextIncompleteAfter(completionAnchor)
     : undefined;
   if (nextTask && !isCompleted(nextTask)) {
     return returning(nextTask, "next-after-completion");
   }
 
-  const firstAvailableIncomplete = tasks.find(
+  const firstAvailableIncomplete = routeTasks.find(
     (task) =>
       !isCompleted(task) &&
       task.prerequisites.every(
@@ -148,12 +154,12 @@ export function selectResumeTask<Task extends ResumeTaskCandidate>(
     return returning(firstAvailableIncomplete, "first-available-incomplete");
   }
 
-  const firstIncomplete = tasks.find((task) => !isCompleted(task));
+  const firstIncomplete = routeTasks.find((task) => !isCompleted(task));
   if (firstIncomplete) {
     return returning(firstIncomplete, "first-incomplete");
   }
 
-  return returning(tasks.at(-1) ?? firstTask, "curriculum-complete");
+  return returning(routeTasks.at(-1) ?? firstTask, "curriculum-complete");
 }
 
 function returning<Task extends ResumeTaskCandidate>(

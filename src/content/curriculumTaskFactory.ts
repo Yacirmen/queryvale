@@ -25,13 +25,22 @@ export const READ_ONLY_FORBIDDEN: ForbiddenOperation[] = [
 
 export type AuthoredTask = Omit<
   LessonTask,
-  "solutionSql" | "validationOptions" | keyof LessonLearningContent
+  | "solutionSql"
+  | "validationOptions"
+  | keyof LessonLearningContent
+  | "routeOrder"
+  | "type"
+  | "scored"
 > & {
   validationOptions?: Partial<ValidationOptions>;
+  routeOrder?: number;
+  type?: LessonTask["type"];
+  scored?: boolean;
 };
 
 export const createTask = (task: AuthoredTask): LessonTask => {
   const { validationOptions, ...baseTask } = task;
+  const type = task.type ?? "case";
   const learningContent =
     AUTHORED_TASK_LEARNING_CONTENT[task.id] ??
     createDefaultLearningContent(baseTask);
@@ -39,6 +48,12 @@ export const createTask = (task: AuthoredTask): LessonTask => {
   return defineTask({
     ...baseTask,
     ...learningContent,
+    // Legacy authored cases keep their current behaviour without repeating
+    // these fields 52 times. Drill authors opt in explicitly; the factory
+    // defaults every drill to unscored so a missing field cannot leak points.
+    routeOrder: task.routeOrder ?? 0,
+    type,
+    scored: task.scored ?? type === "case",
     solutionSql: getTaskSolution(task.id),
     validationOptions: {
       ...DEFAULT_VALIDATION_OPTIONS,

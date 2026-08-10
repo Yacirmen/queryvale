@@ -2,6 +2,28 @@ export type SqlScalar = string | number | boolean | null;
 
 export type Difficulty = "beginner" | "intermediate" | "advanced";
 
+/** A full, scored case or one of the short, unscored practice formats. */
+export type DrillTaskType = "drill_intro" | "drill_practice" | "drill_mix";
+
+export type LessonTaskType = "case" | DrillTaskType;
+
+/**
+ * Keeps consumers from coupling drill behaviour to a single legacy string.
+ * The three drill variants share scoring and brief rules, while retaining
+ * distinct curriculum semantics and presentation.
+ */
+export function isDrillTaskType(type: LessonTaskType): type is DrillTaskType {
+  return (
+    type === "drill_intro" || type === "drill_practice" || type === "drill_mix"
+  );
+}
+
+/**
+ * Curriculum audit codes intentionally remain separate from SQLConcept.
+ * SQLConcept drives query validation; these codes describe learning sequence.
+ */
+export type CurriculumConceptCode = `K${string}` | `K99-${string}`;
+
 export type ValidationMode =
   "result" | "result-and-concepts" | "schema" | "mutation";
 
@@ -195,6 +217,22 @@ export interface LessonTask extends LessonLearningContent {
   objective: string;
   difficulty: Difficulty;
   estimatedMinutes: number;
+  /** Canonical route position. Navigation and resume use this rather than IDs. */
+  routeOrder: number;
+  type: LessonTaskType;
+  /** Only full cases award analysis points. */
+  scored: boolean;
+  /** drill_intro-only: exactly one newly introduced curriculum concept. */
+  conceptNew?: CurriculumConceptCode;
+  /** Drill-only: concepts deliberately revisited by the short exercise. */
+  conceptsReinforced?: readonly CurriculumConceptCode[];
+  /**
+   * Optional, auditable curriculum map. It describes the concepts exercised
+   * by this task without changing SQL evaluation semantics.
+   */
+  curriculumConcepts?: readonly CurriculumConceptCode[];
+  /** Drill-only: concise learner-facing explanation shown in the four-part brief. */
+  drillConcept?: string;
   prerequisites: string[];
   concepts: SQLConcept[];
   setupSql: string;
@@ -208,7 +246,8 @@ export interface LessonTask extends LessonLearningContent {
   requiredConcepts: SQLConcept[];
   forbiddenOperations: ForbiddenOperation[];
   validationOptions: ValidationOptions;
-  hints: [string, string, string];
+  /** Cases contain three progressive hints; drills deliberately contain one free hint. */
+  hints: readonly string[];
   /** A learner-visible, executable example revealed only on explicit request. */
   solutionSql: string;
   explanation: string;
@@ -234,6 +273,12 @@ export interface CurriculumModule {
 
 /** Short alias for consumers that prefer the domain term used in the UI. */
 export type Task = LessonTask;
+
+export function isDrillTask(
+  task: Pick<LessonTask, "type">,
+): task is Pick<LessonTask, "type"> & { type: DrillTaskType } {
+  return isDrillTaskType(task.type);
+}
 
 export const DEFAULT_VALIDATION_OPTIONS: Readonly<ValidationOptions> = {
   numericTolerance: 0.0001,

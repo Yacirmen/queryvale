@@ -23,6 +23,8 @@ export interface TaskProgress {
   lastQuery: string;
   hintsUsed: number[];
   solutionRevealed: boolean;
+  /** Present only for a completed, deliberately unscored SQL drill. */
+  scored?: false;
   scoreAwarded?: number;
   solveTimeSeconds: number;
   firstTry: boolean;
@@ -58,9 +60,9 @@ export interface PythonEvidenceEntry {
 
 type LegacyTaskProgress = Omit<
   TaskProgress,
-  "solutionRevealed" | "scoreAwarded"
+  "solutionRevealed" | "scored" | "scoreAwarded"
 > &
-  Partial<Pick<TaskProgress, "solutionRevealed" | "scoreAwarded">>;
+  Partial<Pick<TaskProgress, "solutionRevealed" | "scored" | "scoreAwarded">>;
 
 export interface ProgressProfile {
   id: string;
@@ -585,8 +587,11 @@ function isTaskProgress(value: unknown, key: string): value is TaskProgress {
   const task = value as Partial<TaskProgress>;
   return (
     typeof task.solutionRevealed === "boolean" &&
+    (task.scored === undefined || task.scored === false) &&
     (task.completed
-      ? isValidCaseScore(task.scoreAwarded)
+      ? task.scored === false
+        ? task.scoreAwarded === undefined
+        : isValidCaseScore(task.scoreAwarded)
       : task.scoreAwarded === undefined)
   );
 }
@@ -1798,17 +1803,21 @@ export function recordAttempt(
   solveTimeSeconds: number,
   now = new Date(),
   assistanceAtRunStart?: AttemptAssistanceSnapshot,
+  options: { scored?: boolean } = {},
 ): ProgressState {
   const previous = state.tasks[taskId];
   const attempts = (previous?.attempts ?? 0) + 1;
   const firstCompletion = completed && !previous?.completed;
   const solutionRevealed = previous?.solutionRevealed ?? false;
-  const scoreAwarded = firstCompletion
-    ? calculateCaseScore(
-        assistanceAtRunStart?.hintsUsed ?? previous?.hintsUsed ?? [],
-        assistanceAtRunStart?.solutionRevealed ?? solutionRevealed,
-      )
-    : previous?.scoreAwarded;
+  const isUnscored = options.scored === false || previous?.scored === false;
+  const scoreAwarded = isUnscored
+    ? undefined
+    : firstCompletion
+      ? calculateCaseScore(
+          assistanceAtRunStart?.hintsUsed ?? previous?.hintsUsed ?? [],
+          assistanceAtRunStart?.solutionRevealed ?? solutionRevealed,
+        )
+      : previous?.scoreAwarded;
   const task: TaskProgress = {
     taskId,
     attempts,
@@ -1820,6 +1829,7 @@ export function recordAttempt(
     lastQuery: query,
     hintsUsed: previous?.hintsUsed ?? [],
     solutionRevealed,
+    ...(isUnscored ? { scored: false as const } : {}),
     ...(scoreAwarded !== undefined ? { scoreAwarded } : {}),
     solveTimeSeconds: completed
       ? solveTimeSeconds
