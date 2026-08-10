@@ -201,6 +201,8 @@ let persistenceIssue: "unavailable" | "incompatible" | undefined;
 let progressRecordReadFailed = false;
 
 export const DEFAULT_PROFILE_DISPLAY_NAME = "SQL Kaşifi";
+const DEFAULT_SQL_TASK_ID = "m1-t1";
+const DEFAULT_PYTHON_TASK_ID = "py-m1-t1";
 
 export const defaultSettings: EditorSettings = {
   theme: "dark",
@@ -377,9 +379,9 @@ export function createDefaultProgress(): ProgressState {
       displayName: DEFAULT_PROFILE_DISPLAY_NAME,
     },
     startedAt: new Date().toISOString(),
-    lastOpenedTaskId: "m1-t1",
+    lastOpenedTaskId: DEFAULT_SQL_TASK_ID,
     lastOpenedTaskIdTrusted: true,
-    lastOpenedPythonTaskId: "py-m1-t1",
+    lastOpenedPythonTaskId: DEFAULT_PYTHON_TASK_ID,
     activityDates: [],
     tasks: {},
     pythonTasks: {},
@@ -1425,6 +1427,38 @@ export async function resetProgress(): Promise<ProgressState> {
   const next = createDefaultProgress();
   await saveProgress(next, { replaceIncompatible: true });
   return next;
+}
+
+/**
+ * Clears only the SQL learning route. The shared profile, editor preferences,
+ * practice calendar, and all Python learning data deliberately remain intact.
+ * Persistence is handled by the caller so this stays a pure state transition.
+ */
+export function resetSqlLearningProgress(state: ProgressState): ProgressState {
+  return {
+    ...state,
+    lastOpenedTaskId: DEFAULT_SQL_TASK_ID,
+    lastOpenedTaskIdTrusted: true,
+    tasks: {},
+    evidenceByTaskId: {},
+  };
+}
+
+/**
+ * Clears only the Python learning route. The shared profile, editor
+ * preferences, practice calendar, and all SQL learning data deliberately
+ * remain intact. Persistence is handled by the caller so this stays a pure
+ * state transition.
+ */
+export function resetPythonLearningProgress(
+  state: ProgressState,
+): ProgressState {
+  return {
+    ...state,
+    lastOpenedPythonTaskId: DEFAULT_PYTHON_TASK_ID,
+    pythonTasks: {},
+    pythonEvidenceByTaskId: {},
+  };
 }
 
 export function recordTaskOpen(

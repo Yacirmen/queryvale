@@ -1,4 +1,11 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { modules, pythonModules, pythonTasks, tasks } from "../../content";
 import {
@@ -11,22 +18,25 @@ import {
 } from "../../features/progress/progressStore";
 import { buildProfileConceptSignals, ProgressScreen } from "./ProgressScreen";
 
-function renderProgress(progress: ProgressState) {
+function renderProgress(
+  progress: ProgressState,
+  overrides: Partial<ComponentProps<typeof ProgressScreen>> = {},
+) {
   const onNavigate = vi.fn();
-  render(
-    <ProgressScreen
-      modules={modules}
-      tasks={tasks}
-      pythonModules={pythonModules}
-      pythonTasks={pythonTasks}
-      progress={progress}
-      profileName={progress.profile.displayName}
-      onProfileNameChange={vi.fn()}
-      onSignOut={vi.fn().mockResolvedValue(true)}
-      onNavigate={onNavigate}
-    />,
-  );
-  return { onNavigate };
+  const props: ComponentProps<typeof ProgressScreen> = {
+    modules,
+    tasks,
+    pythonModules,
+    pythonTasks,
+    progress,
+    profileName: progress.profile.displayName,
+    onProfileNameChange: vi.fn(),
+    onSignOut: vi.fn().mockResolvedValue(true),
+    onNavigate,
+    ...overrides,
+  };
+  render(<ProgressScreen {...props} />);
+  return { onNavigate: props.onNavigate };
 }
 
 describe("ProgressScreen learning signals", () => {
@@ -239,5 +249,88 @@ describe("ProgressScreen learning signals", () => {
     expect(
       screen.getByRole("heading", { name: "SQL konularında neredesin?" }),
     ).toBeInTheDocument();
+  });
+
+  it("requires two explicit confirmations before resetting SQL progress", async () => {
+    const onResetSqlProgress = vi.fn().mockResolvedValue(true);
+    renderProgress(createDefaultProgress(), { onResetSqlProgress });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "SQL ilerlemesini sıfırla" }),
+    );
+    expect(onResetSqlProgress).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("heading", {
+        name: "SQL ilerlemesini sıfırlamaya hazır mısın?",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Bu adım yalnız son onay ekranını açar; henüz hiçbir SQL verin silinmez.",
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Vazgeç" }));
+    expect(onResetSqlProgress).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("heading", {
+        name: "SQL ilerlemesini sıfırlamaya hazır mısın?",
+      }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "SQL ilerlemesini sıfırla" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
+    expect(onResetSqlProgress).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("heading", {
+        name: "Son onay: SQL ilerlemesini sıfırla",
+      }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Evet, SQL ilerlememi sıfırla" }),
+    );
+    await waitFor(() => expect(onResetSqlProgress).toHaveBeenCalledOnce());
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("heading", {
+          name: "Son onay: SQL ilerlemesini sıfırla",
+        }),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
+  it("keeps the other route untouched until Python receives its own final confirmation", async () => {
+    const onResetSqlProgress = vi.fn().mockResolvedValue(true);
+    const onResetPythonProgress = vi.fn().mockResolvedValue(true);
+    renderProgress(createDefaultProgress(), {
+      onResetSqlProgress,
+      onResetPythonProgress,
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Python ilerlemesini sıfırla" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
+    expect(onResetSqlProgress).not.toHaveBeenCalled();
+    expect(onResetPythonProgress).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Vazgeç" }));
+    expect(onResetPythonProgress).not.toHaveBeenCalled();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Python ilerlemesini sıfırla" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Evet, Python ilerlememi sıfırla",
+      }),
+    );
+
+    await waitFor(() => expect(onResetPythonProgress).toHaveBeenCalledOnce());
+    expect(onResetSqlProgress).not.toHaveBeenCalled();
   });
 });

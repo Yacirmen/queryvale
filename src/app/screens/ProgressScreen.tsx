@@ -10,6 +10,7 @@ import {
   Lightbulb,
   Lock,
   Radar,
+  RotateCcw,
   Save,
   Sparkles,
   Target,
@@ -55,10 +56,47 @@ interface ProgressScreenProps {
   profileName: string;
   onProfileNameChange: (name: string) => void;
   onSignOut: () => Promise<boolean>;
+  onResetSqlProgress?: () => Promise<boolean>;
+  onResetPythonProgress?: () => Promise<boolean>;
   canSignOut?: boolean;
   profileActionPending?: boolean;
   onNavigate: Navigate;
 }
+
+type LearningTrack = "sql" | "python";
+type ProgressResetStage = "prepare" | "confirm";
+
+interface ProgressResetDialogState {
+  track: LearningTrack;
+  stage: ProgressResetStage;
+}
+
+const resetTrackCopy = {
+  sql: {
+    prepareTitle: "SQL ilerlemesini sıfırlamaya hazır mısın?",
+    confirmTitle: "Son onay: SQL ilerlemesini sıfırla",
+    confirmLabel: "Evet, SQL ilerlememi sıfırla",
+    prepareDescription:
+      "Bu adım yalnız son onay ekranını açar; henüz hiçbir SQL verin silinmez.",
+    confirmDescription:
+      "SQL rotandaki tamamlanmalar, denemeler, taslaklar, ipuçları, puanlar ve Kanıt Defteri kayıtların silinecek. Python rotan, profilin ve ayarların korunacak.",
+    failureMessage:
+      "SQL ilerlemesi sıfırlanamadı. Lütfen tekrar dene; Python rotan korunuyor.",
+    busyLabel: "SQL ilerlemesi sıfırlanıyor…",
+  },
+  python: {
+    prepareTitle: "Python ilerlemesini sıfırlamaya hazır mısın?",
+    confirmTitle: "Son onay: Python ilerlemesini sıfırla",
+    confirmLabel: "Evet, Python ilerlememi sıfırla",
+    prepareDescription:
+      "Bu adım yalnız son onay ekranını açar; henüz hiçbir Python verin silinmez.",
+    confirmDescription:
+      "Python rotandaki tamamlanmalar, denemeler, kod taslakları, ipuçları, puanlar ve doğrulanmış çıktıların silinecek. SQL rotan, profilin ve ayarların korunacak.",
+    failureMessage:
+      "Python ilerlemesi sıfırlanamadı. Lütfen tekrar dene; SQL rotan korunuyor.",
+    busyLabel: "Python ilerlemesi sıfırlanıyor…",
+  },
+} as const;
 
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat("tr-TR", {
@@ -201,6 +239,8 @@ export function ProgressScreen({
   profileName,
   onProfileNameChange,
   onSignOut,
+  onResetSqlProgress,
+  onResetPythonProgress,
   canSignOut = false,
   profileActionPending = false,
   onNavigate,
@@ -210,11 +250,18 @@ export function ProgressScreen({
   const [nameError, setNameError] = useState<string>();
   const [nameStatus, setNameStatus] = useState<string>();
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
+  const [progressResetDialog, setProgressResetDialog] =
+    useState<ProgressResetDialogState>();
+  const [isResettingProgress, setIsResettingProgress] = useState(false);
+  const [progressResetError, setProgressResetError] = useState<string>();
   const nameInputRef = useRef<HTMLInputElement>(null);
   const editNameButtonRef = useRef<HTMLButtonElement>(null);
   const shouldRestoreNameFocusRef = useRef(false);
   const evidenceByTaskId = progress.evidenceByTaskId;
   const pythonEvidenceByTaskId = progress.pythonEvidenceByTaskId;
+  const resetDialogCopy = progressResetDialog
+    ? resetTrackCopy[progressResetDialog.track]
+    : undefined;
 
   useEffect(() => {
     if (isEditingName) nameInputRef.current?.focus();
@@ -223,6 +270,50 @@ export function ProgressScreen({
       shouldRestoreNameFocusRef.current = false;
     }
   }, [isEditingName]);
+
+  const openProgressResetDialog = (track: LearningTrack) => {
+    setProgressResetError(undefined);
+    setProgressResetDialog({ track, stage: "prepare" });
+  };
+
+  const closeProgressResetDialog = () => {
+    if (isResettingProgress) return;
+    setProgressResetError(undefined);
+    setProgressResetDialog(undefined);
+  };
+
+  const advanceProgressResetDialog = () => {
+    setProgressResetError(undefined);
+    setProgressResetDialog((current) =>
+      current ? { ...current, stage: "confirm" } : current,
+    );
+  };
+
+  const confirmProgressReset = async () => {
+    if (!progressResetDialog || isResettingProgress) return;
+
+    const callback =
+      progressResetDialog.track === "sql"
+        ? onResetSqlProgress
+        : onResetPythonProgress;
+    const copy = resetTrackCopy[progressResetDialog.track];
+    if (!callback) return;
+
+    setProgressResetError(undefined);
+    setIsResettingProgress(true);
+    try {
+      const reset = await callback();
+      if (reset) {
+        setProgressResetDialog(undefined);
+      } else {
+        setProgressResetError(copy.failureMessage);
+      }
+    } catch {
+      setProgressResetError(copy.failureMessage);
+    } finally {
+      setIsResettingProgress(false);
+    }
+  };
 
   const metrics = useMemo(() => {
     const sqlTaskProgress = tasks.flatMap((task) => {
@@ -827,6 +918,46 @@ export function ProgressScreen({
                 </p>
               </div>
             </div>
+            {onResetSqlProgress || onResetPythonProgress ? (
+              <section
+                className="profile-progress-reset"
+                aria-labelledby="profile-progress-reset-title"
+              >
+                <div className="profile-progress-reset-heading">
+                  <span>İlerleme yönetimi</span>
+                  <h2 id="profile-progress-reset-title">
+                    Rotaları ayrı sıfırla
+                  </h2>
+                  <p>
+                    Profilin, ayarların ve diğer rota bu işlemden etkilenmez.
+                  </p>
+                </div>
+                <div className="profile-progress-reset-actions">
+                  {onResetSqlProgress ? (
+                    <button
+                      className="profile-progress-reset-button"
+                      type="button"
+                      disabled={profileActionPending || isResettingProgress}
+                      onClick={() => openProgressResetDialog("sql")}
+                    >
+                      <RotateCcw size={15} aria-hidden="true" />
+                      SQL ilerlemesini sıfırla
+                    </button>
+                  ) : null}
+                  {onResetPythonProgress ? (
+                    <button
+                      className="profile-progress-reset-button"
+                      type="button"
+                      disabled={profileActionPending || isResettingProgress}
+                      onClick={() => openProgressResetDialog("python")}
+                    >
+                      <RotateCcw size={15} aria-hidden="true" />
+                      Python ilerlemesini sıfırla
+                    </button>
+                  ) : null}
+                </div>
+              </section>
+            ) : null}
             {canSignOut ? (
               <>
                 <button
@@ -1640,6 +1771,50 @@ export function ProgressScreen({
           if (signedOut) setShowSignOutDialog(false);
         }}
       />
+      {progressResetDialog && resetDialogCopy ? (
+        <ConfirmationDialog
+          key={`${progressResetDialog.track}-${progressResetDialog.stage}`}
+          title={
+            progressResetDialog.stage === "prepare"
+              ? resetDialogCopy.prepareTitle
+              : resetDialogCopy.confirmTitle
+          }
+          description={
+            progressResetDialog.stage === "prepare"
+              ? resetDialogCopy.prepareDescription
+              : resetDialogCopy.confirmDescription
+          }
+          confirmLabel={
+            progressResetDialog.stage === "prepare"
+              ? "Devam et"
+              : resetDialogCopy.confirmLabel
+          }
+          cancelLabel="Vazgeç"
+          busyLabel={resetDialogCopy.busyLabel}
+          tone="danger"
+          busy={isResettingProgress}
+          disabled={profileActionPending}
+          onClose={closeProgressResetDialog}
+          onConfirm={() => {
+            if (progressResetDialog.stage === "prepare") {
+              advanceProgressResetDialog();
+              return;
+            }
+            void confirmProgressReset();
+          }}
+        >
+          {progressResetDialog.stage === "prepare" ? (
+            <p className="profile-reset-dialog-note">
+              Devam ettiğinde, seçtiğin rota için geri alınamaz son onay
+              istenecek.
+            </p>
+          ) : progressResetError ? (
+            <p className="profile-reset-dialog-error" role="alert">
+              {progressResetError}
+            </p>
+          ) : null}
+        </ConfirmationDialog>
+      ) : null}
     </main>
   );
 }

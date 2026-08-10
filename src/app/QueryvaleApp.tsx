@@ -19,6 +19,8 @@ import {
   loadLocalProfileSession,
   loadProgress,
   MAX_PROGRESS_IMPORT_BYTES,
+  resetPythonLearningProgress,
+  resetSqlLearningProgress,
   saveProgress,
   saveProgressWithLocalProfileSession,
   signOutLocalProfileSession,
@@ -1034,6 +1036,56 @@ export function QueryvaleApp() {
     }
   };
 
+  const handleResetSqlProgress = useCallback(async (): Promise<boolean> => {
+    if (profileSessionWriteRef.current || isReplacingProgressRef.current) {
+      return false;
+    }
+
+    try {
+      await replaceProgress(
+        resetSqlLearningProgress(progressRef.current),
+        localProfileAccessRef.current,
+      );
+      setActiveTaskId(tasks[0]?.id ?? "");
+      setNotice({
+        tone: "success",
+        message: "SQL ilerlemesi başlangıç durumuna döndü.",
+      });
+      return true;
+    } catch {
+      setNotice({
+        tone: "error",
+        message: "SQL ilerlemesi sıfırlanamadı; Python çalışmaların korunuyor.",
+      });
+      return false;
+    }
+  }, [replaceProgress]);
+
+  const handleResetPythonProgress = useCallback(async (): Promise<boolean> => {
+    if (profileSessionWriteRef.current || isReplacingProgressRef.current) {
+      return false;
+    }
+
+    try {
+      await replaceProgress(
+        resetPythonLearningProgress(progressRef.current),
+        localProfileAccessRef.current,
+      );
+      setActivePythonTaskId(pythonTasks[0]?.id ?? "");
+      setNotice({
+        tone: "success",
+        message: "Python ilerlemesi başlangıç durumuna döndü.",
+      });
+      return true;
+    } catch {
+      setNotice({
+        tone: "error",
+        message: "Python ilerlemesi sıfırlanamadı; SQL çalışmaların korunuyor.",
+      });
+      return false;
+    }
+  }, [replaceProgress]);
+
   const handleShowFirstGuide = () => {
     navigate("workspace", {
       taskId: resumeSelection.task?.id ?? tasks[0]?.id,
@@ -1233,6 +1285,8 @@ export function QueryvaleApp() {
             profileName={progress.profile.displayName}
             onProfileNameChange={handleProfileNameChange}
             onSignOut={handleLocalProfileSignOut}
+            onResetSqlProgress={handleResetSqlProgress}
+            onResetPythonProgress={handleResetPythonProgress}
             canSignOut={localProfileActive}
             profileActionPending={isUpdatingLocalProfile}
             onNavigate={navigate}

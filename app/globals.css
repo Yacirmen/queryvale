@@ -7087,6 +7087,96 @@ body:has(.app-shell[data-screen="workspace"]) {
   gap: 10px;
 }
 
+.profile-progress-reset {
+  width: min(100%, 326px);
+  border: 1px solid color-mix(in srgb, var(--danger) 22%, var(--line));
+  border-radius: 14px;
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+  background: color-mix(in srgb, var(--danger) 3%, var(--surface));
+}
+
+.profile-progress-reset-heading > span {
+  display: block;
+  color: color-mix(in srgb, var(--danger) 78%, var(--text));
+  font-family: var(--font-geist-mono), monospace;
+  font-size: var(--font-size-micro);
+  font-weight: 720;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.profile-progress-reset-heading h2 {
+  margin: 5px 0 0;
+  color: var(--text);
+  font-size: var(--font-size-body-sm);
+  letter-spacing: -0.025em;
+}
+
+.profile-progress-reset-heading p {
+  margin: 5px 0 0;
+  color: var(--text-soft);
+  font-size: var(--font-size-caption);
+  line-height: 1.5;
+}
+
+.profile-progress-reset-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.profile-progress-reset-button {
+  min-height: 42px;
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--danger) 28%, var(--line));
+  border-radius: 10px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  color: color-mix(in srgb, var(--danger) 82%, var(--text));
+  background: color-mix(in srgb, var(--danger) 5%, var(--surface));
+  font: inherit;
+  font-size: var(--font-size-caption);
+  font-weight: 690;
+  cursor: pointer;
+  transition:
+    color 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease,
+    transform 180ms ease;
+}
+
+.profile-progress-reset-button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--danger) 62%, var(--line));
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+  transform: translateY(-1px);
+}
+
+.profile-progress-reset-button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.profile-reset-dialog-note,
+.profile-reset-dialog-error {
+  margin: 0;
+  font-size: var(--font-size-caption);
+  line-height: 1.55;
+}
+
+.profile-reset-dialog-note {
+  color: var(--text-soft);
+}
+
+.profile-reset-dialog-error {
+  color: var(--danger);
+  font-weight: 650;
+}
+
 .profile-sign-out-button {
   min-height: 42px;
   border: 1px solid var(--line);
@@ -7185,23 +7275,31 @@ body:has(.app-shell[data-screen="workspace"]) {
     min-height: 46px;
   }
 
+  .profile-progress-reset {
+    width: 100%;
+  }
+
   .progress-hero-actions > small {
     text-align: center;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .profile-sign-out-button {
+  .profile-sign-out-button,
+  .profile-progress-reset-button {
     transition: none;
   }
 }
 
-[data-reduced-motion="true"] .profile-sign-out-button {
+[data-reduced-motion="true"] .profile-sign-out-button,
+[data-reduced-motion="true"] .profile-progress-reset-button {
   transition: none;
 }
 
 @media (forced-colors: active) {
-  .profile-sign-out-button {
+  .profile-sign-out-button,
+  .profile-progress-reset,
+  .profile-progress-reset-button {
     border: 1px solid ButtonText;
   }
 }

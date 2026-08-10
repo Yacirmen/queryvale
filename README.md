@@ -97,6 +97,9 @@ veya bulut senkronizasyonu vaat etmez. Açıkça yerel profil oluşturulduktan s
 kilidi veya yetkilendirme değildir. Profilin tamamen kaldırılması ayrı ve onaylı
 `Ayarlar → Profil ve veri → Profili sil` eylemidir. `İlerlemeyi sıfırla` ise profil adını
 ve çalışma tercihlerini korur.
+Profil ekranındaki `SQL ilerlemesini sıfırla` ve `Python ilerlemesini sıfırla` eylemleri
+iki açık onaydan sonra yalnız seçilen rotanın görevlerini, taslaklarını ve kanıtlarını
+siler; diğer rota, profil adı ve çalışma tercihleri korunur.
 Yalnız görev denemiş bir misafir hesap varmış gibi gösterilmez. Header yalnız `SQL Studio`
 ve `Python Studio` çalışma hedeflerini taşır; iki rotanın modül/vaka görünümü kendi stüdyosundaki
 açılır menüden erişilir. Ana sayfada bu iki hedef, kullanıcı footer sonuna ulaşana kadar

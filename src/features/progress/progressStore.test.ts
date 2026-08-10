@@ -35,7 +35,10 @@ import {
   recordSolutionReveal,
   recordVerifiedRun,
   resetProgress,
+  resetPythonLearningProgress,
+  resetSqlLearningProgress,
   resolveLocalProfileAccess,
+  recordTaskOpen,
   saveProgress,
   saveProgressWithLocalProfileSession,
   saveDecisionNote,
@@ -983,6 +986,68 @@ describe("progressStore", () => {
     expect(reset.lastOpenedPythonTaskId).toBe("py-m1-t1");
     expect(reset.pythonTasks).toEqual({});
     expect(reset.pythonEvidenceByTaskId).toEqual({});
+  });
+
+  it("resets SQL and Python learning independently while preserving the shared profile", () => {
+    const sqlCompleted = recordAttempt(
+      createDefaultProgress(),
+      "m1-t1",
+      "SELECT product_name FROM products",
+      true,
+      16,
+    );
+    const withSqlEvidence = recordTaskOpen(
+      recordVerifiedRun(sqlCompleted, createFirstTaskSnapshot()),
+      "m1-t2",
+    );
+    const withPythonEvidence = recordPythonTaskOpen(
+      recordPythonEvidence(
+        recordPythonAttempt(
+          withSqlEvidence,
+          "py-m1-t1",
+          "result = orders.groupby('region').size()",
+          true,
+          19,
+        ),
+        createPythonEvidence(),
+      ),
+      "py-m2-t3",
+    );
+    const current = {
+      ...updateProfileName(withPythonEvidence, "Ada Analist"),
+      settings: { ...withPythonEvidence.settings, theme: "light" as const },
+    };
+
+    const sqlReset = resetSqlLearningProgress(current);
+    expect(sqlReset).not.toBe(current);
+    expect(sqlReset.profile).toEqual(current.profile);
+    expect(sqlReset.settings).toEqual(current.settings);
+    expect(sqlReset.activityDates).toEqual(current.activityDates);
+    expect(sqlReset.lastOpenedTaskId).toBe("m1-t1");
+    expect(sqlReset.tasks).toEqual({});
+    expect(sqlReset.evidenceByTaskId).toEqual({});
+    expect(sqlReset.lastOpenedPythonTaskId).toBe("py-m2-t3");
+    expect(sqlReset.pythonTasks).toEqual(current.pythonTasks);
+    expect(sqlReset.pythonEvidenceByTaskId).toEqual(
+      current.pythonEvidenceByTaskId,
+    );
+
+    const pythonReset = resetPythonLearningProgress(current);
+    expect(pythonReset).not.toBe(current);
+    expect(pythonReset.profile).toEqual(current.profile);
+    expect(pythonReset.settings).toEqual(current.settings);
+    expect(pythonReset.activityDates).toEqual(current.activityDates);
+    expect(pythonReset.lastOpenedPythonTaskId).toBe("py-m1-t1");
+    expect(pythonReset.pythonTasks).toEqual({});
+    expect(pythonReset.pythonEvidenceByTaskId).toEqual({});
+    expect(pythonReset.lastOpenedTaskId).toBe("m1-t2");
+    expect(pythonReset.tasks).toEqual(current.tasks);
+    expect(pythonReset.evidenceByTaskId).toEqual(current.evidenceByTaskId);
+
+    expect(current.lastOpenedTaskId).toBe("m1-t2");
+    expect(current.lastOpenedPythonTaskId).toBe("py-m2-t3");
+    expect(current.tasks["m1-t1"]?.completed).toBe(true);
+    expect(current.pythonTasks["py-m1-t1"]?.completed).toBe(true);
   });
 
   it("normalizes, validates and immutably updates the local profile name", () => {

@@ -94,11 +94,54 @@ function progressWithCompletedModulesBefore(moduleId: string) {
     );
 }
 
+function progressWithSqlAndPythonHistory() {
+  const sqlProgress = recordAttempt(
+    updateProfileName(createDefaultProgress(), "Ada Analist"),
+    "m1-t1",
+    "SELECT product_name, category FROM products;",
+    true,
+    30,
+  );
+  const crossStudioProgress = recordPythonAttempt(
+    sqlProgress,
+    "py-m1-t1",
+    pythonTasks[0]?.solutionCode ?? "result = orders.copy()",
+    true,
+    24,
+  );
+
+  return {
+    ...crossStudioProgress,
+    settings: { ...crossStudioProgress.settings, theme: "light" as const },
+  };
+}
+
 function navigateToRoute(route: "progress" | "settings") {
   act(() => {
     window.history.pushState(null, "", `#/${route}`);
     window.dispatchEvent(new Event("hashchange"));
   });
+}
+
+async function openFinalRouteResetConfirmation(
+  user: ReturnType<typeof userEvent.setup>,
+  options: {
+    triggerLabel: string;
+    firstTitle: string;
+    finalTitle: string;
+  },
+) {
+  await user.click(
+    await screen.findByRole("button", { name: options.triggerLabel }),
+  );
+  const firstDialog = await screen.findByRole("alertdialog", {
+    name: options.firstTitle,
+  });
+  await user.click(
+    within(firstDialog).getByRole("button", { name: "Devam et" }),
+  );
+
+  return screen.findByRole("alertdialog", { name: options.finalTitle });
 }
 
 function getThemeChoice(name: "Açık" | "Koyu") {
@@ -2552,6 +2595,111 @@ describe("QueryvaleApp", () => {
       expect(restored.tasks["m1-t1"].completed).toBe(true);
     });
     confirm.mockRestore();
+  });
+
+  it("requires two SQL reset confirmations and preserves progress when the final step is cancelled", async () => {
+    const stored = progressWithSqlAndPythonHistory();
+    await saveProgress(stored);
+    const user = userEvent.setup();
+    window.location.hash = "#/progress";
+    render(<QueryvaleApp />);
+
+    const trigger = await screen.findByRole("button", {
+      name: "SQL ilerlemesini sıfırla",
+    });
+    await user.click(trigger);
+
+    const firstDialog = await screen.findByRole("alertdialog", {
+      name: "SQL ilerlemesini sıfırlamaya hazır mısın?",
+    });
+    let persisted = await loadProgress();
+    expect(persisted.tasks["m1-t1"]?.completed).toBe(true);
+    expect(persisted.pythonTasks["py-m1-t1"]?.completed).toBe(true);
+
+    await user.click(
+      within(firstDialog).getByRole("button", { name: "Devam et" }),
+    );
+    const finalDialog = await screen.findByRole("alertdialog", {
+      name: "Son onay: SQL ilerlemesini sıfırla",
+    });
+    persisted = await loadProgress();
+    expect(persisted.tasks["m1-t1"]?.completed).toBe(true);
+    expect(persisted.pythonTasks["py-m1-t1"]?.completed).toBe(true);
+
+    await user.click(
+      within(finalDialog).getByRole("button", { name: "Vazgeç" }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("alertdialog", {
+          name: "Son onay: SQL ilerlemesini sıfırla",
+        }),
+      ).not.toBeInTheDocument(),
+    );
+
+    persisted = await loadProgress();
+    expect(persisted.tasks["m1-t1"]?.completed).toBe(true);
+    expect(persisted.pythonTasks["py-m1-t1"]?.completed).toBe(true);
+  });
+
+  it("resets SQL only after its final confirmation", async () => {
+    const stored = progressWithSqlAndPythonHistory();
+    await saveProgress(stored);
+    const user = userEvent.setup();
+    window.location.hash = "#/progress";
+    render(<QueryvaleApp />);
+
+    const finalDialog = await openFinalRouteResetConfirmation(user, {
+      triggerLabel: "SQL ilerlemesini sıfırla",
+      firstTitle: "SQL ilerlemesini sıfırlamaya hazır mısın?",
+      finalTitle: "Son onay: SQL ilerlemesini sıfırla",
+    });
+    await user.click(
+      within(finalDialog).getByRole("button", {
+        name: "Evet, SQL ilerlememi sıfırla",
+      }),
+    );
+
+    await waitFor(async () => {
+      const reset = await loadProgress();
+      expect(reset.profile).toEqual(stored.profile);
+      expect(reset.settings).toEqual(stored.settings);
+      expect(reset.tasks).toEqual({});
+      expect(reset.evidenceByTaskId).toEqual({});
+      expect(reset.pythonTasks).toEqual(stored.pythonTasks);
+      expect(reset.pythonEvidenceByTaskId).toEqual(
+        stored.pythonEvidenceByTaskId,
+      );
+    });
+  });
+
+  it("resets Python only after its final confirmation", async () => {
+    const stored = progressWithSqlAndPythonHistory();
+    await saveProgress(stored);
+    const user = userEvent.setup();
+    window.location.hash = "#/progress";
+    render(<QueryvaleApp />);
+
+    const finalDialog = await openFinalRouteResetConfirmation(user, {
+      triggerLabel: "Python ilerlemesini sıfırla",
+      firstTitle: "Python ilerlemesini sıfırlamaya hazır mısın?",
+      finalTitle: "Son onay: Python ilerlemesini sıfırla",
+    });
+    await user.click(
+      within(finalDialog).getByRole("button", {
+        name: "Evet, Python ilerlememi sıfırla",
+      }),
+    );
+
+    await waitFor(async () => {
+      const reset = await loadProgress();
+      expect(reset.profile).toEqual(stored.profile);
+      expect(reset.settings).toEqual(stored.settings);
+      expect(reset.pythonTasks).toEqual({});
+      expect(reset.pythonEvidenceByTaskId).toEqual({});
+      expect(reset.tasks).toEqual(stored.tasks);
+      expect(reset.evidenceByTaskId).toEqual(stored.evidenceByTaskId);
+    });
   });
 
   it("resets learning history while preserving profile and preferences", async () => {
