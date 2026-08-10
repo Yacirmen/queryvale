@@ -98,7 +98,7 @@ describe("LearningPathScreen career chapters", () => {
       (task) => task.moduleId === "module-1",
     )!;
     const completedBusinessTask = tasks.find(
-      (task) => task.moduleId === "module-4",
+      (task) => task.moduleId === "module-4" && task.scored,
     )!;
     const progress = {
       ...createDefaultProgress(),
@@ -149,14 +149,20 @@ describe("LearningPathScreen career chapters", () => {
       name: "İş sorusunu çöz bölümü",
     });
 
-    expect(foundationChapter).toHaveTextContent("0/12 çalışma tamamlandı");
+    expect(foundationChapter).toHaveTextContent(
+      `0/${modules.slice(0, 3).flatMap((module) => module.tasks).length} çalışma tamamlandı`,
+    );
     expect(within(foundationChapter).getByText("Önerilen odak")).toBeVisible();
-    expect(businessChapter).toHaveTextContent("1/8 çalışma tamamlandı");
+    expect(businessChapter).toHaveTextContent(
+      `1/${modules.slice(3, 5).flatMap((module) => module.tasks).length} çalışma tamamlandı`,
+    );
     expect(within(businessChapter).getByText("İlerliyorsun")).toBeVisible();
     expect(screen.getAllByText("Serbest erişim", { exact: true })).toHaveLength(
       2,
     );
-    expect(screen.getByText(`7/${tasks.length * 10}`)).toBeVisible();
+    expect(
+      screen.getByText(`7/${tasks.filter((task) => task.scored).length * 10}`),
+    ).toBeVisible();
     expect(screen.getByText("7/40 analiz puanı")).toBeVisible();
     const laterModule = screen.getByRole("button", {
       name: new RegExp(`${modules[3].title} (vakalarını|projelerini)`),

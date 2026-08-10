@@ -82,7 +82,7 @@ describe("AccountScreen", () => {
       "true",
     );
     expect(screen.getByText("Ayşe")).toBeInTheDocument();
-    expect(screen.getByText("7 / 52 vaka")).toBeInTheDocument();
+    expect(screen.getByText("7 / 52 çalışma")).toBeInTheDocument();
     expect(screen.getByText("Kritik stokları sırala")).toBeInTheDocument();
     expect(
       screen.getByText(/Bu profil parola ile korunmaz/i),
@@ -171,7 +171,7 @@ describe("AccountScreen", () => {
         name: "Mevcut ilerlemen korunuyor.",
       }),
     ).toBeInTheDocument();
-    expect(within(panel).getByText("11 / 52 vaka tamamlandı")).toBeVisible();
+    expect(within(panel).getByText("11 / 52 çalışma tamamlandı")).toBeVisible();
     expect(within(panel).queryByRole("textbox")).not.toBeInTheDocument();
 
     await user.click(

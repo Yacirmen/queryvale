@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { tasks } from "./curriculum";
 import { AUTHORED_TASK_LEARNING_CONTENT } from "./learningContentCatalog";
+import { isDrillTask } from "../types/lesson";
+
+const DRILL_TYPES = ["drill_intro", "drill_practice", "drill_mix"] as const;
 
 function leafStrings(value: unknown): string[] {
   if (typeof value === "string") return [value];
@@ -12,13 +15,20 @@ function leafStrings(value: unknown): string[] {
 }
 
 describe("task learning content", () => {
-  it("covers every shipped task exactly once", () => {
-    const shippedTaskIds = tasks.map((task) => task.id);
+  it("covers every scored case exactly once without treating drills as full cases", () => {
+    const shippedCaseIds = tasks
+      .filter((task) => task.type === "case")
+      .map((task) => task.id);
     const authoredTaskIds = Object.keys(AUTHORED_TASK_LEARNING_CONTENT);
 
-    expect(new Set(shippedTaskIds).size).toBe(shippedTaskIds.length);
-    expect(authoredTaskIds).toHaveLength(shippedTaskIds.length);
-    expect(authoredTaskIds.sort()).toEqual([...shippedTaskIds].sort());
+    expect(new Set(shippedCaseIds).size).toBe(shippedCaseIds.length);
+    expect(shippedCaseIds).toHaveLength(52);
+    expect(authoredTaskIds).toHaveLength(shippedCaseIds.length);
+    expect(authoredTaskIds.sort()).toEqual([...shippedCaseIds].sort());
+
+    for (const drill of tasks.filter(isDrillTask)) {
+      expect(AUTHORED_TASK_LEARNING_CONTENT[drill.id]).toBeUndefined();
+    }
   });
 
   it("keeps the rich learning contract deep enough for every authored task", () => {
@@ -46,6 +56,44 @@ describe("task learning content", () => {
     }
   });
 
+  it("keeps every drill subtype concise, unscored and distinct", () => {
+    const drills = tasks.filter(isDrillTask);
+
+    // The implementation derives the exact number from the coverage gaps;
+    // this guards the intended 24–30 bridge range without fossilizing 59.
+    expect(drills.length).toBeGreaterThanOrEqual(24);
+    expect(drills.length).toBeLessThanOrEqual(30);
+    expect(new Set(drills.map((drill) => drill.type))).toEqual(
+      new Set(DRILL_TYPES),
+    );
+    for (const drill of drills) {
+      expect(drill.scored, drill.id).toBe(false);
+      expect(drill.hints, drill.id).toHaveLength(1);
+      expect(drill.conceptsReinforced?.length, drill.id).toBeGreaterThan(0);
+      expect(drill.drillConcept?.trim(), drill.id).not.toBe("");
+      expect(drill.scenario.trim(), drill.id).not.toBe("");
+      expect(drill.objective.trim(), drill.id).not.toBe("");
+      expect(drill.expectedColumns.length, drill.id).toBeGreaterThan(0);
+      expect(drill.prerequisites, drill.id).toEqual([]);
+      expect(drill.curriculumConcepts?.length, drill.id).toBeGreaterThan(0);
+
+      if (drill.type === "drill_intro") {
+        expect(drill.estimatedMinutes, drill.id).toBeGreaterThanOrEqual(2);
+        expect(drill.estimatedMinutes, drill.id).toBeLessThanOrEqual(3);
+        expect(drill.conceptNew, drill.id).toMatch(/^K(?:\d+|99-[A-Z_]+)$/);
+        expect(drill.curriculumConcepts, drill.id).toContain(drill.conceptNew);
+      } else if (drill.type === "drill_practice") {
+        expect(drill.estimatedMinutes, drill.id).toBeGreaterThanOrEqual(2);
+        expect(drill.estimatedMinutes, drill.id).toBeLessThanOrEqual(3);
+        expect(drill.conceptNew, drill.id).toBeUndefined();
+      } else {
+        expect(drill.type).toBe("drill_mix");
+        expect(drill.estimatedMinutes, drill.id).toBe(5);
+        expect(drill.conceptNew, drill.id).toBeUndefined();
+      }
+    }
+  });
+
   it("keeps module 1 guidance in logic, keyword and scaffold order", () => {
     const moduleOneTasks = tasks.filter((task) => task.moduleId === "module-1");
     const keywordChecks: Record<string, RegExp> = {
@@ -64,8 +112,8 @@ describe("task learning content", () => {
     expect(moduleOneTasks.map((task) => task.id)).toEqual([
       "m1-t1",
       "m1-t2",
-      "m1-t3",
       "m1-t4",
+      "m1-t3",
     ]);
 
     for (const task of moduleOneTasks) {

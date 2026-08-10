@@ -123,7 +123,7 @@ describe("selectResumeTask", () => {
     });
   });
 
-  it("uses the completed task's explicit nextTaskId", () => {
+  it("uses the next route item after a completed task", () => {
     const progress = withProgress(
       {
         "m1-t1": taskProgress("m1-t1", { completed: true }),
@@ -134,6 +134,52 @@ describe("selectResumeTask", () => {
 
     expect(selectResumeTask(tasks, progress)).toMatchObject({
       task: tasks[2],
+      reason: "next-after-completion",
+    });
+  });
+
+  it("keeps drills between cases when legacy nextTaskId skips over them", () => {
+    const bridgeRoute: ResumeTaskCandidate[] = [
+      {
+        id: "case-12",
+        prerequisites: [],
+        nextTaskId: "case-13",
+        routeOrder: 12,
+      },
+      {
+        id: "case-13",
+        prerequisites: ["case-12"],
+        nextTaskId: null,
+        routeOrder: 13,
+      },
+      {
+        id: "drill-a1",
+        prerequisites: [],
+        nextTaskId: "case-13",
+        routeOrder: 12.5,
+      },
+    ];
+
+    const afterCase = withProgress(
+      {
+        "case-12": taskProgress("case-12", { completed: true }),
+      },
+      "case-12",
+    );
+    expect(selectResumeTask(bridgeRoute, afterCase)).toMatchObject({
+      task: bridgeRoute[2],
+      reason: "next-after-completion",
+    });
+
+    const afterDrill = withProgress(
+      {
+        "case-12": taskProgress("case-12", { completed: true }),
+        "drill-a1": taskProgress("drill-a1", { completed: true }),
+      },
+      "drill-a1",
+    );
+    expect(selectResumeTask(bridgeRoute, afterDrill)).toMatchObject({
+      task: bridgeRoute[1],
       reason: "next-after-completion",
     });
   });
@@ -154,7 +200,7 @@ describe("selectResumeTask", () => {
     });
   });
 
-  it("falls back to the first prerequisite-ready incomplete task", () => {
+  it("uses the next route item even when legacy nextTaskId is missing", () => {
     const disconnectedTasks: ResumeTaskCandidate[] = [
       { id: "a", prerequisites: [], nextTaskId: "missing" },
       { id: "b", prerequisites: ["a"], nextTaskId: null },
@@ -167,7 +213,7 @@ describe("selectResumeTask", () => {
 
     expect(selectResumeTask(disconnectedTasks, progress)).toMatchObject({
       task: disconnectedTasks[1],
-      reason: "first-available-incomplete",
+      reason: "next-after-completion",
     });
   });
 

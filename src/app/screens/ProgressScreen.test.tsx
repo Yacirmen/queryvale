@@ -180,7 +180,7 @@ describe("ProgressScreen learning signals", () => {
     expect(scoreCard).not.toBeNull();
     expect(scoreCard).toHaveTextContent("7");
     expect(scoreCard).toHaveTextContent(
-      `${(tasks.length + pythonTasks.length) * 10} mümkün`,
+      `${(tasks.filter((task) => task.scored).length + pythonTasks.length) * 10} mümkün`,
     );
     expect(scoreCard).toHaveTextContent("1 ipucuyla");
 

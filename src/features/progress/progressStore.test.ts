@@ -1311,6 +1311,38 @@ describe("progressStore", () => {
     });
   });
 
+  it("persists an unscored drill completion without creating an analysis score", async () => {
+    const drillId = "m4-d1";
+    const hinted = recordHint(createDefaultProgress(), drillId, 0);
+    const completed = recordAttempt(
+      hinted,
+      drillId,
+      "SELECT COUNT(*) AS order_count FROM channel_orders;",
+      true,
+      42,
+      new Date("2026-08-10T10:00:00.000Z"),
+      undefined,
+      { scored: false },
+    );
+
+    expect(completed.tasks[drillId]).toMatchObject({
+      taskId: drillId,
+      attempts: 1,
+      completed: true,
+      hintsUsed: [0],
+    });
+    expect(completed.tasks[drillId]?.scoreAwarded).toBeUndefined();
+
+    await saveProgress(completed);
+    const restored = await loadProgress();
+    expect(restored.tasks[drillId]).toMatchObject({
+      taskId: drillId,
+      completed: true,
+      hintsUsed: [0],
+    });
+    expect(restored.tasks[drillId]?.scoreAwarded).toBeUndefined();
+  });
+
   it("uses the assistance snapshot from query submission time", () => {
     const hintOpenedWhileRunning = recordHint(
       createDefaultProgress(),

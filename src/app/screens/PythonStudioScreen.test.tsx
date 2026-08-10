@@ -336,7 +336,7 @@ describe("PythonStudioScreen", () => {
     const draft = `${task.starterCode}\n# yarım analiz`;
     fireEvent.change(editor, { target: { value: draft } });
 
-    await user.click(screen.getByRole("button", { name: "Sonraki vaka" }));
+    await user.click(screen.getByRole("button", { name: "Sonraki çalışma" }));
 
     expect(runtimeHarness.stop).toHaveBeenCalled();
     expect(getProgress().pythonTasks[task.id]?.lastCode).toBe(draft);
@@ -375,7 +375,7 @@ describe("PythonStudioScreen", () => {
       within(debrief).getByText(task.debrief.transfer.prompt),
     ).toBeInTheDocument();
     const nextCase = screen.getByRole("button", {
-      name: /Sonraki vaka/,
+      name: /Sonraki çalışma/,
     });
     expect(
       debrief.compareDocumentPosition(nextCase) &

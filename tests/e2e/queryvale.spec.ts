@@ -22,7 +22,7 @@ test("Python Studio keeps the next case available and validates a real pandas re
     page.getByRole("heading", { name: firstTask.title }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Sonraki vaka" }),
+    page.getByRole("button", { name: "Sonraki çalışma" }),
   ).toBeEnabled();
 
   await expect
@@ -61,7 +61,7 @@ test("Python Studio keeps the next case available and validates a real pandas re
   await expect(page.getByRole("status", { name: /Doğru —/ })).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`#\\/python\\/${firstTask.id}$`));
   await expect(
-    page.getByRole("button", { name: "Sonraki vaka" }),
+    page.getByRole("button", { name: "Sonraki çalışma" }),
   ).toBeVisible();
 });
 
@@ -78,11 +78,11 @@ test("a learner can deep-link to any valid SQL case without a route guard", asyn
     page.getByRole("heading", { name: projectTask!.title }),
   ).toBeVisible();
   await expect(
-    page.getByRole("navigation", { name: "SQL vaka gezintisi" }),
+    page.getByRole("navigation", { name: "SQL çalışma gezintisi" }),
   ).toBeVisible();
 });
 
-test("SQL Studio exposes all 52 cases in its in-flow route drawer", async ({
+test("SQL Studio exposes every shipped study in its in-flow route drawer", async ({
   page,
 }) => {
   await page.goto("/#/lab/m1-t1");
@@ -91,12 +91,14 @@ test("SQL Studio exposes all 52 cases in its in-flow route drawer", async ({
     "false",
   );
 
-  await page.getByRole("button", { name: "Rota · Vaka 1/52" }).click();
+  await page
+    .getByRole("button", { name: `Rota · Vaka 1/${tasks.length}` })
+    .click();
   const drawer = page.getByRole("region", { name: "SQL rotası" });
   await expect(drawer).toBeVisible();
-  await expect(drawer.getByText("Tüm vakalar açık")).toBeVisible();
+  await expect(drawer.getByText("Tüm çalışmalar açık")).toBeVisible();
   await expect(drawer.locator(".studio-route-group")).toHaveCount(11);
-  await expect(drawer.locator(".studio-route-task")).toHaveCount(52);
+  await expect(drawer.locator(".studio-route-task")).toHaveCount(tasks.length);
   const groupRects = await drawer
     .locator(".studio-route-group")
     .evaluateAll((groups) =>
@@ -133,7 +135,7 @@ test("SQL Studio exposes all 52 cases in its in-flow route drawer", async ({
   ).toHaveAttribute("aria-current", "page");
 
   const allRouteTasks = drawer.locator(".studio-route-task");
-  for (let index = 0; index < 52; index += 1) {
+  for (let index = 0; index < tasks.length; index += 1) {
     await expect(allRouteTasks.nth(index)).toBeEnabled();
   }
 
@@ -143,6 +145,60 @@ test("SQL Studio exposes all 52 cases in its in-flow route drawer", async ({
     .click();
   await expect(page).toHaveURL(new RegExp(`#\\/lab\\/${target.id}$`));
   await expect(page.getByRole("heading", { name: target.title })).toBeVisible();
+});
+
+test("all drill subtypes retain their concise brief, free hint and canonical navigation", async ({
+  page,
+}) => {
+  const presentations = [
+    { type: "drill_intro", label: "Alıştırma", badge: "ALIŞTIRMA · 3 DK" },
+    { type: "drill_practice", label: "Tekrar", badge: "TEKRAR · 3 DK" },
+    { type: "drill_mix", label: "Birleştir", badge: "BİRLEŞTİR · 5 DK" },
+  ] as const;
+
+  for (const presentation of presentations) {
+    const drill = tasks.find((task) => task.type === presentation.type);
+    expect(drill, `${presentation.type} drill is missing`).toBeTruthy();
+    const drillIndex = tasks.findIndex((task) => task.id === drill?.id);
+    const nextTask = tasks[drillIndex + 1];
+    expect(
+      nextTask,
+      `${presentation.type} next route item is missing`,
+    ).toBeTruthy();
+
+    await page.goto(`/#/lab/${drill!.id}`);
+    await expect(page.locator(".app-shell")).toHaveAttribute(
+      "aria-busy",
+      "false",
+    );
+    await expect(
+      page.getByRole("heading", { name: drill!.title }),
+    ).toBeVisible();
+    const brief = page.locator(
+      `.drill-brief[data-drill-type="${presentation.type}"]`,
+    );
+    await expect(brief).toBeVisible();
+    await expect(brief.getByText(presentation.badge)).toBeVisible();
+    for (const section of ["Durum", "Görev", "Beklenen kolonlar", "Kavram"]) {
+      await expect(
+        brief.getByRole("heading", { name: section, exact: true }),
+      ).toBeVisible();
+    }
+    await expect(page.getByText("Kendini kontrol et")).toHaveCount(0);
+    await page.getByRole("button", { name: "Ücretsiz ipucunu aç" }).click();
+    await expect(page.getByText(drill!.hints[0]!)).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /2\. ipucunu aç/i }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("button", {
+        name: `Rota · ${presentation.label} ${drillIndex + 1}/${tasks.length}`,
+      }),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Sonraki çalışma" }).click();
+    await expect(page).toHaveURL(new RegExp(`#\\/lab\\/${nextTask!.id}$`));
+  }
 });
 
 test("SQL Studio keeps the document fixed across the target viewport matrix", async ({
@@ -234,7 +290,7 @@ test("SQL Studio keeps the document fixed across the target viewport matrix", as
 
     if (viewport.width <= 820) {
       const railButtons = page
-        .getByRole("navigation", { name: "SQL vaka gezintisi" })
+        .getByRole("navigation", { name: "SQL çalışma gezintisi" })
         .locator(".studio-action-row > button");
       await expect(railButtons).toHaveCount(3);
       for (let index = 0; index < 3; index += 1) {
@@ -401,7 +457,7 @@ test("Python Studio shares the fixed document and action-rail viewport contract"
         page.getByRole("tablist", { name: "Python çalışma alanı" }),
       ).toBeVisible();
       const railButtons = page
-        .getByRole("navigation", { name: "Python vaka gezintisi" })
+        .getByRole("navigation", { name: "Python çalışma gezintisi" })
         .locator(".studio-action-row > button");
       await expect(railButtons).toHaveCount(3);
       for (let index = 0; index < 3; index += 1) {
@@ -1118,11 +1174,11 @@ test("landing, onboarding and first real SQL task", async ({
   await expect(editor).toBeFocused();
   await expect(runButton).toBeDisabled();
 
-  await page.getByRole("button", { name: "Sonraki vaka" }).click();
+  await page.getByRole("button", { name: "Sonraki çalışma" }).click();
   await expect(
     page.getByRole("heading", { name: "Kategori listesini tekilleştir" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Önceki vaka" }).click();
+  await page.getByRole("button", { name: "Önceki çalışma" }).click();
   await expect(
     page.getByRole("heading", { name: "Katalog görünümünü hazırla" }),
   ).toBeVisible();
@@ -1284,7 +1340,7 @@ test("landing, onboarding and first real SQL task", async ({
     completionPanel.getByText("Bu vakanın temel mantığı"),
   ).toBeVisible();
   await expect(resultTable.getByText("Desk Lamp")).toBeVisible();
-  await page.getByRole("button", { name: "Sonraki vaka" }).click();
+  await page.getByRole("button", { name: "Sonraki çalışma" }).click();
   await expect(
     page.getByRole("heading", { name: "Kategori listesini tekilleştir" }),
   ).toBeVisible();
@@ -1436,7 +1492,9 @@ test("learning path, settings and the in-flow route remain usable on a narrow vi
     const bounds = await studioTarget.boundingBox();
     expect(bounds?.height ?? 0).toBeGreaterThanOrEqual(43.9);
   }
-  await page.getByRole("button", { name: /Rota · Vaka 1\/52/ }).click();
+  await page
+    .getByRole("button", { name: new RegExp(`Rota · Vaka 1/${tasks.length}`) })
+    .click();
   const routeDrawer = page.getByRole("region", { name: "SQL rotası" });
   await expect(routeDrawer).toBeVisible();
   await expect(routeDrawer).toHaveCSS("position", "static");

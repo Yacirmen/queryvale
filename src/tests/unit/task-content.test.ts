@@ -17,6 +17,9 @@ function genericTask(overrides: Partial<LessonTask> = {}): LessonTask {
     objective: "sales tablosundaki id kolonunu getir.",
     difficulty: "beginner",
     estimatedMinutes: 5,
+    routeOrder: 1,
+    type: "case",
+    scored: true,
     prerequisites: [],
     concepts: ["SELECT"],
     setupSql: "CREATE TABLE sales (id integer); INSERT INTO sales VALUES (1);",
@@ -107,22 +110,111 @@ function genericTask(overrides: Partial<LessonTask> = {}): LessonTask {
   };
 }
 
+function genericDrill(
+  type: Extract<LessonTask["type"], `drill_${string}`>,
+  overrides: Partial<LessonTask> = {},
+): LessonTask {
+  const isIntroduction = type === "drill_intro";
+  return genericTask({
+    id: `generic-${type}`,
+    slug: `generic-${type.replaceAll("_", "-")}`,
+    routeOrder: 1.5,
+    type,
+    scored: false,
+    estimatedMinutes: type === "drill_mix" ? 5 : 3,
+    ...(isIntroduction ? { conceptNew: "K14" } : { conceptNew: undefined }),
+    conceptsReinforced: ["K01"],
+    curriculumConcepts: isIntroduction ? ["K01", "K14"] : ["K01"],
+    drillConcept:
+      "Kısa alıştırma, tek bir yapı taşını gereksiz iş bağlamı olmadan görünür kılar.",
+    hints: ["Tek ücretsiz ipucunu uygula."],
+    ...overrides,
+  });
+}
+
 describe("task content validation", () => {
   it("accepts a complete task without importing product content", () => {
     expect(validateTaskDefinition(genericTask())).toEqual([]);
   });
 
-  it("reports malformed expected rows, insufficient hints and a missing solution", () => {
+  it("reports malformed expected rows, invalid case guidance and a missing solution", () => {
     const issues = validateTaskDefinition(
       genericTask({
         expectedColumns: ["id", "total"],
         expectedResult: [[1]],
-        hints: ["Bir", "İki"] as unknown as [string, string, string],
+        hints: ["Bir", "İki"],
         solutionSql: "",
       }),
     );
     expect(issues.map((issue) => issue.path)).toEqual(
-      expect.arrayContaining(["expectedResult[0]", "hints", "solutionSql"]),
+      expect.arrayContaining(["expectedResult[0]", "case", "solutionSql"]),
+    );
+  });
+
+  it.each(["drill_intro", "drill_practice", "drill_mix"] as const)(
+    "accepts a concise, unscored %s contract",
+    (type) => {
+      expect(validateTaskDefinition(genericDrill(type))).toEqual([]);
+    },
+  );
+
+  it("requires exactly one new concept only on an introduction drill", () => {
+    const missingIntroductionConcept = validateTaskDefinition(
+      genericDrill("drill_intro", { conceptNew: undefined }),
+    );
+    const practiceLeaksNewConcept = validateTaskDefinition(
+      genericDrill("drill_practice", { conceptNew: "K14" }),
+    );
+    const mixLeaksNewConcept = validateTaskDefinition(
+      genericDrill("drill_mix", { conceptNew: "K14" }),
+    );
+
+    expect(missingIntroductionConcept.map((issue) => issue.path)).toContain(
+      "drill_intro.conceptNew",
+    );
+    expect(practiceLeaksNewConcept.map((issue) => issue.path)).toContain(
+      "drill_practice.conceptNew",
+    );
+    expect(mixLeaksNewConcept.map((issue) => issue.path)).toContain(
+      "drill_mix.conceptNew",
+    );
+  });
+
+  it("rejects scoring, multi-hints and an invalid duration for each drill subtype", () => {
+    const introIssues = validateTaskDefinition(
+      genericDrill("drill_intro", {
+        scored: true,
+        hints: ["Bir", "İki"],
+        estimatedMinutes: 4,
+      }),
+    );
+    const practiceIssues = validateTaskDefinition(
+      genericDrill("drill_practice", { estimatedMinutes: 4 }),
+    );
+    const mixIssues = validateTaskDefinition(
+      genericDrill("drill_mix", { estimatedMinutes: 3 }),
+    );
+
+    expect(introIssues.map((issue) => issue.path)).toContain("drill_intro");
+    expect(practiceIssues.map((issue) => issue.path)).toContain(
+      "drill_practice",
+    );
+    expect(mixIssues.map((issue) => issue.path)).toContain("drill_mix");
+  });
+
+  it("rejects a duplicate or empty curriculum concept map", () => {
+    const duplicateConcepts = validateTaskDefinition(
+      genericTask({ curriculumConcepts: ["K01", "K01"] }),
+    );
+    const emptyConcepts = validateTaskDefinition(
+      genericTask({ curriculumConcepts: [] }),
+    );
+
+    expect(duplicateConcepts.map((issue) => issue.path)).toContain(
+      "curriculumConcepts",
+    );
+    expect(emptyConcepts.map((issue) => issue.path)).toContain(
+      "curriculumConcepts",
     );
   });
 
@@ -211,6 +303,30 @@ describe("task content validation", () => {
     );
     expect(issues.map((issue) => issue.message).join(" ")).toContain(
       "bulunamadı",
+    );
+  });
+
+  it("rejects duplicate or invalid route positions", () => {
+    const first = genericTask({ id: "first", slug: "first", routeOrder: 1 });
+    const duplicateRoute = genericTask({
+      id: "second",
+      slug: "second",
+      routeOrder: 1,
+    });
+    const invalidRoute = genericTask({
+      id: "third",
+      slug: "third",
+      routeOrder: 0,
+    });
+
+    const issues = validateTaskCollection([
+      first,
+      duplicateRoute,
+      invalidRoute,
+    ]);
+
+    expect(issues.map((issue) => issue.path)).toEqual(
+      expect.arrayContaining(["tasks[1].routeOrder", "tasks[2].routeOrder"]),
     );
   });
 

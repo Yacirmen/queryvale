@@ -78,22 +78,22 @@ describe("analyst journey", () => {
 
     expect(progress[0]).toMatchObject({
       completedTaskCount: 1,
-      totalTaskCount: 12,
+      totalTaskCount: analystJourneyChapters[0].taskIds.length,
       status: "active",
     });
     expect(progress[1]).toMatchObject({
       completedTaskCount: 0,
-      totalTaskCount: 8,
+      totalTaskCount: analystJourneyChapters[1].taskIds.length,
       status: "open",
     });
     expect(progress[2]).toMatchObject({
       completedTaskCount: 0,
-      totalTaskCount: 8,
+      totalTaskCount: analystJourneyChapters[2].taskIds.length,
       status: "open",
     });
     expect(progress[3]).toMatchObject({
       completedTaskCount: 1,
-      totalTaskCount: 24,
+      totalTaskCount: analystJourneyChapters[3].taskIds.length,
       status: "active",
     });
   });

@@ -8,7 +8,7 @@ import {
 } from "../../features/sql-engine";
 import { tasks } from "../../content/curriculum";
 import { evaluateLessonQuery } from "../../features/validation";
-import type { LessonTask } from "../../types/lesson";
+import { isDrillTask, type LessonTask } from "../../types/lesson";
 import { MARKETING_PROJECT_MISTAKES_PART_ONE } from "./marketingProjectMistakesPartOne";
 import { MARKETING_PROJECT_MISTAKES_PART_TWO } from "./marketingProjectMistakesPartTwo";
 
@@ -74,7 +74,7 @@ describe("PGlite task database integration", () => {
     ).toEqual([{ id: 1 }, { id: 2 }]);
   }, 30_000);
 
-  it("executes and accepts reference solutions for every task in modules 1–3", async () => {
+  it("executes and accepts reference solutions for every original case in modules 1–3", async () => {
     const solutions: Record<string, string> = {
       "m1-t1": "SELECT product_name, category FROM products",
       "m1-t2": "SELECT DISTINCT category FROM products",
@@ -107,8 +107,10 @@ describe("PGlite task database integration", () => {
       `,
     };
 
-    const productionTasks = tasks.filter((task) =>
-      ["module-1", "module-2", "module-3"].includes(task.moduleId),
+    const productionTasks = tasks.filter(
+      (task) =>
+        task.type === "case" &&
+        ["module-1", "module-2", "module-3"].includes(task.moduleId),
     );
     expect(productionTasks).toHaveLength(12);
 
@@ -134,7 +136,7 @@ describe("PGlite task database integration", () => {
     }
   }, 120_000);
 
-  it("executes and accepts reference solutions for every task in modules 4–7", async () => {
+  it("executes and accepts reference solutions for every original case in modules 4–7", async () => {
     const solutions: Record<string, string> = {
       "m4-t2": `
         SELECT
@@ -343,8 +345,12 @@ describe("PGlite task database integration", () => {
       `,
     };
 
-    const expandedTasks = tasks.filter((task) =>
-      ["module-4", "module-5", "module-6", "module-7"].includes(task.moduleId),
+    const expandedTasks = tasks.filter(
+      (task) =>
+        task.type === "case" &&
+        ["module-4", "module-5", "module-6", "module-7"].includes(
+          task.moduleId,
+        ),
     );
     expect(expandedTasks).toHaveLength(16);
 
@@ -369,6 +375,42 @@ describe("PGlite task database integration", () => {
       database = undefined;
     }
   }, 180_000);
+
+  it("executes every foundation drill on the exact fixture of its following case", async () => {
+    const drills = tasks.filter(isDrillTask);
+
+    expect(drills.length).toBeGreaterThanOrEqual(24);
+    expect(drills.length).toBeLessThanOrEqual(30);
+
+    for (const drill of drills) {
+      const drillIndex = tasks.findIndex((task) => task.id === drill.id);
+      const followingCase = tasks
+        .slice(drillIndex + 1)
+        .find((task) => task.type === "case");
+      expect(followingCase, `${drill.id} needs a following case`).toBeDefined();
+      expect(drill.setupSql, drill.id).toBe(followingCase?.setupSql);
+      expect(drill.schema, drill.id).toStrictEqual(followingCase?.schema);
+      expect(drill.sampleRows, drill.id).toStrictEqual(
+        followingCase?.sampleRows,
+      );
+      expect(drill.forbiddenOperations, drill.id).toEqual(
+        followingCase?.forbiddenOperations,
+      );
+
+      database = createTaskDatabaseForLesson(drill);
+      await database.initialize();
+      const evaluation = await runAndEvaluateLesson(
+        database,
+        drill,
+        drill.solutionSql,
+      );
+      expect(evaluation.status, `${drill.id}: ${evaluation.message}`).toBe(
+        "correct",
+      );
+      await database.dispose();
+      database = undefined;
+    }
+  }, 240_000);
 
   it("accepts structurally different correct solutions for every new module 4–7 task", async () => {
     const alternatives: Record<string, string> = {
@@ -1824,7 +1866,7 @@ describe("PGlite task database integration", () => {
     expect(new Set(cases.map((testCase) => testCase.taskId)).size).toBe(40);
     expect(cases.map((testCase) => testCase.taskId).sort()).toEqual(
       tasks
-        .filter((task) => task.moduleId !== "module-11")
+        .filter((task) => task.moduleId !== "module-11" && task.type === "case")
         .map((task) => task.id)
         .sort(),
     );

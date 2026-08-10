@@ -84,15 +84,17 @@ describe("StudioActionRail", () => {
     render(<Harness onSelectTask={onSelectTask} />);
 
     const rail = screen.getByRole("navigation", {
-      name: /sql vaka gezintisi/i,
+      name: /sql çalışma gezintisi/i,
     });
     expect(
-      within(rail).getByRole("button", { name: /önceki vaka/i }),
+      within(rail).getByRole("button", { name: /önceki çalışma/i }),
     ).toBeEnabled();
     expect(
       within(rail).getByRole("button", { name: /rota · vaka 2\/3/i }),
     ).toBeEnabled();
-    const next = within(rail).getByRole("button", { name: /sonraki vaka/i });
+    const next = within(rail).getByRole("button", {
+      name: /sonraki çalışma/i,
+    });
     expect(next).toBeEnabled();
 
     await user.click(next);
@@ -112,7 +114,9 @@ describe("StudioActionRail", () => {
       />,
     );
 
-    const previous = screen.getByRole("button", { name: /önceki vaka/i });
+    const previous = screen.getByRole("button", {
+      name: /önceki çalışma/i,
+    });
     expect(previous).toHaveAttribute("aria-disabled", "true");
     await user.click(previous);
     expect(onSelectTask).not.toHaveBeenCalled();
@@ -159,6 +163,72 @@ describe("StudioActionRail", () => {
       screen.queryByRole("region", { name: /sql rotası/i }),
     ).not.toBeInTheDocument();
   });
+
+  it.each([
+    ["drill_intro", "Alıştırma", "ALIŞTIRMA · 3 DK"],
+    ["drill_practice", "Tekrar", "TEKRAR · 3 DK"],
+    ["drill_mix", "Birleştir", "BİRLEŞTİR · 5 DK"],
+  ] as const)(
+    "labels an unscored %s route item without inventing a 0/10 score",
+    (type, label, badge) => {
+      render(
+        <StudioActionRail
+          variant="sql"
+          activeTaskId="drill"
+          activeIndex={1}
+          activeTaskType={type}
+          totalCount={2}
+          modules={[
+            {
+              id: "m1",
+              order: 1,
+              title: "Köprüler",
+              tasks: [
+                {
+                  id: "case",
+                  index: 0,
+                  title: "Temel vaka",
+                  status: "completed",
+                  type: "case",
+                  scored: true,
+                  score: 10,
+                },
+                {
+                  id: "drill",
+                  index: 1,
+                  title: "Tek COUNT",
+                  status: "completed",
+                  type,
+                  scored: false,
+                },
+              ],
+            },
+          ]}
+          previousTaskId="case"
+          currentTaskCorrect
+          routeMenuOpen
+          onRouteMenuOpenChange={vi.fn()}
+          onSelectTask={vi.fn()}
+          onCompleteRoute={vi.fn()}
+        />,
+      );
+
+      const trigger = screen.getByRole("button", {
+        name: `Rota · ${label} 2/2`,
+      });
+      expect(trigger).toHaveAttribute("aria-expanded", "true");
+      expect(trigger.closest(".studio-action-zone")).toHaveAttribute(
+        "data-task-type",
+        type,
+      );
+      const drill = screen.getByRole("button", { name: /Tek COUNT/i });
+      expect(drill).toHaveAttribute("data-type", type);
+      expect(
+        within(drill).getByText(`${badge} · puanlanmaz`),
+      ).toBeInTheDocument();
+      expect(within(drill).queryByText("0/10")).not.toBeInTheDocument();
+    },
+  );
 });
 
 describe("StudioResultStrip", () => {

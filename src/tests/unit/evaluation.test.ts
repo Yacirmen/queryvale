@@ -21,6 +21,9 @@ const mutationTask = (): LessonTask => ({
   objective: "801 numaralı ürünün stoğunu üç azalt.",
   difficulty: "intermediate",
   estimatedMinutes: 8,
+  routeOrder: 1,
+  type: "case",
+  scored: true,
   prerequisites: [],
   concepts: ["UPDATE", "ARITHMETIC"],
   setupSql:

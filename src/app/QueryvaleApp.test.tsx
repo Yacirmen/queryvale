@@ -108,6 +108,19 @@ function getThemeChoice(name: "Açık" | "Koyu") {
   );
 }
 
+function routeButtonName(task: (typeof tasks)[number]): string {
+  const label =
+    task.type === "drill_intro"
+      ? "Alıştırma"
+      : task.type === "drill_practice"
+        ? "Tekrar"
+        : task.type === "drill_mix"
+          ? "Birleştir"
+          : "Vaka";
+  const routeIndex = tasks.findIndex((candidate) => candidate.id === task.id);
+  return `Rota · ${label} ${routeIndex + 1}/${tasks.length}`;
+}
+
 vi.mock("../features/progress/progressStore", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("../features/progress/progressStore")>();
@@ -162,7 +175,12 @@ vi.mock("../features/progress/progressStore", async (importOriginal) => {
 });
 
 vi.mock("../features/sql-engine", () => ({
-  createTaskDatabaseForLesson: (task: { id: string }) => {
+  createTaskDatabaseForLesson: (task: {
+    id: string;
+    solutionSql?: string;
+    expectedColumns?: readonly string[];
+    expectedResult?: ReadonlyArray<readonly unknown[]>;
+  }) => {
     let mutationStock = 12;
     return {
       state: "ready",
@@ -209,6 +227,26 @@ vi.mock("../features/sql-engine", () => ({
             columns: ["product_name", "category"],
             rows: [],
             rowCount: 0,
+            affectedRows: 0,
+            truncated: false,
+            durationMs: 4,
+          };
+        }
+        if (
+          task.solutionSql &&
+          sql.replace(/\s+/g, " ").replace(/;\s*$/, "").trim() ===
+            task.solutionSql.replace(/\s+/g, " ").replace(/;\s*$/, "").trim()
+        ) {
+          const columns = [...(task.expectedColumns ?? [])];
+          const rows = (task.expectedResult ?? []).map((row) =>
+            Object.fromEntries(
+              columns.map((column, index) => [column, row[index]]),
+            ),
+          );
+          return {
+            columns,
+            rows,
+            rowCount: rows.length,
             affectedRows: 0,
             truncated: false,
             durationMs: 4,
@@ -574,7 +612,7 @@ describe("QueryvaleApp", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", {
-        name: `Rota · Vaka ${tasks.indexOf(laterTask) + 1}/${tasks.length}`,
+        name: routeButtonName(laterTask),
       }),
     ).toBeEnabled();
     expect(screen.queryByText(/henüz kilitli/i)).not.toBeInTheDocument();
@@ -609,7 +647,7 @@ describe("QueryvaleApp", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", {
-        name: `Rota · Vaka ${tasks.indexOf(projectTask) + 1}/${tasks.length}`,
+        name: routeButtonName(projectTask),
       }),
     ).toBeInTheDocument();
   });
@@ -698,7 +736,7 @@ describe("QueryvaleApp", () => {
     render(<QueryvaleApp />);
 
     await screen.findByRole("heading", { name: firstPythonTask.title });
-    await user.click(screen.getByRole("button", { name: "Sonraki vaka" }));
+    await user.click(screen.getByRole("button", { name: "Sonraki çalışma" }));
     await screen.findByRole("heading", { name: secondPythonTask.title });
     expect(disposeSpy).not.toHaveBeenCalled();
 
@@ -837,7 +875,7 @@ describe("QueryvaleApp", () => {
     ).not.toBeVisible();
     await user.click(within(completion).getByText("Çözümü incele"));
     expect(within(completion).getByText(tasks[0].explanation)).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Sonraki vaka" }));
+    await user.click(screen.getByRole("button", { name: "Sonraki çalışma" }));
     expect(
       await screen.findByRole("heading", {
         name: "Kategori listesini tekilleştir",
@@ -889,7 +927,7 @@ describe("QueryvaleApp", () => {
       within(accountHeader).getByRole("button", { name: "Ayarlar" }),
     ).toBeVisible();
 
-    await user.click(screen.getByRole("button", { name: "Sonraki vaka" }));
+    await user.click(screen.getByRole("button", { name: "Sonraki çalışma" }));
     expect(
       await screen.findByRole("heading", {
         name: "Kategori listesini tekilleştir",
@@ -1187,6 +1225,8 @@ describe("QueryvaleApp", () => {
   });
 
   it("recovers a legacy first-task pointer once and then marks the location trusted", async () => {
+    const legacyTask = tasks.find((task) => task.id === "m1-t3");
+    expect(legacyTask).toBeDefined();
     const laterQuery =
       "SELECT category, COUNT(*) FROM products GROUP BY category;";
     const legacyProgress = {
@@ -1204,7 +1244,7 @@ describe("QueryvaleApp", () => {
     });
     expect(resumeButtons).toHaveLength(1);
     expect(
-      screen.getByTitle(`Son konumun: ${tasks[2].title}`),
+      screen.getByTitle(`Son konumun: ${legacyTask!.title}`),
     ).toBeInTheDocument();
     const resumeButton = resumeButtons[0];
     await user.click(resumeButton);
@@ -1213,7 +1253,7 @@ describe("QueryvaleApp", () => {
       screen.getByRole("button", { name: "Bu cihazda hesapsız devam et" }),
     );
     expect(
-      await screen.findByRole("heading", { name: tasks[2].title }),
+      await screen.findByRole("heading", { name: legacyTask!.title }),
     ).toBeInTheDocument();
     await waitFor(async () => {
       expect(await loadProgress()).toMatchObject({
@@ -1308,7 +1348,7 @@ describe("QueryvaleApp", () => {
     expect(scoreCard).not.toBeNull();
     expect(scoreCard).toHaveTextContent(
       new RegExp(
-        `10.*${(tasks.length + pythonTasks.length) * 10} mümkün.*1.*yardımsız`,
+        `10.*${(tasks.filter((task) => task.scored).length + pythonTasks.length) * 10} mümkün.*1.*yardımsız`,
       ),
     );
     const firstModuleRow = screen
@@ -1546,7 +1586,7 @@ describe("QueryvaleApp", () => {
     });
     const draft = "SELECT product_name FROM products;";
     fireEvent.change(editor, { target: { value: draft } });
-    await user.click(screen.getByRole("button", { name: "Sonraki vaka" }));
+    await user.click(screen.getByRole("button", { name: "Sonraki çalışma" }));
 
     expect(
       await screen.findByRole("heading", { name: tasks[1].title }),
@@ -1913,7 +1953,7 @@ describe("QueryvaleApp", () => {
     await user.type(editor, "SELECT product_name FROM products;");
     await user.click(screen.getByRole("button", { name: "Kaydet" }));
 
-    const nextButton = screen.getByRole("button", { name: "Sonraki vaka" });
+    const nextButton = screen.getByRole("button", { name: "Sonraki çalışma" });
     expect(nextButton).toBeEnabled();
     await user.click(nextButton);
 
@@ -1924,7 +1964,7 @@ describe("QueryvaleApp", () => {
     ).toBeInTheDocument();
     expect(window.location.hash).toBe("#/lab/m1-t2");
     const previousButton = screen.getByRole("button", {
-      name: "Önceki vaka",
+      name: "Önceki çalışma",
     });
     expect(previousButton).toBeEnabled();
     await user.click(previousButton);
@@ -1938,9 +1978,9 @@ describe("QueryvaleApp", () => {
         screen.getByRole("textbox", { name: "SQL sorgu editörü" }),
       ).toHaveValue(""),
     );
-    await user.click(screen.getByRole("button", { name: "Sonraki vaka" }));
+    await user.click(screen.getByRole("button", { name: "Sonraki çalışma" }));
     await user.click(
-      await screen.findByRole("button", { name: "Önceki vaka" }),
+      await screen.findByRole("button", { name: "Önceki çalışma" }),
     );
     expect(
       await screen.findByRole("textbox", { name: "SQL sorgu editörü" }),
@@ -1962,7 +2002,7 @@ describe("QueryvaleApp", () => {
     const runButton = screen.getByRole("button", { name: "Çalıştır" });
     await waitFor(() => expect(runButton).toBeEnabled());
     await user.click(runButton);
-    await user.click(screen.getByRole("button", { name: "Sonraki vaka" }));
+    await user.click(screen.getByRole("button", { name: "Sonraki çalışma" }));
 
     await screen.findByRole("heading", {
       name: "Kategori listesini tekilleştir",
@@ -1981,7 +2021,7 @@ describe("QueryvaleApp", () => {
     expect(restored.tasks["m1-t2"]?.attempts ?? 0).toBe(0);
   });
 
-  it("opens all 52 SQL cases in the persistent Studio route and preserves drafts", async () => {
+  it("opens all SQL studies in the persistent Studio route and preserves drafts", async () => {
     window.location.hash = "#/lab/m1-t1";
     const user = userEvent.setup();
     render(<QueryvaleApp />);
@@ -1992,12 +2032,12 @@ describe("QueryvaleApp", () => {
     const draft = "SELECT product_name, category FROM products;";
     fireEvent.change(editor, { target: { value: draft } });
     const routeTrigger = screen.getByRole("button", {
-      name: `Rota · Vaka 1/${tasks.length}`,
+      name: routeButtonName(tasks[0]!),
     });
     await user.click(routeTrigger);
     const routeMenu = screen.getByRole("region", { name: "SQL rotası" });
     const menu = within(routeMenu);
-    expect(menu.getByText("Tüm vakalar açık")).toBeVisible();
+    expect(menu.getByText("Tüm çalışmalar açık")).toBeVisible();
     expect(routeMenu.querySelectorAll(".studio-route-group")).toHaveLength(
       modules.length,
     );
@@ -2035,7 +2075,7 @@ describe("QueryvaleApp", () => {
     });
 
     const nextRouteTrigger = screen.getByRole("button", {
-      name: `Rota · Vaka 2/${tasks.length}`,
+      name: routeButtonName(modules[0]!.tasks[1]!),
     });
     await user.click(nextRouteTrigger);
     await user.click(
@@ -2051,6 +2091,121 @@ describe("QueryvaleApp", () => {
     ).toHaveValue(draft);
   });
 
+  it.each([
+    ["drill_intro", "Alıştırma", "ALIŞTIRMA · 3 DK"],
+    ["drill_practice", "Tekrar", "TEKRAR · 3 DK"],
+    ["drill_mix", "Birleştir", "BİRLEŞTİR · 5 DK"],
+  ] as const)(
+    "renders %s as a concise, free bridge and follows the canonical route",
+    async (type, label, badge) => {
+      const drill = tasks.find((task) => task.type === type);
+      expect(drill, `${type} drill must exist`).toBeDefined();
+      const drillIndex = tasks.findIndex((task) => task.id === drill?.id);
+      const nextTask = tasks[drillIndex + 1];
+      expect(nextTask, `${type} must have a next route item`).toBeDefined();
+
+      window.location.hash = `#/lab/${drill!.id}`;
+      const user = userEvent.setup();
+      render(<QueryvaleApp />);
+
+      expect(
+        await screen.findByRole("heading", { name: drill!.title }),
+      ).toBeInTheDocument();
+      const brief = screen.getByRole("article", { name: drill!.title });
+      expect(brief).toHaveAttribute("data-drill-type", type);
+      expect(within(brief).getByText(badge)).toBeVisible();
+      for (const heading of ["Durum", "Görev", "Beklenen kolonlar", "Kavram"]) {
+        expect(
+          within(brief).getByRole("heading", { name: heading, exact: true }),
+        ).toBeVisible();
+      }
+      expect(screen.queryByText("Kendini kontrol et")).not.toBeInTheDocument();
+      expect(screen.queryByText("Takıldın mı?")).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Ücretsiz ipucunu aç" }),
+      ).toBeVisible();
+
+      await user.click(
+        screen.getByRole("button", { name: "Ücretsiz ipucunu aç" }),
+      );
+      expect(screen.getByText(drill!.hints[0]!)).toBeVisible();
+      expect(
+        screen.queryByRole("button", { name: /2\. ipucunu aç/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", {
+          name: `Rota · ${label} ${drillIndex + 1}/${tasks.length}`,
+        }),
+      ).toBeVisible();
+
+      await user.click(screen.getByRole("button", { name: "Sonraki çalışma" }));
+      expect(
+        await screen.findByRole("heading", { name: nextTask!.title }),
+      ).toBeInTheDocument();
+      expect(window.location.hash).toBe(`#/lab/${nextTask!.id}`);
+    },
+  );
+
+  it("does not award a score or create evidence after a correct drill run", async () => {
+    const drill = tasks.find((task) => task.type === "drill_intro");
+    expect(drill).toBeDefined();
+    window.location.hash = `#/lab/${drill!.id}`;
+    const user = userEvent.setup();
+    render(<QueryvaleApp />);
+
+    const editor = await screen.findByRole("textbox", {
+      name: "SQL sorgu editörü",
+    });
+    fireEvent.change(editor, { target: { value: drill!.solutionSql } });
+    await screen.findByText("PostgreSQL hazır");
+    await user.click(screen.getByRole("button", { name: "Çalıştır" }));
+
+    expect(
+      await screen.findByRole("status", { name: /Alıştırma tamamlandı/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Kanıt doğrulandı")).not.toBeInTheDocument();
+    await waitFor(async () => {
+      const restored = await loadProgress();
+      expect(restored.tasks[drill!.id]).toMatchObject({
+        taskId: drill!.id,
+        completed: true,
+        scored: false,
+      });
+      expect(restored.tasks[drill!.id]?.scoreAwarded).toBeUndefined();
+      expect(restored.evidenceByTaskId[drill!.id]).toBeUndefined();
+    });
+  });
+
+  it("uses route order for previous and next navigation across mixed drill types", async () => {
+    const drillIndex = tasks.findIndex((task) => task.type === "drill_intro");
+    const previousTask = tasks[drillIndex - 1];
+    const drill = tasks[drillIndex];
+    const nextTask = tasks[drillIndex + 1];
+    expect(previousTask).toBeDefined();
+    expect(drill).toBeDefined();
+    expect(nextTask).toBeDefined();
+
+    window.location.hash = `#/lab/${previousTask!.id}`;
+    const user = userEvent.setup();
+    render(<QueryvaleApp />);
+
+    await screen.findByRole("heading", { name: previousTask!.title });
+    await user.click(screen.getByRole("button", { name: "Sonraki çalışma" }));
+    expect(
+      await screen.findByRole("heading", { name: drill!.title }),
+    ).toBeInTheDocument();
+    expect(window.location.hash).toBe(`#/lab/${drill!.id}`);
+
+    await user.click(screen.getByRole("button", { name: "Sonraki çalışma" }));
+    expect(
+      await screen.findByRole("heading", { name: nextTask!.title }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Önceki çalışma" }));
+    expect(
+      await screen.findByRole("heading", { name: drill!.title }),
+    ).toBeInTheDocument();
+  });
+
   it("keeps later SQL modules open regardless of recommended-order progress", async () => {
     const unlockedProgress = progressWithCompletedModulesBefore(modules[1].id);
     progressPersistenceHarness.loadOverride = unlockedProgress;
@@ -2060,7 +2215,7 @@ describe("QueryvaleApp", () => {
 
     await screen.findByRole("heading", { name: modules[1].tasks[0].title });
     const routeTrigger = screen.getByRole("button", {
-      name: new RegExp(`Rota · Vaka \\d+/${tasks.length}`),
+      name: routeButtonName(modules[1]!.tasks[0]!),
     });
     await user.click(routeTrigger);
     const menu = within(screen.getByRole("region", { name: "SQL rotası" }));
