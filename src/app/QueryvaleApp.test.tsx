@@ -2116,7 +2116,9 @@ describe("QueryvaleApp", () => {
       expect(within(brief).getByText(badge)).toBeVisible();
       for (const heading of ["Durum", "Görev", "Beklenen kolonlar", "Kavram"]) {
         expect(
-          within(brief).getByRole("heading", { name: heading, exact: true }),
+          within(brief).getByRole("heading", {
+            name: new RegExp(`^${heading}$`),
+          }),
         ).toBeVisible();
       }
       expect(screen.queryByText("Kendini kontrol et")).not.toBeInTheDocument();
