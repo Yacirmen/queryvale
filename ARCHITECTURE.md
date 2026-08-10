@@ -78,9 +78,9 @@ Varsayılan motor **PGlite**’tır.
 6. Çıktı satır limiti ve güvenli serileştirme üzerinden ana thread’e döner.
 7. Evaluator kolon → satır → sıra → kavram sırasıyla değerlendirme yapar.
 8. UI sonuç ve açıklanabilir geri bildirimi gösterir.
-9. Deneme, başarı, son sorgu, benzersiz ipuçları ve tam çözüm kullanımı görev ilerlemesine kaydedilir.
-10. İlk `correct` değerlendirmede sorgu gönderim anındaki yardım snapshot’ı 10/7/4/1 veya tam çözümde 0 puana çevrilip bir kez kilitlenir; sonradan gelen yardım veya tekrar çözme bu değeri değiştirmez.
-11. Yalnız değerlendirme `correct` ise sınırlı bir `VerifiedRunSnapshot` oluşturulur ve tamamlanan görevin kanıt kaydına eklenir.
+9. Deneme, başarı, son sorgu ve benzersiz ipuçları görev ilerlemesine kaydedilir.
+10. Vakanın ilk `correct` değerlendirmesinde sorgu gönderim anındaki yardım snapshot’ı 10/7/4/1 veya tam çözümde 0 puana çevrilip bir kez kilitlenir; puansız alıştırma tamamlanır ama puan kaydı yazmaz.
+11. Yalnız puanlı vaka `correct` olduğunda sınırlı bir `VerifiedRunSnapshot` oluşturulur ve tamamlanan görevin kanıt kaydına eklenir. Alıştırma sonuçları kısa tamamlanma bildirimiyle kalır.
 12. Kullanıcı isterse bu kayda bulgu, öneri ve isteğe bağlı çekince içeren bir karar notu ekler; not evaluator tarafından puanlanmaz.
 13. `ProgressState` v6 tek transaction ile IndexedDB’ye yazılır. SQL taslağı 700 ms debounce ile ve görevden ayrılırken kaydedilir; sonuç paneli açık kalır, sonraki göreve geçiş ayrı kullanıcı eylemidir.
 14. Rota erişimi ayrıca persist edilmez: saf modül erişim seçicisi mevcut tamamlanmalardan ilk eksik modülü bulur; UI ve hash yönlendirmesi sonraki modülleri aynı kararla kilitler, eski ileri kayıtları değiştirmez.

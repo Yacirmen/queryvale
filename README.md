@@ -26,7 +26,8 @@ Queryvale, komut ezberleten bir kurs değil; gerçek iş sorularını SQL ve Pyt
 - İlk vaka içinde kapatılabilir 90 saniyelik başlangıç rehberi
 - Yalnız doğru değerlendirilen çalışmadan üretilen sınırlı, yerel kanıt snapshot’ı
 - Bulgu, öneri ve isteğe bağlı çekinceyi saklayan karar notu ile Kanıt Defteri
-- İlk doğru sorguda kilitlenen 10/7/4/1 Analiz puanı; tam çözüm desteğinde 0, puan rota erişimini etkilemez
+- Vakalarda ilk doğru sorguda kilitlenen 10/7/4/1 Analiz puanı; tam çözüm desteğinde 0, puan rota erişimini etkilemez
+- Üç kısa ve puansız alıştırma biçimi: tek kavramı tanıtan `ALIŞTIRMA · 3 DK`, kavramı farklı veride tekrar ettiren `TEKRAR · 3 DK` ve son dört kalemi bağlayan `BİRLEŞTİR · 5 DK`; her biri tek ücretsiz ipucu ve sade brief taşır
 - Şema, örnek veri, SQL editörü ve sonuçları bir araya getiren çalışma alanı
 - `Hemen Başla` ile açılan yerel `Giriş yap / Hesap oluştur` başlangıç kapısı; e-posta, parola, backend veya bulut hesabı olmadan IndexedDB tabanlı cihaz profili
 - Yerel profil oluşturulduktan sonra `Hemen Başla` yerine doğrudan `Profil` ve `Ayarlar` erişimi sunan hesap duyarlı header
@@ -35,7 +36,7 @@ Queryvale, komut ezberleten bir kurs değil; gerçek iş sorularını SQL ve Pyt
 - `SQL Studio` ve `Python Studio` üzerinden profil kapısını zorunlu kılmadan iki çalışma alanına misafir erişimi
 - Ana sayfa anlatısının sonuna ulaşılana kadar iki Studio hedefini açıklamalı kilit simgesiyle bekleten; doğrudan rotaları ve diğer ekranları engellemeyen oturumluk tanıtım geçidi
 - İki stüdyoda da sonucu örtmeden kalan kalıcı aksiyon rail'i; önceki/sonraki vaka, rota özeti ve klavye kısayolları
-- Akış içinde yukarı açılan, kendi içinde kaydırılan ve bütün vakaları erişilebilir tutan rota çekmecesi: SQL'de 11 modül/52 vaka-proje, Python'da 4 modül/12 vaka
+- Akış içinde yukarı açılan, kendi içinde kaydırılan ve bütün çalışmaları erişilebilir tutan rota çekmecesi: SQL'de 11 modül/82 çalışma (52 vaka-proje + 30 alıştırma), Python'da 4 modül/12 vaka
 - Yazarken otomatik kaydedilen SQL taslakları; `⌘/Ctrl+S` ile anında kayıt
 - Açık/koyu tema, editör tercihleri ve reduced-motion desteği
 - Dışa/içe aktarılabilir ilerleme verisi
@@ -148,9 +149,9 @@ Depodaki gerçek klasörler uygulama geliştikçe bu sorumluluklara göre grupla
 2. `src/content` altında tip güvenli görev ve öğrenme içeriği tanımı oluşturun.
 3. İzole `setupSql`, şema, örnek satırlar ve beklenen sonucu ekleyin.
 4. Kavram odağını, çıktı tanesini, kabul kontrollerini ve veri notlarını yazın.
-5. Üç kademeli ipucu, ayrı `solutionSql`, değerlendirme durumuna özel koçluk ve transfer odaklı debrief ekleyin.
+5. Vaka için üç kademeli ipucu, ayrı `solutionSql`, değerlendirme durumuna özel koçluk ve transfer odaklı debrief ekleyin. Alıştırma için tek ücretsiz ipucu ve dört bölümlü sade brief kullanın: `drill_intro` tam bir yeni kavramı, `drill_practice` yalnız tekrarı, `drill_mix` son kavramların birleşimini taşır.
 6. Kullanıcıya gösterilen tam çözümü ve alternatif doğru sorguyu gerçek motor testinde çalıştırın.
-7. İçerik doğrulama ile öğrenme yolu sırası ve `nextTaskId` bağlantısını kontrol edin.
+7. İçerik doğrulama ile benzersiz `routeOrder` değerini ve öğrenme yolu sırasını kontrol edin. `nextTaskId` eski içerik uyumluluğu içindir; SQL Studio gezinmesi rota sırasını kullanır.
 
 Alanların tam sözleşmesi, örnek görev ve editoryal standartlar [CONTENT_GUIDE.md](./CONTENT_GUIDE.md) dosyasındadır.
 
@@ -160,7 +161,7 @@ Yeni Python vakası `PythonLessonTask` sözleşmesine uyar: küçük ve determin
 
 - Her tarayıcı kendi adlandırılabilir öğrenen profilini ve ilerlemesini saklar; cihazlar arası canlı senkronizasyon yoktur.
 - Bir origin ve tarayıcı profili tek bir Queryvale çalışma alanı taşır; çoklu kullanıcı hesabı, parola koruması ve aynı cihazda birbirinden yalıtılmış çalışma alanları bu sürümün parçası değildir.
-- SQL rotası 11 modül ve 52 çalışmadır: ilk 10 modülde 40 doğrulanmış vaka, son Pazarlama Analitiği Proje Stüdyosu'nda 12 portföy projesi bulunur. Ayrı Python rotası 4 modül ve 12 pandas vakasıdır. İki rotada da vakalar sırayla açılır; eski ileri kayıtlar silinmez. Elektronik tablo ve BI araçları henüz ürün içinde çalıştırılmaz.
+- SQL rotası 11 modül ve 82 çalışmadır: 52 puanlı vaka/proje ile temel bölgede kavramı tanıtan, tekrar ettiren ve birleştiren 30 puansız alıştırmadan oluşur. İlk 10 modülde 40 doğrulanmış vaka, son Pazarlama Analitiği Proje Stüdyosu'nda 12 portföy projesi bulunur. Ayrı Python rotası 4 modül ve 12 pandas vakasıdır. Her iki rotada da bütün çalışmalar açıktır; sıra öneri ve güvenli devam bilgisidir. Elektronik tablo ve BI araçları henüz ürün içinde çalıştırılmaz.
 - Tamamlanma, Analiz puanı, deneme, süre, ipucu ve çalışma serisi pratik bağlamıdır; tek başına mesleki ustalık veya işe hazır olma iddiası değildir. Puan rekabet veya sertifika değil, ilk doğru sonuçtaki yardım düzeyinin yerel kaydıdır.
 - Taşınabilir Mac paketi macOS 11 veya yenisinde, Intel ve Apple Silicon işlemcilerde çalışır. Sabit `127.0.0.1:41739` origin'ini kullanır; Node veya internet gerektirmez ve ilerlemeyi aynı tarayıcı origin'inde korur.
 - Canlı web sürümünün tek kanonik adresi `https://yacirmen.github.io/queryvale/` ve tek yayın hattı GitHub Pages'tir.
