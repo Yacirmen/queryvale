@@ -147,7 +147,7 @@ test("SQL Studio exposes every shipped study in its in-flow route drawer", async
   await expect(page.getByRole("heading", { name: target.title })).toBeVisible();
 });
 
-test("all drill subtypes retain their concise brief, free hint and canonical navigation", async ({
+test("all drill subtypes guide learners through three hints, a result check and a neutral solution", async ({
   page,
 }) => {
   const presentations = [
@@ -174,19 +174,54 @@ test("all drill subtypes retain their concise brief, free hint and canonical nav
     await expect(
       page.getByRole("heading", { name: drill!.title }),
     ).toBeVisible();
-    const brief = page.locator(
-      `.drill-brief[data-drill-type="${presentation.type}"]`,
-    );
+    const brief = page.getByRole("tabpanel", { name: presentation.label });
     await expect(brief).toBeVisible();
+    await expect(brief).toHaveAttribute("data-drill-type", presentation.type);
     await expect(brief.getByText(presentation.badge)).toBeVisible();
-    for (const section of ["Durum", "Görev", "Beklenen kolonlar", "Kavram"]) {
+    for (const section of [
+      "İstenen teslim",
+      "Çıktını tanı",
+      "Veriyi gör, sorgunu yaz",
+    ]) {
       await expect(
         brief.getByRole("heading", { name: section, exact: true }),
       ).toBeVisible();
     }
-    await expect(page.getByText("Kendini kontrol et")).toHaveCount(0);
-    await page.getByRole("button", { name: "Ücretsiz ipucunu aç" }).click();
-    await expect(page.getByText(drill!.hints[0]!)).toBeVisible();
+    await expect(brief.getByText("Beklenen kolonlar")).toBeVisible();
+    await expect(
+      brief.getByText("Bu alıştırmada ne çalışıyorsun?"),
+    ).toBeVisible();
+    await expect(brief.getByText("Kendini kontrol et")).toBeVisible();
+    const help = brief.getByRole("region", {
+      name: `${presentation.label} yardımı`,
+    });
+    await expect(
+      help.getByRole("button", { name: "Yardım adımlarını aç" }),
+    ).toBeVisible();
+    await expect(
+      brief.getByRole("table", {
+        name: `${drill!.title} için doğru sonuç`,
+      }),
+    ).toHaveCount(0);
+    await expect(brief.getByText(drill!.solutionSql)).toHaveCount(0);
+
+    await help.getByRole("button", { name: "Yardım adımlarını aç" }).click();
+    for (const hintIndex of [0, 1, 2]) {
+      await help
+        .getByRole("button", { name: `${hintIndex + 1}. ipucunu aç` })
+        .click();
+      await expect(page.getByText(drill!.hints[hintIndex]!)).toBeVisible();
+
+      if (hintIndex < 2) {
+        await expect(
+          brief.getByRole("table", {
+            name: `${drill!.title} için doğru sonuç`,
+          }),
+        ).toHaveCount(0);
+        await expect(brief.getByText(drill!.solutionSql)).toHaveCount(0);
+      }
+    }
+
     const correctResultTable = brief.getByRole("table", {
       name: `${drill!.title} için doğru sonuç`,
     });
@@ -206,8 +241,30 @@ test("all drill subtypes retain their concise brief, free hint and canonical nav
     ).toBeVisible();
     await expect(brief.getByText(drill!.solutionSql)).toHaveCount(0);
     await expect(
-      page.getByRole("button", { name: /2\. ipucunu aç/i }),
-    ).toHaveCount(0);
+      help.getByRole("button", { name: /^Bir doğru sorguyu göster/ }),
+    ).toBeVisible();
+
+    await help
+      .getByRole("button", { name: /^Bir doğru sorguyu göster/ })
+      .click();
+    const solutionConfirmation = help.getByRole("group", {
+      name: "Çalışan çözümü açmak istiyor musun?",
+    });
+    await expect(solutionConfirmation).toBeVisible();
+    await expect(solutionConfirmation.getByText(/puansız/)).toBeVisible();
+    await expect(solutionConfirmation.getByText(/0 puan/i)).toHaveCount(0);
+    await expect(
+      solutionConfirmation.getByRole("button", { name: "Kendim deneyeyim" }),
+    ).toBeVisible();
+    await solutionConfirmation
+      .getByRole("button", { name: "Çalışan çözümü göster" })
+      .click();
+    await expect(
+      page.getByLabel(`${drill!.title} için örnek SQL sorgusu`),
+    ).toHaveText(drill!.solutionSql.replace(/\s+/g, " ").trim());
+    await expect(
+      page.getByRole("button", { name: "SQL’i kopyala" }),
+    ).toBeVisible();
     await expect(
       page.getByRole("button", {
         name: `Rota · ${presentation.label} ${drillIndex + 1}/${tasks.length}`,

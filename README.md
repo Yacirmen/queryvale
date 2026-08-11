@@ -27,7 +27,7 @@ Queryvale, komut ezberleten bir kurs değil; gerçek iş sorularını SQL ve Pyt
 - Yalnız doğru değerlendirilen çalışmadan üretilen sınırlı, yerel kanıt snapshot’ı
 - Bulgu, öneri ve isteğe bağlı çekinceyi saklayan karar notu ile Kanıt Defteri
 - Vakalarda ilk doğru sorguda kilitlenen 10/7/4/1 Analiz puanı; tam çözüm desteğinde 0, puan rota erişimini etkilemez
-- Üç kısa ve puansız alıştırma biçimi: tek kavramı tanıtan `ALIŞTIRMA · 3 DK`, kavramı farklı veride tekrar ettiren `TEKRAR · 3 DK` ve son dört kalemi bağlayan `BİRLEŞTİR · 5 DK`; ücretsiz ipucu açıldığında tam doğru sonucu da gösteren sade bir brief taşır
+- Üç kısa ve puansız alıştırma biçimi: tek kavramı tanıtan `ALIŞTIRMA · 3 DK`, kavramı farklı veride tekrar ettiren `TEKRAR · 3 DK` ve son dört kalemi bağlayan `BİRLEŞTİR · 5 DK`; vakalarla aynı üç aşamalı yardım, doğru sonuç ve isteğe bağlı çalışan çözüm akışını puan baskısı olmadan sunar
 - Şema, örnek veri, SQL editörü ve sonuçları bir araya getiren çalışma alanı
 - `Hemen Başla` ile açılan yerel `Giriş yap / Hesap oluştur` başlangıç kapısı; e-posta, parola, backend veya bulut hesabı olmadan IndexedDB tabanlı cihaz profili
 - Yerel profil oluşturulduktan sonra `Hemen Başla` yerine doğrudan `Profil` ve `Ayarlar` erişimi sunan hesap duyarlı header
@@ -152,7 +152,7 @@ Depodaki gerçek klasörler uygulama geliştikçe bu sorumluluklara göre grupla
 2. `src/content` altında tip güvenli görev ve öğrenme içeriği tanımı oluşturun.
 3. İzole `setupSql`, şema, örnek satırlar ve beklenen sonucu ekleyin.
 4. Kavram odağını, çıktı tanesini, kabul kontrollerini ve veri notlarını yazın.
-5. Vaka için üç kademeli ipucu, ayrı `solutionSql`, değerlendirme durumuna özel koçluk ve transfer odaklı debrief ekleyin. Alıştırma için tek ücretsiz ipucu ve dört bölümlü sade brief kullanın: `drill_intro` tam bir yeni kavramı, `drill_practice` yalnız tekrarı, `drill_mix` son kavramların birleşimini taşır.
+5. Her SQL çalışması için üç kademeli ipucu ve gerçek motorda doğrulanmış ayrı `solutionSql` ekleyin. Alıştırmada tüm yardım ve çözüm adımları ücretsizdir; puan, kanıt ve karar notu üretmez. `drill_intro` tam bir yeni kavramı, `drill_practice` yalnız tekrarı, `drill_mix` son kavramların birleşimini taşır.
 6. Kullanıcıya gösterilen tam çözümü ve alternatif doğru sorguyu gerçek motor testinde çalıştırın.
 7. İçerik doğrulama ile benzersiz `routeOrder` değerini ve öğrenme yolu sırasını kontrol edin. `nextTaskId` eski içerik uyumluluğu içindir; SQL Studio gezinmesi rota sırasını kullanır.
 

@@ -560,7 +560,9 @@ const filteringBridgeDrills: LessonTask[] = [
     requiredConcepts: ["DISTINCT"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "SELECT DISTINCT city FROM orders yapısıyla şehir değerlerini tekilleştir.",
+      "Sonuçta her şehir yalnız bir kez kalmalı; aynı şehre ait birden fazla sipariş satırı ise raporda tekrar etmemeli.",
+      "Tekrarlanan tek bir kolon değerini ayıklamak için SELECT ifadesinde DISTINCT kullanılır; burada filtre koşuluna ihtiyacın yok.",
+      "İskelet: SELECT DISTINCT [şehir kolonu] FROM [sipariş tablosu];",
     ],
     explanation:
       "DISTINCT, aynı şehir adını birden çok sipariş verse bile sonuçta yalnız bir kez gösterir.",
@@ -599,7 +601,9 @@ const filteringBridgeDrills: LessonTask[] = [
     requiredConcepts: ["DISTINCT", "WHERE", "COMPARISON"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "SELECT DISTINCT city ile başla; WHERE total_amount >= 500 koşulunu FROM orders sonrasına ekle.",
+      "Önce yüksek tutarlı siparişleri seç, sonra bu siparişlerden gelen şehir adlarını tekrar etmeden göster.",
+      "WHERE sayısal eşiği uygular; DISTINCT ise filtre sonrası kalan şehir değerlerini tekilleştirir.",
+      "İskelet: SELECT DISTINCT [şehir kolonu] FROM [sipariş tablosu] WHERE [tutar kolonu] >= [eşik];",
     ],
     explanation:
       "Bu kısa çıktı, filtrelemenin ve tekilleştirmenin aynı sonuç üzerinde farklı işler yaptığını gösterir.",
@@ -641,7 +645,11 @@ const filteringBridgeDrills: LessonTask[] = [
     orderSensitive: false,
     requiredConcepts: ["WHERE"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
-    hints: ["FROM orders sonrasına WHERE status = 'pending' koşulunu ekle."],
+    hints: [
+      "Yalnız hedef durumdaki siparişler sonuçta kalmalı; diğer durumdaki satırların tamamını dışarıda bırak.",
+      "Tek bir metin değerine eşitliği WHERE içinde = ile kur; metin sabitini tek tırnak içinde yaz.",
+      "İskelet: SELECT [sipariş kimliği], [durum] FROM [sipariş tablosu] WHERE [durum] = '[hedef durum]';",
+    ],
     explanation: "Eşitlik filtresi, tek bir iş durumuna ait satırları seçer.",
     completionMessage: "Pending kuyruğu hazır. İlk eşitlik filtresini kurdun.",
     nextTaskId: null,
@@ -683,7 +691,11 @@ const filteringBridgeDrills: LessonTask[] = [
     orderSensitive: false,
     requiredConcepts: ["IN"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
-    hints: ["WHERE city IN ('Ankara', 'Istanbul') koşulunu kullan."],
+    hints: [
+      "Sonuçta yalnız iki öncelikli şehre ait siparişler kalmalı; şehir dışındaki satırlar görünmemeli.",
+      "Aynı kolon için birden fazla kabul edilen metin değeri olduğunda, ayrı eşitlikler yerine IN (...) kümesini kullanabilirsin.",
+      "İskelet: SELECT [sipariş kimliği], [şehir] FROM [sipariş tablosu] WHERE [şehir] IN ('[şehir 1]', '[şehir 2]');",
+    ],
     explanation:
       "IN, tek kolon için birden fazla eşitlik seçeneğini tek bir koşulda anlatır.",
     completionMessage:
@@ -721,7 +733,11 @@ const filteringBridgeDrills: LessonTask[] = [
     orderSensitive: false,
     requiredConcepts: ["COMPARISON", "AND"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
-    hints: ["WHERE city = 'Istanbul' AND total_amount >= 500 yapısını kur."],
+    hints: [
+      "Bir siparişin listeye girmesi için hem hedef şehirde olması hem de tutar eşiğini geçmesi gerekir.",
+      "Şehir için metin eşitliği, tutar için >= karşılaştırması kur; iki koşulun aynı satırda doğru olmasını AND sağlar.",
+      "İskelet: SELECT [sipariş kimliği], [müşteri adı] FROM [sipariş tablosu] WHERE [şehir] = '[hedef şehir]' AND [tutar] >= [eşik];",
+    ],
     explanation: "AND, iki daraltma kuralını aynı satır üzerinde kesiştirir.",
     completionMessage: "İki koşul kesişti. AND ile doğru satırı korudun.",
     nextTaskId: null,
@@ -757,7 +773,9 @@ const filteringBridgeDrills: LessonTask[] = [
     requiredConcepts: ["WHERE", "COMPARISON", "AND", "IN"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "Şehir için IN, durum için =, tutar için >= yaz; üç koşulu AND ile bağla.",
+      "Kuyrukta kalacak sipariş, şehir kümesine girmeli, bekleyen durumda olmalı ve tutar eşiğini aynı anda geçmeli.",
+      "Şehirleri IN (...) ile bir küme yap; durum eşitliğini ve tutar karşılaştırmasını ayrı koşullar olarak yazıp AND ile birleştir.",
+      "İskelet: SELECT [sipariş kimliği], [şehir] FROM [sipariş tablosu] WHERE [şehir] IN ('[şehir 1]', '[şehir 2]') AND [durum] = '[hedef durum]' AND [tutar] >= [eşik];",
     ],
     explanation:
       "Aynı WHERE ifadesi, farklı türden iş koşullarını birlikte taşıyabilir.",
@@ -801,7 +819,9 @@ const filteringBridgeDrills: LessonTask[] = [
     requiredConcepts: ["BETWEEN"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "WHERE ordered_at BETWEEN DATE '2026-01-05' AND DATE '2026-01-08' yaz.",
+      "Başlangıç ve bitiş günündeki siparişler de kontrol penceresine dahil olmalı.",
+      "BETWEEN iki tarih sınırını birlikte ve dahil ederek sınar; tarih sabitlerini DATE 'YYYY-MM-DD' biçiminde yazabilirsin.",
+      "İskelet: SELECT [sipariş kimliği], [sipariş tarihi] FROM [sipariş tablosu] WHERE [sipariş tarihi] BETWEEN DATE '[başlangıç]' AND DATE '[bitiş]';",
     ],
     explanation:
       "BETWEEN, iki tarih sınırını da dahil eden kısa bir aralık filtresidir.",
@@ -846,7 +866,9 @@ const filteringBridgeDrills: LessonTask[] = [
     requiredConcepts: ["IS_NULL"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "WHERE delivered_at IS NULL koşulunu kullan; eşittir işareti kullanma.",
+      "Teslim tarihi henüz oluşmamış siparişleri ayır; dolu teslim tarihi olan satırlar listede kalmamalı.",
+      "NULL bir metin ya da sayı değildir; eksik değeri kontrol etmek için = NULL değil IS NULL yazılır.",
+      "İskelet: SELECT [sipariş kimliği], [müşteri adı] FROM [sipariş tablosu] WHERE [teslim tarihi] IS NULL;",
     ],
     explanation:
       "IS NULL, eksik teslim tarihi taşıyan siparişleri güvenle ayırır.",
@@ -886,7 +908,9 @@ const filteringBridgeDrills: LessonTask[] = [
     requiredConcepts: ["AND", "IS_NULL", "LIKE"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "WHERE delivered_at IS NULL AND customer_name LIKE '%e%' ile iki koşulu bağla.",
+      "Sonuçta hem teslimatı eksik olan hem de adında aranan harf geçen müşteriler kalmalı.",
+      "Eksik teslimi IS NULL ile, metin içindeki deseni LIKE ile sınarsın; harften önce ve sonra başka karakter olabilmesi için % kullanılır.",
+      "İskelet: SELECT [müşteri adı] FROM [sipariş tablosu] WHERE [teslim tarihi] IS NULL AND [müşteri adı] LIKE '%[aranan metin]%';",
     ],
     explanation:
       "LIKE deseni müşteri adındaki küçük e harfini eşler; AND bu aramayı eksik teslimat kontrolüyle kesiştirir.",
@@ -937,7 +961,9 @@ const filteringBridgeDrills: LessonTask[] = [
     requiredConcepts: ["AND", "IS_NULL", "LIKE", "BETWEEN", "ORDER_BY"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "IS NULL, LIKE '%e%' ve BETWEEN koşullarını AND ile bağla; ardından customer_name ile sırala.",
+      "Kontrol listesi üç filtreyi de aynı siparişte arar; kalan müşteriler paylaşılabilir olması için ada göre sıralanır.",
+      "Eksik teslim için IS NULL, isim deseni için LIKE, gün aralığı için BETWEEN kullan; bu üç koşulu AND ile bağladıktan sonra ORDER BY ekle.",
+      "İskelet: SELECT [müşteri adı], [durum] FROM [sipariş tablosu] WHERE [teslim tarihi] IS NULL AND [müşteri adı] LIKE '%[metin]%' AND [sipariş tarihi] BETWEEN DATE '[başlangıç]' AND DATE '[bitiş]' ORDER BY [müşteri adı];",
     ],
     explanation:
       "Üç filtre aynı risk tanımını kurar; sıralama ise kontrol listesini paylaşılabilir hâle getirir.",
@@ -1252,7 +1278,11 @@ const transformationBridgeDrills: LessonTask[] = [
     orderSensitive: true,
     requiredConcepts: ["ORDER_BY", "LIMIT"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
-    hints: ["quantity için DESC sıralaması kur, ardından LIMIT 2 ekle."],
+    hints: [
+      "Önce en yüksek adetli satışlar en üstte olacak şekilde listeyi kur; yalnız bundan sonra ilk iki satırı bırak.",
+      "ORDER BY [adet] DESC büyük değeri öne taşır; LIMIT sıralanmış listenin kaç satırını göstereceğini belirler.",
+      "İskelet: SELECT [satış kimliği], [adet] FROM [satış tablosu] ORDER BY [adet] DESC LIMIT [satır sayısı];",
+    ],
     explanation:
       "En büyük adetler önce sıralanır; LIMIT yalnız bu sıralı listenin iki satırını bırakır.",
     completionMessage:
@@ -1293,7 +1323,9 @@ const transformationBridgeDrills: LessonTask[] = [
     requiredConcepts: ["ORDER_BY", "LIMIT"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "unit_price için DESC sıralaması kullan; sıralamadan sonra LIMIT 2 yaz.",
+      "En pahalı iki satış hareketini görmek için önce birim fiyatı büyükten küçüğe dizmelisin.",
+      "Sıralama anahtarı birim fiyat, yönü DESC olur; LIMIT bu dizilmiş sonuçtan yalnız istenen kadar satır bırakır.",
+      "İskelet: SELECT [satış kimliği], [birim fiyat] FROM [satış tablosu] ORDER BY [birim fiyat] DESC LIMIT [satır sayısı];",
     ],
     explanation:
       "Aynı Top-N yapısı, stok yerine fiyat önceliği için de çalışır.",
@@ -1339,7 +1371,9 @@ const transformationBridgeDrills: LessonTask[] = [
     requiredConcepts: ["STRING_FUNCTION", "ALIAS"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "UPPER(agent_first_name) AS agent_label ifadesini SELECT listesine ekle.",
+      "Her satış satırı korunurken temsilcinin adı raporda tutarlı biçimde büyük harfle görünmeli.",
+      "UPPER metni dönüştürür; dönüşmüş kolona raporun beklediği adı vermek için AS ile alias kullan.",
+      "İskelet: SELECT [satış kimliği], UPPER([temsilci adı]) AS [etiket adı] FROM [satış tablosu];",
     ],
     explanation:
       "Metin fonksiyonu kaynak değeri değiştirmeden sonuçtaki gösterimini standardize eder.",
@@ -1385,7 +1419,9 @@ const transformationBridgeDrills: LessonTask[] = [
     requiredConcepts: ["STRING_FUNCTION", "ARITHMETIC", "ALIAS"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "UPPER(agent_first_name) AS agent_label ve quantity * unit_price AS revenue ifadelerini yan yana yaz.",
+      "Her satırda hem okunur bir temsilci etiketi hem de o satışın hesaplanmış geliri bulunmalı.",
+      "İsim için UPPER ile metin dönüşümü, gelir için adet × birim fiyat aritmetiği kullan; iki türetilmiş kolona da AS ile ad ver.",
+      "İskelet: SELECT UPPER([temsilci adı]) AS [etiket], [adet] * [birim fiyat] AS [gelir] FROM [satış tablosu];",
     ],
     explanation:
       "Aynı satış satırından hem okunur etiket hem sayısal metrik üretilebilir.",
@@ -1430,7 +1466,11 @@ const transformationBridgeDrills: LessonTask[] = [
     orderSensitive: false,
     requiredConcepts: ["DATE_FUNCTION", "ALIAS"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
-    hints: ["TO_CHAR(sale_date, 'YYYY') AS sale_year ifadesini kullan."],
+    hints: [
+      "Her satış kaydı sonuçta kalmalı; tarih bilgisinden yalnız yıl parçasını ayrı bir rapor kolonu olarak üret.",
+      "TO_CHAR tarih değerini istenen metin biçimine çevirir; yıl için dört haneli biçim kullanıp sonucu beklenen alias ile adlandır.",
+      "İskelet: SELECT [satış kimliği], TO_CHAR([satış tarihi], '[yıl biçimi]') AS [yıl etiketi] FROM [satış tablosu];",
+    ],
     explanation:
       "Tarih fonksiyonu, gün bazındaki veriyi daha geniş raporlama zamanına dönüştürür.",
     completionMessage:
@@ -1475,7 +1515,9 @@ const transformationBridgeDrills: LessonTask[] = [
     requiredConcepts: ["DATE_FUNCTION", "STRING_FUNCTION", "ALIAS"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "UPPER(TO_CHAR(sale_date, 'Mon')) AS sale_month_label yapısını kullan.",
+      "Önce satış tarihinden ay kısaltmasını üret, sonra bu etiketi tutarlı biçimde büyük harfe çevir.",
+      "İçteki TO_CHAR tarih biçimini üretir; dıştaki UPPER onun döndürdüğü metni dönüştürür. Son kolona AS ile isim ver.",
+      "İskelet: SELECT [satış kimliği], UPPER(TO_CHAR([satış tarihi], '[ay biçimi]')) AS [ay etiketi] FROM [satış tablosu];",
     ],
     explanation:
       "İç içe dönüşüm, tarih bilgisini standart rapor etiketine dönüştürür.",
@@ -1753,7 +1795,11 @@ const aggregationBridgeDrills: LessonTask[] = [
     orderSensitive: false,
     requiredConcepts: ["COUNT"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
-    hints: ["COUNT(*) tüm satırları sayar; sonucu order_count diye adlandır."],
+    hints: [
+      "Bu teslim tek bir özet satırı üretmeli: tabloda kaç sipariş kaydı bulunduğunu görmelisin.",
+      "COUNT(*) tüm satırları sayar; sonuç kolonu rapor sözleşmesindeki adla görünmesi için AS ile alias kullan.",
+      "İskelet: SELECT COUNT(*) AS [sipariş sayısı] FROM [sipariş tablosu];",
+    ],
     explanation:
       "COUNT(*) filtre veya gruplama olmadan tabloya tek bir özet satırı üretir.",
     completionMessage:
@@ -1796,7 +1842,9 @@ const aggregationBridgeDrills: LessonTask[] = [
     requiredConcepts: ["COUNT", "GROUP_BY"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "SELECT channel, COUNT(*) AS order_count ile başla; channel için GROUP BY ekle.",
+      "Her kanal için ayrı bir özet satırı oluşmalı; kanal içindeki sipariş satırlarını sayacaksın.",
+      "SELECT'te aggregate olmayan kanal kolonu varsa aynı kolon GROUP BY'da da bulunur; COUNT(*) her grubun satırlarını sayar.",
+      "İskelet: SELECT [kanal], COUNT(*) AS [sipariş sayısı] FROM [sipariş tablosu] GROUP BY [kanal];",
     ],
     explanation:
       "Tek kolonlu GROUP BY, her kanal için tek bir COUNT çıktısı üretir.",
@@ -1844,7 +1892,9 @@ const aggregationBridgeDrills: LessonTask[] = [
     requiredConcepts: ["CAST", "ALIAS"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "CAST(order_id AS TEXT) AS order_ref ifadesini SELECT listesine ekle.",
+      "Sayısal sipariş kimliğini değiştirmeden, raporun beklediği metin türünde ayrı bir referans olarak göster.",
+      "CAST bir değerin türünü dönüştürür; kaynak kimliği TEXT'e çevirip çıkan kolona AS ile rapor adını ver.",
+      "İskelet: SELECT CAST([sipariş kimliği] AS TEXT) AS [referans adı] FROM [sipariş tablosu];",
     ],
     explanation:
       "CAST sayısal kimliği metne çevirir; kaynak tablodaki order_id değeri değişmez.",
@@ -1892,7 +1942,9 @@ const aggregationBridgeDrills: LessonTask[] = [
     requiredConcepts: ["CAST", "CASE", "ALIAS"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "CAST(order_id AS TEXT) ile referansı üret; CASE WHEN order_amount >= 900 THEN 'Yüksek' ELSE 'Standart' END kullan.",
+      "Her sipariş için hem metin referansı hem de tutarın eşiği geçip geçmediğini anlatan bir bant üret.",
+      "Kimlik için CAST kullan; tutar bandında CASE ile eşik koşulunu yazıp karşılanmadığında varsayılan etiketi döndür. İki türetilmiş kolonu da aliasla adlandır.",
+      "İskelet: SELECT CAST([sipariş kimliği] AS TEXT) AS [referans], CASE WHEN [tutar] >= [eşik] THEN '[yüksek etiket]' ELSE '[varsayılan etiket]' END AS [bant] FROM [sipariş tablosu];",
     ],
     explanation:
       "İki satır düzeyi dönüşüm, aynı ham sipariş kaydını daha okunur bir rapor satırına çevirir.",
@@ -1935,7 +1987,9 @@ const aggregationBridgeDrills: LessonTask[] = [
     requiredConcepts: ["COUNT", "SUM", "GROUP_BY", "ORDER_BY", "ALIAS"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "channel için GROUP BY yap; COUNT(*) AS order_count ve SUM(order_amount) AS total_amount ekleyip channel ile sırala.",
+      "Her kanal tek satırda kalırken aynı satırda hem sipariş adedi hem de tutar toplamı görünmeli.",
+      "Kanalı GROUP BY ile sonuç tanesi yap; COUNT(*) ve SUM([tutar]) metriklerini aliasla adlandır, sonra kanal adına göre sırala.",
+      "İskelet: SELECT [kanal], COUNT(*) AS [sipariş sayısı], SUM([tutar]) AS [toplam tutar] FROM [sipariş tablosu] GROUP BY [kanal] ORDER BY [kanal];",
     ],
     explanation:
       "Kısa iki-metrik özet, tam sağlık raporundaki aggregate ailesini daha yönetilebilir biçimde tekrarlar.",
@@ -2100,7 +2154,9 @@ const regionalSummaryBridgeDrills: LessonTask[] = [
     requiredConcepts: ["SUM", "CASE", "GROUP_BY", "ORDER_BY", "ALIAS"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_transaction_count ifadesini region GROUP BY içinde kullan.",
+      "Her bölgede yalnız hedef durumdaki işlemleri say; diğer durumdaki işlemler bölge satırını korur ama sayaca katkı yapmaz.",
+      "CASE hedef durumdaki satıra 1, diğerine 0 döndürür; SUM bu bayrakları bölge bazında toplar. Bölgeyi GROUP BY ile tanımla.",
+      "İskelet: SELECT [bölge], SUM(CASE WHEN [durum] = '[hedef durum]' THEN 1 ELSE 0 END) AS [tamamlanan sayısı] FROM [işlem tablosu] GROUP BY [bölge] ORDER BY [bölge];",
     ],
     explanation:
       "Koşullu özetleme, satır düzeyindeki CASE sonucunu grup düzeyinde tek bir sayaca dönüştürür.",
@@ -2173,7 +2229,9 @@ const regionalSummaryBridgeDrills: LessonTask[] = [
     requiredConcepts: ["COUNT", "SUM", "CASE", "GROUP_BY", "ORDER_BY", "ALIAS"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "COUNT(*) AS transaction_count ile SUM(CASE ...) AS completed_transaction_count ifadelerini region GROUP BY içinde kullan.",
+      "Her bölge için iki farklı ölçü yan yana görünmeli: toplam işlem hacmi ve bunun içindeki hedef durumdaki işlem sayısı.",
+      "COUNT(*) bütün işlemleri sayar; SUM(CASE ...) yalnız hedef durumdakileri sayar. İkisini aynı region GROUP BY kovasında üretip aliasla adlandır.",
+      "İskelet: SELECT [bölge], COUNT(*) AS [işlem sayısı], SUM(CASE WHEN [durum] = '[hedef durum]' THEN 1 ELSE 0 END) AS [hedef durum sayısı] FROM [işlem tablosu] GROUP BY [bölge] ORDER BY [bölge];",
     ],
     explanation:
       "İki metrik aynı bölge kovasının hem toplam hareketini hem de tamamlanma durumunu gösterir.",
@@ -2714,7 +2772,9 @@ const joinBridgeDrills: LessonTask[] = [
     ],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "GROUP BY order_id sonrasında HAVING SUM(quantity * unit_price) >= 400 kullan; COUNT(*) sonucuna item_count alias'ını ver.",
+      "Önce kalemleri sipariş düzeyinde bir araya getir; ardından toplam değeri eşiği geçen sipariş gruplarını bırak ve bu gruplardaki kalemleri say.",
+      "quantity * unit_price satır değeri verir, SUM sipariş toplamını üretir. Bu aggregate eşiği GROUP BY sonrasında HAVING ile sınanır; COUNT(*) ise kalem sayısını verir.",
+      "İskelet: SELECT [sipariş kimliği], COUNT(*) AS [kalem sayısı] FROM [kalem tablosu] GROUP BY [sipariş kimliği] HAVING SUM([adet] * [birim fiyat]) >= [eşik] ORDER BY [sipariş kimliği];",
     ],
     explanation:
       "HAVING, yalnız oluşmuş grupları sayım veya toplam gibi aggregate sonuçlara göre seçer.",
@@ -2758,7 +2818,9 @@ const joinBridgeDrills: LessonTask[] = [
     requiredConcepts: ["INNER_JOIN", "ORDER_BY"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "FROM orders o INNER JOIN customers c ON o.customer_id = c.customer_id ile iki kaynağı bağla; sonra o.order_id ile sırala.",
+      "Her sonuç satırında bir siparişin kimliğiyle o siparişi veren müşterinin adı yan yana gelmeli; eşleşmeyen iki kaynak parçası üretilmemeli.",
+      "İki tabloyu INNER JOIN ile bağla. ON bölümü siparişin müşteri kimliğini müşteri tablosundaki aynı kimlikle eşleştiren ilişki kuralıdır; bu bir filtre değildir.",
+      "İskelet: SELECT [sipariş takma adı].[sipariş kimliği], [müşteri takma adı].[müşteri adı] FROM [sipariş tablosu] [sipariş takma adı] INNER JOIN [müşteri tablosu] [müşteri takma adı] ON [sipariş takma adı].[müşteri kimliği] = [müşteri takma adı].[müşteri kimliği] ORDER BY [sipariş takma adı].[sipariş kimliği];",
     ],
     explanation:
       "INNER JOIN, eşleşen sipariş ve müşteri satırlarını aynı sonuç satırına taşır.",
@@ -2803,7 +2865,9 @@ const joinBridgeDrills: LessonTask[] = [
     requiredConcepts: ["INNER_JOIN", "MULTI_JOIN", "ORDER_BY"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "orders'ı önce customers ile customer_id üzerinden, sonra order_items ile order_id üzerinden INNER JOIN yap; o.order_id ve i.item_id ile sırala.",
+      "Sonuç tanesi artık sipariş kalemi: aynı sipariş birden fazla kaleme sahipse müşteri adı o kalemlerin her birinde görünmeli.",
+      "İlk JOIN siparişi müşteriye müşteri kimliğiyle bağlar; ikinci JOIN aynı siparişi kalemlerine sipariş kimliğiyle bağlar. İki sıralama anahtarı eşit siparişleri kendi içinde düzenler.",
+      "İskelet: SELECT [sipariş].[sipariş kimliği], [müşteri].[müşteri adı], [kalem].[kalem kimliği] FROM [sipariş] INNER JOIN [müşteri] ON [sipariş].[müşteri kimliği] = [müşteri].[müşteri kimliği] INNER JOIN [kalem] ON [kalem].[sipariş kimliği] = [sipariş].[sipariş kimliği] ORDER BY [sipariş].[sipariş kimliği], [kalem].[kalem kimliği];",
     ],
     explanation:
       "Çoklu JOIN iki ilişkiyi aynı satıra taşır; burada her sonuç satırı bir sipariş kalemini temsil eder.",
@@ -2877,7 +2941,9 @@ const joinBridgeDrills: LessonTask[] = [
     ],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "SUM(quantity * unit_price) AS order_amount yaz; GROUP BY order_id sonrasında HAVING SUM(quantity * unit_price) >= 450 ekle.",
+      "Sonuçta her sipariş için tek satır ve o siparişin kalemlerinden hesaplanmış toplam tutar kalmalı; yalnız yüksek toplamlı siparişler görünmeli.",
+      "Önce adet × birim fiyatı SUM ile sipariş toplamına çevir; GROUP BY sipariş tanesini kurar, HAVING ise oluşan toplamı eşikle karşılaştırır.",
+      "İskelet: SELECT [sipariş kimliği], SUM([adet] * [birim fiyat]) AS [sipariş tutarı] FROM [kalem tablosu] GROUP BY [sipariş kimliği] HAVING SUM([adet] * [birim fiyat]) >= [eşik] ORDER BY [sipariş kimliği];",
     ],
     explanation:
       "Aritmetik değer önce kalem düzeyinde, SUM ve HAVING ise sipariş düzeyinde çalışır.",
@@ -2922,7 +2988,9 @@ const joinBridgeDrills: LessonTask[] = [
     requiredConcepts: ["COUNT", "GROUP_BY", "ORDER_BY", "ALIAS"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "SELECT listesinde aggregate olmayan order_id ve unit_price değerlerinin ikisini de GROUP BY listesine ekle; COUNT(*) AS line_count ile say.",
+      "Her sonuç satırı bir sipariş–fiyat birleşimini temsil etmeli; aynı siparişte farklı fiyatlar birbirine karışmamalı.",
+      "SELECT'te aggregate olmadan görünen sipariş kimliği ve birim fiyatın ikisi de GROUP BY'da yer alır. COUNT(*) her birleşimdeki kalem sayısını üretir.",
+      "İskelet: SELECT [sipariş kimliği], [birim fiyat], COUNT(*) AS [satır sayısı] FROM [kalem tablosu] GROUP BY [sipariş kimliği], [birim fiyat] ORDER BY [sipariş kimliği], [birim fiyat];",
     ],
     explanation:
       "Çok kolonlu GROUP BY, her sipariş–fiyat birleşimi için ayrı bir özet satırı üretir.",
@@ -2972,7 +3040,9 @@ const joinBridgeDrills: LessonTask[] = [
     requiredConcepts: ["INNER_JOIN", "COUNT", "GROUP_BY", "ORDER_BY", "ALIAS"],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "orders ve customers’ı customer_id ile birleştir; c.customer_name için GROUP BY ekleyip COUNT(*) AS order_count yaz ve customer_name ile sırala.",
+      "Sipariş satırlarını müşteri adıyla zenginleştir, sonra her müşterinin kaç sipariş verdiğini tek bir özet satırına indir.",
+      "Önce orders ile customers'ı customer_id ilişkisinden INNER JOIN yap. Müşteri adına göre GROUP BY kurup COUNT(*) ile siparişleri say; müşteri adına göre sırala.",
+      "İskelet: SELECT [müşteri].[müşteri adı], COUNT(*) AS [sipariş sayısı] FROM [sipariş] INNER JOIN [müşteri] ON [sipariş].[müşteri kimliği] = [müşteri].[müşteri kimliği] GROUP BY [müşteri].[müşteri adı] ORDER BY [müşteri].[müşteri adı];",
     ],
     explanation:
       "Birleştirilmiş satırları müşteri düzeyinde gruplamak, ilişki sonrası da özet tanesini açıkça korur.",
@@ -3049,7 +3119,9 @@ const joinBridgeDrills: LessonTask[] = [
     ],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
-      "İki INNER JOIN'i kur; SELECT içindeki order_id ve customer_name değerlerinin ikisini de GROUP BY listesine ekleyip COUNT(i.item_id) AS item_count kullan.",
+      "Her sonuç satırı bir sipariş–müşteri çifti olmalı; o siparişe bağlı kalemlerin sayısı aynı satırda görünmeli.",
+      "Önce siparişi müşteriye, sonra siparişi kalemlerine INNER JOIN ile bağla. Sipariş kimliği ve müşteri adı aggregate değildir; ikisini GROUP BY'a koyup kalem kimliklerini say.",
+      "İskelet: SELECT [sipariş].[sipariş kimliği], [müşteri].[müşteri adı], COUNT([kalem].[kalem kimliği]) AS [kalem sayısı] FROM [sipariş] INNER JOIN [müşteri] ON [sipariş].[müşteri kimliği] = [müşteri].[müşteri kimliği] INNER JOIN [kalem] ON [kalem].[sipariş kimliği] = [sipariş].[sipariş kimliği] GROUP BY [sipariş].[sipariş kimliği], [müşteri].[müşteri adı] ORDER BY [sipariş].[sipariş kimliği];",
     ],
     explanation:
       "Bu kısa teslim, bir sonraki vaka için gereken çoklu JOIN ve çok kolonlu GROUP BY iskeletini aynı veri dünyasında tekrarlar.",
@@ -4871,14 +4943,14 @@ export const assertCurriculumIsValid = (
           : task.conceptNew === undefined;
       if (
         task.scored ||
-        task.hints.length !== 1 ||
+        task.hints.length !== 3 ||
         !hasValidDuration ||
         !hasExpectedNewConcept ||
         !task.conceptsReinforced?.length ||
         !task.drillConcept?.trim()
       ) {
         throw new Error(
-          `${task.id} alıştırma alt tipi için puansız, tek ipuçlu ve kavram sözleşmesini karşılamalı.`,
+          `${task.id} alıştırma alt tipi için puansız, üç aşamalı ipuçlu ve kavram sözleşmesini karşılamalı.`,
         );
       }
     }

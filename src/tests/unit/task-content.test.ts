@@ -127,7 +127,11 @@ function genericDrill(
     curriculumConcepts: isIntroduction ? ["K01", "K14"] : ["K01"],
     drillConcept:
       "Kısa alıştırma, tek bir yapı taşını gereksiz iş bağlamı olmadan görünür kılar.",
-    hints: ["Tek ücretsiz ipucunu uygula."],
+    hints: [
+      "Önce istenen çıktı tanesini düşün.",
+      "Gerekli SQL parçalarını sıraya koy.",
+      "İskeleti kendi alanlarınla tamamla.",
+    ],
     ...overrides,
   });
 }
@@ -180,12 +184,17 @@ describe("task content validation", () => {
     );
   });
 
-  it("rejects scoring, multi-hints and an invalid duration for each drill subtype", () => {
+  it("rejects scoring, missing or excessive hint steps and an invalid duration for each drill subtype", () => {
     const introIssues = validateTaskDefinition(
       genericDrill("drill_intro", {
         scored: true,
         hints: ["Bir", "İki"],
         estimatedMinutes: 4,
+      }),
+    );
+    const tooManyHintIssues = validateTaskDefinition(
+      genericDrill("drill_intro", {
+        hints: ["Bir", "İki", "Üç", "Dört"],
       }),
     );
     const practiceIssues = validateTaskDefinition(
@@ -196,6 +205,9 @@ describe("task content validation", () => {
     );
 
     expect(introIssues.map((issue) => issue.path)).toContain("drill_intro");
+    expect(tooManyHintIssues.map((issue) => issue.path)).toContain(
+      "drill_intro",
+    );
     expect(practiceIssues.map((issue) => issue.path)).toContain(
       "drill_practice",
     );

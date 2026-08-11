@@ -56,7 +56,7 @@ describe("task learning content", () => {
     }
   });
 
-  it("keeps every drill subtype concise, unscored and distinct", () => {
+  it("keeps every drill subtype concise, unscored and guided in three distinct steps", () => {
     const drills = tasks.filter(isDrillTask);
 
     // The implementation derives the exact number from the coverage gaps;
@@ -68,7 +68,18 @@ describe("task learning content", () => {
     );
     for (const drill of drills) {
       expect(drill.scored, drill.id).toBe(false);
-      expect(drill.hints, drill.id).toHaveLength(1);
+      expect(drill.hints, drill.id).toHaveLength(3);
+      expect(
+        drill.hints.every((hint) => hint.trim().length > 0),
+        `${drill.id} boş ipucu taşıyamaz`,
+      ).toBe(true);
+      expect(
+        new Set(drill.hints.map((hint) => hint.trim())).size,
+        `${drill.id} aşamalı yardım için üç farklı ipucu taşımalı`,
+      ).toBe(3);
+      expect(drill.hints[2]?.trim(), drill.id).not.toBe(
+        drill.solutionSql.trim(),
+      );
       expect(drill.conceptsReinforced?.length, drill.id).toBeGreaterThan(0);
       expect(drill.drillConcept?.trim(), drill.id).not.toBe("");
       expect(drill.scenario.trim(), drill.id).not.toBe("");

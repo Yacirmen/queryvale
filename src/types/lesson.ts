@@ -246,7 +246,7 @@ export interface LessonTask extends LessonLearningContent {
   requiredConcepts: SQLConcept[];
   forbiddenOperations: ForbiddenOperation[];
   validationOptions: ValidationOptions;
-  /** Cases contain three progressive hints; drills deliberately contain one free hint. */
+  /** Every learning task offers logic → parts → query scaffold in three progressive hints. */
   hints: readonly string[];
   /** A learner-visible, executable example revealed only on explicit request. */
   solutionSql: string;

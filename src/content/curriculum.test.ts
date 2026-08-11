@@ -281,14 +281,26 @@ describe("curriculum", () => {
     }
   });
 
-  it("gives every drill one free hint, no score and the exact fixture of its following case", () => {
+  it("gives every drill three paced hints, no score and the exact fixture of its following case", () => {
     for (const [drillIndex, drill] of tasks.entries()) {
       if (!isDrillTask(drill)) continue;
       const followingCase = taskAfterDrill(drillIndex);
 
       expect(drill.scored, drill.id).toBe(false);
       expect(drill.prerequisites, drill.id).toEqual([]);
-      expect(drill.hints, drill.id).toHaveLength(1);
+      expect(drill.hints, drill.id).toHaveLength(3);
+      expect(
+        drill.hints.every((hint) => hint.trim().length > 0),
+        `${drill.id} boş ipucu taşıyamaz`,
+      ).toBe(true);
+      expect(
+        new Set(drill.hints.map((hint) => hint.trim())).size,
+        `${drill.id} üç farklı yardım adımı taşımalı`,
+      ).toBe(3);
+      expect(
+        drill.hints[2]?.trim(),
+        `${drill.id} tam çözümü üçüncü ipucu olarak veremez`,
+      ).not.toBe(drill.solutionSql.trim());
       expect(drill.expectedColumns, drill.id).not.toHaveLength(0);
       expect(drill.expectedResult, drill.id).not.toHaveLength(0);
       expect(

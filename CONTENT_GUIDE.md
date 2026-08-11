@@ -37,7 +37,7 @@ Her görev aşağıdaki alanları destekler:
 | `orderSensitive`                 | İş talebi sıralama gerektiriyorsa `true`                                        |
 | `requiredConcepts`               | Sonuç doğru olsa da öğrenme hedefi için gereken sinyaller                       |
 | `forbiddenOperations`            | Görevde izin verilmeyen DDL/DML/operasyonlar                                    |
-| `hints`                          | Vaka için üç kademeli; alıştırma için tek ücretsiz yönlendirme                  |
+| `hints`                          | Her SQL çalışması için mantık → parçalar → sorgu iskeleti biçiminde üç kademe   |
 | `solutionSql`                    | İpuçlarından ayrı, kullanıcı isterse açılan ve motorla doğrulanan tam SQL       |
 | `learningBrief.conceptAnchor`    | Yeni kavramın bu iş kararındaki rolünü açıklayan kısa dayanak                   |
 | `learningBrief.outputGrain`      | Sonuçtaki tek satırın neyi temsil ettiğini açıkça söyleyen tanım                |
@@ -60,7 +60,7 @@ Gerçek TypeScript tipi depodaki tek yürütülebilir kaynaktır; bu belge seman
 5. **Referans sorguyu çalıştırın.** Beklenen sonucu elle tahmin etmeyin.
 6. **Alternatif doğru sorgu deneyin.** Değerlendiricinin SQL metnine bağlı olmadığını kanıtlayın.
 7. **Yanlış örnekleri test edin.** Kolon, satır, sıra ve kavram geri bildirimlerini kontrol edin.
-8. **İpuçlarını yazın.** Vaka için mantık → parçalar → sorgu iskeleti sırasını; alıştırma için tek, ücretsiz ve kavramı işaret eden yönlendirmeyi kullanın. Alıştırma ipucu açıldığında uygulama ayrıca aynı `expectedResult` kaynağından tam doğru sonucu gösterir; bu nedenle çıktıyı ikinci bir serbest metin alanında kopyalamayın.
+8. **İpuçlarını yazın.** Her SQL çalışmasında mantık → parçalar → sorgu iskeleti sırasını kullanın. Alıştırmanın üç adımı ücretsizdir; üçüncü adımdan sonra uygulama aynı `expectedResult` kaynağından tam **Doğru sonuç** tablosunu gösterir. Çıktıyı ikinci bir serbest metin alanında kopyalamayın.
 9. **Tam çözümü doğrulayın.** `solutionSql` tek doğru cevap gibi sunulmasa da eksiksiz çalışmalıdır.
 10. **İçerik doğrulamasını ve testleri çalıştırın.**
 
@@ -75,7 +75,7 @@ Zengin içerik uzun bir ders metni olarak aynı anda gösterilmez:
 5. **Başarıdan sonra:** çözüm adımları, neden çalıştığı, edge case'ler ve iş etkisi.
 6. **Transfer kontrolü:** kullanıcı açtığında görünen yeni durum sorusu ve düşünme yönü.
 
-Tam çözüm ilk üç ipucunun, hata koçluğunun veya başarı debrief'inin içine saklanmaz; ayrı ve açıkça adlandırılmış son yardım adımıdır. Açılması için başarısız deneme şartı yoktur, editörü otomatik değiştirmez ve görevi tamamlamaz. İlk doğru değerlendirmeden önce açıldığında vaka puanını 0 yapacağı ikinci bir açık onayla anlatılır; tamamlanma, kanıt ve rota erişimi etkilenmez. Bu akış yalnız vakalara uygulanır; alıştırma tek ücretsiz ipucuyla biter ve puan/kanıt/debrief baskısı oluşturmaz. “Geçerli çözümlerden biri” dili, sonuç odaklı değerlendirmenin alternatif doğru sorguları kabul ettiğini korur.
+Tam çözüm ilk üç ipucunun, hata koçluğunun veya başarı debrief'inin içine saklanmaz; ayrı ve açıkça adlandırılmış son yardım adımıdır. Açılması için başarısız deneme şartı yoktur, editörü otomatik değiştirmez ve görevi tamamlamaz. İlk doğru değerlendirmeden önce açıldığında vaka puanını 0 yapacağı ikinci bir açık onayla anlatılır; tamamlanma, kanıt ve rota erişimi etkilenmez. Alıştırmada aynı yardım ve çözüm akışı vardır; üç yardım adımı ücretsizdir, doğru sonuç tablosu üçüncü adımda görünür ve tam çözümün nötr onayı puanı, tamamlanmayı veya rota erişimini değiştirmez. Alıştırma yine puan, kanıt ve karar debrief'i üretmez. “Geçerli çözümlerden biri” dili, sonuç odaklı değerlendirmenin alternatif doğru sorguları kabul ettiğini korur.
 
 ## Senaryo standardı
 
@@ -100,18 +100,18 @@ Zayıf senaryo:
 - Kişisel veri gerçek kişiye ait olmamalıdır.
 - Setup idempotent bir görev DB’sinde çalışmalı; uzak kaynağa bağlı olmamalıdır.
 
-## Vaka ipucu merdiveni
+## SQL yardım merdiveni
 
 1. **Kavramsal:** Filtrelemeden önce satırın hangi koşulu sağlaması gerektiğini düşün.
 2. **Parçalar:** Şube için `branches.city`, stok için `products.stock_quantity` kolonlarına bak.
 3. **Sorgu iskeleti:** `SELECT [kolonlar] FROM [tablo] WHERE [koşullar] ORDER BY [kolon];` gibi doldurulabilir bir yapı göster.
-4. **Çalışan örnek:** İlk üç adım yetmediyse ayrı `solutionSql` alanındaki tam sorguyu kullanıcının açık eylemiyle göster.
+4. **Çalışan örnek:** İlk üç adım yetmediyse ayrı `solutionSql` alanındaki tam sorguyu kullanıcının açık eylemiyle göster. Alıştırmada bu eylem nötrdür; vakada ilk doğru değerlendirme öncesindeki puan sonucunu ayrıca anlatır.
 
 İlk üç ipucu tam kolon listesi ile nihai SQL’i aynı anda vermemelidir. Dördüncü adım ise yarım bırakılmış bir sözde çözüm değildir: kopyalanabilir ve gerçek görev verisi üzerinde çalışan eksiksiz bir örnektir. Bu ayrım, öğreneni önce düşünmeye davet eder ama tamamen takıldığında çıkışsız bırakmaz.
 
 ## Alıştırma standardı
 
-Alıştırma, var olan bir vakadan hemen önce aynı şema ve fixture üzerinde çalışan kısa bir köprüdür. Üç biçim vardır: `drill_intro` tam olarak bir `conceptNew` taşır ve 2–3 dakika sürer; `drill_practice` sıfır yeni kavramla aynı fikri farklı açıdan tekrar eder ve 2–3 dakika sürer; `drill_mix` sıfır yeni kavramla son dört kalemi birleştirir ve 5 dakika sürer. Her biri puansız, açık erişimli, `prerequisites: []` olan ve yalnız tek ücretsiz ipucu içeren çalışmadır. İpucu açıldığında yönlendirmeye ek olarak kanonik `expectedColumns` ve `expectedResult` ile üretilen tam **Doğru sonuç** tablosu görünür; sorgu metni gösterilmez. Görünür brief sırası sabittir: **Durum → Görev → Beklenen kolonlar → Kavram**. Yönetici mesajı, kabul listesi, üç aşamalı yardım, puan rehberi ve karar debrief'i alıştırmaya eklenmez.
+Alıştırma, var olan bir vakadan hemen önce aynı şema ve fixture üzerinde çalışan kısa bir köprüdür. Üç biçim vardır: `drill_intro` tam olarak bir `conceptNew` taşır ve 2–3 dakika sürer; `drill_practice` sıfır yeni kavramla aynı fikri farklı açıdan tekrar eder ve 2–3 dakika sürer; `drill_mix` sıfır yeni kavramla son dört kalemi birleştirir ve 5 dakika sürer. Her biri puansız, açık erişimli ve `prerequisites: []` olan çalışmadır. Vaka yardım yüzeyini aynen kullanır: üç ücretsiz yardım adımı, üçüncü adımdan sonra kanonik `expectedColumns` + `expectedResult` ile oluşan **Doğru sonuç** tablosu ve kullanıcının açık, nötr onayıyla çalışan `solutionSql`. Bu destekler puanı, kanıtı, karar notunu veya rota erişimini değiştirmez; alıştırma tamamlanması yine bunları üretmez.
 
 ## Değerlendirme seçimi
 
@@ -155,7 +155,7 @@ Yeni görev, bir öncekinin tüm karmaşıklığını rastgele büyütmek yerine
 - [ ] Yapısal olarak farklı doğru çözüm kabul ediliyor mu?
 - [ ] Yanlış çözüm anlamlı geri bildirim alıyor mu?
 - [ ] DML görevinde gerçek post-state doğrulanıyor ve sabit/literal `RETURNING` taklidi reddediliyor mu?
-- [ ] Vaka için üç ipucu giderek daha açık mı; alıştırma için yalnız tek ücretsiz ipucu var mı?
+- [ ] Her SQL çalışmasında üç ipucu giderek daha açık mı; alıştırmanın üç yardım adımı ücretsiz mi?
 - [ ] `solutionSql` eksiksiz mi, açık talepte mi gösteriliyor ve gerçek motorda doğru kabul ediliyor mu?
 - [ ] Çıktı tanesi ve en az üç kabul kontrolü açık mı?
 - [ ] Veri notları yanlış ama makul yaklaşımı görünür kılan edge case'leri açıklıyor mu?

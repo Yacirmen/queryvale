@@ -231,7 +231,7 @@ function validateTaskFormat(
   const type = rawType as DrillTaskType;
   const [minimumMinutes, maximumMinutes] = drillDurations[type];
   const commonInvalid =
-    task.hints.length !== 1 ||
+    task.hints.length !== 3 ||
     task.scored !== false ||
     !isNonEmptyConceptList(source.conceptsReinforced) ||
     typeof task.drillConcept !== "string" ||
@@ -247,7 +247,7 @@ function validateTaskFormat(
     issues.push({
       severity: "error",
       path: type,
-      message: `${type} tek ücretsiz ipucu, puansız sözleşme, pekiştirilen kavramlar, dört bölümlü brief metni ve ${durationLabel} taşımalıdır.`,
+      message: `${type} üç aşamalı ücretsiz ipucu, puansız sözleşme, pekiştirilen kavramlar, vaka yardım yüzeyi ve ${durationLabel} taşımalıdır.`,
     });
   }
 

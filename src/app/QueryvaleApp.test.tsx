@@ -1744,7 +1744,7 @@ describe("QueryvaleApp", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("list", { name: "Vakaya başlama sırası" }),
+      screen.getByRole("list", { name: "Vaka başlama sırası" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "İstenen teslim" }),
@@ -2139,7 +2139,7 @@ describe("QueryvaleApp", () => {
     ["drill_practice", "Tekrar", "TEKRAR · 3 DK"],
     ["drill_mix", "Birleştir", "BİRLEŞTİR · 5 DK"],
   ] as const)(
-    "renders %s as a concise, free bridge and follows the canonical route",
+    "guides %s through three free hints, a result check and a neutral working solution",
     async (type, label, badge) => {
       const drill = tasks.find((task) => task.type === type);
       expect(drill, `${type} drill must exist`).toBeDefined();
@@ -2154,26 +2154,63 @@ describe("QueryvaleApp", () => {
       expect(
         await screen.findByRole("heading", { name: drill!.title }),
       ).toBeInTheDocument();
-      const brief = screen.getByRole("article", { name: drill!.title });
+      const brief = screen.getByRole("tabpanel", { name: label });
       expect(brief).toHaveAttribute("data-drill-type", type);
       expect(within(brief).getByText(badge)).toBeVisible();
-      for (const heading of ["Durum", "Görev", "Beklenen kolonlar", "Kavram"]) {
+      for (const heading of [
+        "İstenen teslim",
+        "Çıktını tanı",
+        "Veriyi gör, sorgunu yaz",
+      ]) {
         expect(
           within(brief).getByRole("heading", {
             name: new RegExp(`^${heading}$`),
           }),
         ).toBeVisible();
       }
-      expect(screen.queryByText("Kendini kontrol et")).not.toBeInTheDocument();
-      expect(screen.queryByText("Takıldın mı?")).not.toBeInTheDocument();
+      expect(within(brief).getByText("Beklenen kolonlar")).toBeVisible();
       expect(
-        screen.getByRole("button", { name: "Ücretsiz ipucunu aç" }),
+        within(brief).getByText("Bu alıştırmada ne çalışıyorsun?"),
       ).toBeVisible();
+      expect(within(brief).getByText("Kendini kontrol et")).toBeVisible();
+      const help = within(brief).getByRole("region", {
+        name: `${label} yardımı`,
+      });
+      expect(
+        within(help).getByRole("button", { name: "Yardım adımlarını aç" }),
+      ).toBeVisible();
+      expect(
+        within(brief).queryByRole("table", {
+          name: `${drill!.title} için doğru sonuç`,
+        }),
+      ).not.toBeInTheDocument();
+      expect(
+        within(brief).queryByText(drill!.solutionSql),
+      ).not.toBeInTheDocument();
 
       await user.click(
-        screen.getByRole("button", { name: "Ücretsiz ipucunu aç" }),
+        within(help).getByRole("button", { name: "Yardım adımlarını aç" }),
       );
-      expect(screen.getByText(drill!.hints[0]!)).toBeVisible();
+      for (const hintIndex of [0, 1, 2]) {
+        await user.click(
+          within(help).getByRole("button", {
+            name: `${hintIndex + 1}. ipucunu aç`,
+          }),
+        );
+        expect(screen.getByText(drill!.hints[hintIndex]!)).toBeVisible();
+
+        if (hintIndex < 2) {
+          expect(
+            within(brief).queryByRole("table", {
+              name: `${drill!.title} için doğru sonuç`,
+            }),
+          ).not.toBeInTheDocument();
+          expect(
+            within(brief).queryByText(drill!.solutionSql),
+          ).not.toBeInTheDocument();
+        }
+      }
+
       const correctResultTable = within(brief).getByRole("table", {
         name: `${drill!.title} için doğru sonuç`,
       });
@@ -2205,11 +2242,61 @@ describe("QueryvaleApp", () => {
         ),
       ).toBeVisible();
       expect(
+        within(help).getByRole("button", {
+          name: /^Bir doğru sorguyu göster/,
+        }),
+      ).toBeVisible();
+      expect(
         within(brief).queryByText(drill!.solutionSql),
       ).not.toBeInTheDocument();
+
+      await user.click(
+        within(help).getByRole("button", {
+          name: /^Bir doğru sorguyu göster/,
+        }),
+      );
+      const solutionConfirmation = await within(help).findByRole("group", {
+        name: "Çalışan çözümü açmak istiyor musun?",
+      });
+      expect(within(solutionConfirmation).getByText(/puansız/)).toBeVisible();
       expect(
-        screen.queryByRole("button", { name: /2\. ipucunu aç/i }),
+        within(solutionConfirmation).queryByText(/0 puan/i),
       ).not.toBeInTheDocument();
+      expect(
+        within(solutionConfirmation).getByRole("button", {
+          name: "Kendim deneyeyim",
+        }),
+      ).toBeVisible();
+      expect(
+        within(solutionConfirmation).getByRole("button", {
+          name: "Çalışan çözümü göster",
+        }),
+      ).toBeVisible();
+
+      await user.click(
+        within(solutionConfirmation).getByRole("button", {
+          name: "Çalışan çözümü göster",
+        }),
+      );
+      const revealedSolution = await screen.findByLabelText(
+        `${drill!.title} için örnek SQL sorgusu`,
+      );
+      expect(revealedSolution.textContent?.replace(/\s+/g, " ").trim()).toBe(
+        drill!.solutionSql.replace(/\s+/g, " ").trim(),
+      );
+      expect(
+        screen.getByRole("button", { name: "SQL’i kopyala" }),
+      ).toBeVisible();
+
+      await waitFor(async () => {
+        const restored = await loadProgress();
+        expect(restored.tasks[drill!.id]).toMatchObject({
+          taskId: drill!.id,
+          hintsUsed: [0, 1, 2],
+        });
+        expect(restored.tasks[drill!.id]?.scoreAwarded).toBeUndefined();
+        expect(restored.evidenceByTaskId[drill!.id]).toBeUndefined();
+      });
       expect(
         screen.getByRole("button", {
           name: `Rota · ${label} ${drillIndex + 1}/${tasks.length}`,
@@ -2224,35 +2311,40 @@ describe("QueryvaleApp", () => {
     },
   );
 
-  it("does not award a score or create evidence after a correct drill run", async () => {
-    const drill = tasks.find((task) => task.type === "drill_intro");
-    expect(drill).toBeDefined();
-    window.location.hash = `#/lab/${drill!.id}`;
-    const user = userEvent.setup();
-    render(<QueryvaleApp />);
+  it.each([
+    ["drill_intro", "Alıştırma tamamlandı"],
+    ["drill_practice", "Tekrar tamamlandı"],
+    ["drill_mix", "Birleştirme tamamlandı"],
+  ] as const)(
+    "does not award a score or create evidence after a correct %s run",
+    async (type, completionLabel) => {
+      const drill = tasks.find((task) => task.type === type);
+      expect(drill).toBeDefined();
+      window.location.hash = `#/lab/${drill!.id}`;
+      const user = userEvent.setup();
+      render(<QueryvaleApp />);
 
-    const editor = await screen.findByRole("textbox", {
-      name: "SQL sorgu editörü",
-    });
-    fireEvent.change(editor, { target: { value: drill!.solutionSql } });
-    await screen.findByText("PostgreSQL hazır");
-    await user.click(screen.getByRole("button", { name: "Çalıştır" }));
-
-    expect(
-      await screen.findByRole("status", { name: /Alıştırma tamamlandı/i }),
-    ).toBeInTheDocument();
-    expect(screen.queryByText("Kanıt doğrulandı")).not.toBeInTheDocument();
-    await waitFor(async () => {
-      const restored = await loadProgress();
-      expect(restored.tasks[drill!.id]).toMatchObject({
-        taskId: drill!.id,
-        completed: true,
-        scored: false,
+      const editor = await screen.findByRole("textbox", {
+        name: "SQL sorgu editörü",
       });
-      expect(restored.tasks[drill!.id]?.scoreAwarded).toBeUndefined();
-      expect(restored.evidenceByTaskId[drill!.id]).toBeUndefined();
-    });
-  });
+      fireEvent.change(editor, { target: { value: drill!.solutionSql } });
+      await screen.findByText("PostgreSQL hazır");
+      await user.click(screen.getByRole("button", { name: "Çalıştır" }));
+
+      expect(await screen.findByText(completionLabel)).toBeInTheDocument();
+      expect(screen.queryByText("Kanıt doğrulandı")).not.toBeInTheDocument();
+      await waitFor(async () => {
+        const restored = await loadProgress();
+        expect(restored.tasks[drill!.id]).toMatchObject({
+          taskId: drill!.id,
+          completed: true,
+          scored: false,
+        });
+        expect(restored.tasks[drill!.id]?.scoreAwarded).toBeUndefined();
+        expect(restored.evidenceByTaskId[drill!.id]).toBeUndefined();
+      });
+    },
+  );
 
   it("uses route order for previous and next navigation across mixed drill types", async () => {
     const drillIndex = tasks.findIndex((task) => task.type === "drill_intro");
