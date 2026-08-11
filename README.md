@@ -27,7 +27,7 @@ Queryvale, komut ezberleten bir kurs değil; gerçek iş sorularını SQL ve Pyt
 - Yalnız doğru değerlendirilen çalışmadan üretilen sınırlı, yerel kanıt snapshot’ı
 - Bulgu, öneri ve isteğe bağlı çekinceyi saklayan karar notu ile Kanıt Defteri
 - Vakalarda ilk doğru sorguda kilitlenen 10/7/4/1 Analiz puanı; tam çözüm desteğinde 0, puan rota erişimini etkilemez
-- Üç kısa ve puansız alıştırma biçimi: tek kavramı tanıtan `ALIŞTIRMA · 3 DK`, kavramı farklı veride tekrar ettiren `TEKRAR · 3 DK` ve son dört kalemi bağlayan `BİRLEŞTİR · 5 DK`; her biri tek ücretsiz ipucu ve sade brief taşır
+- Üç kısa ve puansız alıştırma biçimi: tek kavramı tanıtan `ALIŞTIRMA · 3 DK`, kavramı farklı veride tekrar ettiren `TEKRAR · 3 DK` ve son dört kalemi bağlayan `BİRLEŞTİR · 5 DK`; ücretsiz ipucu açıldığında tam doğru sonucu da gösteren sade bir brief taşır
 - Şema, örnek veri, SQL editörü ve sonuçları bir araya getiren çalışma alanı
 - `Hemen Başla` ile açılan yerel `Giriş yap / Hesap oluştur` başlangıç kapısı; e-posta, parola, backend veya bulut hesabı olmadan IndexedDB tabanlı cihaz profili
 - Yerel profil oluşturulduktan sonra `Hemen Başla` yerine doğrudan `Profil` ve `Ayarlar` erişimi sunan hesap duyarlı header

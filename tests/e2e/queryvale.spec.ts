@@ -187,6 +187,24 @@ test("all drill subtypes retain their concise brief, free hint and canonical nav
     await expect(page.getByText("Kendini kontrol et")).toHaveCount(0);
     await page.getByRole("button", { name: "Ücretsiz ipucunu aç" }).click();
     await expect(page.getByText(drill!.hints[0]!)).toBeVisible();
+    const correctResultTable = brief.getByRole("table", {
+      name: `${drill!.title} için doğru sonuç`,
+    });
+    await expect(correctResultTable).toBeVisible();
+    await expect(correctResultTable.getByRole("columnheader")).toHaveText(
+      drill!.expectedColumns,
+    );
+    await expect(correctResultTable.locator("tbody tr")).toHaveCount(
+      drill!.expectedResult.length,
+    );
+    await expect(
+      brief.getByText(
+        drill!.orderSensitive
+          ? /Satırları bu sırayla karşılaştır\./
+          : /Satır sırası önemli değil\./,
+      ),
+    ).toBeVisible();
+    await expect(brief.getByText(drill!.solutionSql)).toHaveCount(0);
     await expect(
       page.getByRole("button", { name: /2\. ipucunu aç/i }),
     ).toHaveCount(0);

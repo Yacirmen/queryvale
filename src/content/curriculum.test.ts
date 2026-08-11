@@ -289,6 +289,14 @@ describe("curriculum", () => {
       expect(drill.scored, drill.id).toBe(false);
       expect(drill.prerequisites, drill.id).toEqual([]);
       expect(drill.hints, drill.id).toHaveLength(1);
+      expect(drill.expectedColumns, drill.id).not.toHaveLength(0);
+      expect(drill.expectedResult, drill.id).not.toHaveLength(0);
+      expect(
+        drill.expectedResult.every(
+          (row) => row.length === drill.expectedColumns.length,
+        ),
+        `${drill.id} doğru sonuç tablosu kolon sözleşmesiyle eşleşmeli`,
+      ).toBe(true);
       expect(followingCase, `${drill.id} must lead into a case`).toBeDefined();
       expect(drill.setupSql, drill.id).toBe(followingCase?.setupSql);
       expect(drill.schema, drill.id).toStrictEqual(followingCase?.schema);

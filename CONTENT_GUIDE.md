@@ -37,7 +37,7 @@ Her görev aşağıdaki alanları destekler:
 | `orderSensitive`                 | İş talebi sıralama gerektiriyorsa `true`                                        |
 | `requiredConcepts`               | Sonuç doğru olsa da öğrenme hedefi için gereken sinyaller                       |
 | `forbiddenOperations`            | Görevde izin verilmeyen DDL/DML/operasyonlar                                    |
-| `hints`                          | Vaka için üç kademeli; alıştırma için tam bir ücretsiz ipucu                    |
+| `hints`                          | Vaka için üç kademeli; alıştırma için tek ücretsiz yönlendirme                  |
 | `solutionSql`                    | İpuçlarından ayrı, kullanıcı isterse açılan ve motorla doğrulanan tam SQL       |
 | `learningBrief.conceptAnchor`    | Yeni kavramın bu iş kararındaki rolünü açıklayan kısa dayanak                   |
 | `learningBrief.outputGrain`      | Sonuçtaki tek satırın neyi temsil ettiğini açıkça söyleyen tanım                |
@@ -60,7 +60,7 @@ Gerçek TypeScript tipi depodaki tek yürütülebilir kaynaktır; bu belge seman
 5. **Referans sorguyu çalıştırın.** Beklenen sonucu elle tahmin etmeyin.
 6. **Alternatif doğru sorgu deneyin.** Değerlendiricinin SQL metnine bağlı olmadığını kanıtlayın.
 7. **Yanlış örnekleri test edin.** Kolon, satır, sıra ve kavram geri bildirimlerini kontrol edin.
-8. **İpuçlarını yazın.** Vaka için mantık → parçalar → sorgu iskeleti sırasını; alıştırma için tek, ücretsiz ve kavramı işaret eden ipucunu kullanın.
+8. **İpuçlarını yazın.** Vaka için mantık → parçalar → sorgu iskeleti sırasını; alıştırma için tek, ücretsiz ve kavramı işaret eden yönlendirmeyi kullanın. Alıştırma ipucu açıldığında uygulama ayrıca aynı `expectedResult` kaynağından tam doğru sonucu gösterir; bu nedenle çıktıyı ikinci bir serbest metin alanında kopyalamayın.
 9. **Tam çözümü doğrulayın.** `solutionSql` tek doğru cevap gibi sunulmasa da eksiksiz çalışmalıdır.
 10. **İçerik doğrulamasını ve testleri çalıştırın.**
 
@@ -111,7 +111,7 @@ Zayıf senaryo:
 
 ## Alıştırma standardı
 
-Alıştırma, var olan bir vakadan hemen önce aynı şema ve fixture üzerinde çalışan kısa bir köprüdür. Üç biçim vardır: `drill_intro` tam olarak bir `conceptNew` taşır ve 2–3 dakika sürer; `drill_practice` sıfır yeni kavramla aynı fikri farklı açıdan tekrar eder ve 2–3 dakika sürer; `drill_mix` sıfır yeni kavramla son dört kalemi birleştirir ve 5 dakika sürer. Her biri puansız, açık erişimli, `prerequisites: []` olan ve yalnız tek ücretsiz ipucu içeren çalışmadır. Görünür brief sırası sabittir: **Durum → Görev → Beklenen kolonlar → Kavram**. Yönetici mesajı, kabul listesi, üç aşamalı yardım, puan rehberi ve karar debrief'i alıştırmaya eklenmez.
+Alıştırma, var olan bir vakadan hemen önce aynı şema ve fixture üzerinde çalışan kısa bir köprüdür. Üç biçim vardır: `drill_intro` tam olarak bir `conceptNew` taşır ve 2–3 dakika sürer; `drill_practice` sıfır yeni kavramla aynı fikri farklı açıdan tekrar eder ve 2–3 dakika sürer; `drill_mix` sıfır yeni kavramla son dört kalemi birleştirir ve 5 dakika sürer. Her biri puansız, açık erişimli, `prerequisites: []` olan ve yalnız tek ücretsiz ipucu içeren çalışmadır. İpucu açıldığında yönlendirmeye ek olarak kanonik `expectedColumns` ve `expectedResult` ile üretilen tam **Doğru sonuç** tablosu görünür; sorgu metni gösterilmez. Görünür brief sırası sabittir: **Durum → Görev → Beklenen kolonlar → Kavram**. Yönetici mesajı, kabul listesi, üç aşamalı yardım, puan rehberi ve karar debrief'i alıştırmaya eklenmez.
 
 ## Değerlendirme seçimi
 

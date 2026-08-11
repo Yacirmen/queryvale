@@ -188,6 +188,51 @@ function taskKindLabel(task: LessonTask): string {
   return isDrillTask(task) ? drillPresentation(task.type).label : "Vaka";
 }
 
+function DrillExpectedResultHint({ task }: { task: LessonTask }) {
+  const titleId = `${task.id}-expected-result-title`;
+  const rowOrderNote = task.orderSensitive
+    ? "Satırları bu sırayla karşılaştır."
+    : "Satır sırası önemli değil.";
+
+  return (
+    <section className="drill-expected-result" aria-labelledby={titleId}>
+      <div className="drill-expected-result-heading" aria-live="polite">
+        <Table2 size={14} aria-hidden="true" />
+        <div>
+          <h3 id={titleId}>Doğru sonuç</h3>
+          <p>
+            {task.expectedResult.length} satır · {rowOrderNote}
+          </p>
+        </div>
+      </div>
+      <div className="drill-expected-result-table-wrap">
+        <table aria-label={`${task.title} için doğru sonuç`}>
+          <thead>
+            <tr>
+              {task.expectedColumns.map((column) => (
+                <th key={column} scope="col">
+                  {column}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {task.expectedResult.map((row, rowIndex) => (
+              <tr key={`${task.id}-expected-row-${rowIndex}`}>
+                {task.expectedColumns.map((column, columnIndex) => (
+                  <td key={`${task.id}-${column}-${rowIndex}`}>
+                    {formatCell(row[columnIndex])}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 /** The drill brief intentionally avoids the case's manager-request scaffolding. */
 function DrillBrief({ task, hintVisible, onRevealHint }: DrillBriefProps) {
   if (!isDrillTask(task)) return null;
@@ -229,10 +274,13 @@ function DrillBrief({ task, hintVisible, onRevealHint }: DrillBriefProps) {
         <p>{task.drillConcept ?? task.learningBrief.conceptAnchor}</p>
         {freeHint ? (
           hintVisible ? (
-            <div className="drill-free-hint" role="status">
-              <Lightbulb size={14} aria-hidden="true" />
-              <span>{freeHint}</span>
-            </div>
+            <>
+              <div className="drill-free-hint" role="status">
+                <Lightbulb size={14} aria-hidden="true" />
+                <span>{freeHint}</span>
+              </div>
+              <DrillExpectedResultHint task={task} />
+            </>
           ) : (
             <button
               type="button"

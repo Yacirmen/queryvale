@@ -2174,6 +2174,39 @@ describe("QueryvaleApp", () => {
         screen.getByRole("button", { name: "Ücretsiz ipucunu aç" }),
       );
       expect(screen.getByText(drill!.hints[0]!)).toBeVisible();
+      const correctResultTable = within(brief).getByRole("table", {
+        name: `${drill!.title} için doğru sonuç`,
+      });
+      expect(correctResultTable).toBeVisible();
+      expect(
+        within(correctResultTable)
+          .getAllByRole("columnheader")
+          .map((header) => header.textContent),
+      ).toEqual(drill!.expectedColumns);
+      expect(
+        within(correctResultTable)
+          .getAllByRole("row")
+          .slice(1)
+          .map((row) =>
+            within(row)
+              .getAllByRole("cell")
+              .map((cell) => cell.textContent),
+          ),
+      ).toEqual(
+        drill!.expectedResult.map((row) =>
+          row.map((value) => (value === null ? "NULL" : String(value))),
+        ),
+      );
+      expect(
+        within(brief).getByText(
+          drill!.orderSensitive
+            ? /Satırları bu sırayla karşılaştır\./
+            : /Satır sırası önemli değil\./,
+        ),
+      ).toBeVisible();
+      expect(
+        within(brief).queryByText(drill!.solutionSql),
+      ).not.toBeInTheDocument();
       expect(
         screen.queryByRole("button", { name: /2\. ipucunu aç/i }),
       ).not.toBeInTheDocument();
