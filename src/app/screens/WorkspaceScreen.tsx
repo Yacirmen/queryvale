@@ -1205,7 +1205,7 @@ export function WorkspaceScreen({
                 aria-label={
                   isDrill
                     ? `${taskKindLabel(task)} başlama sırası`
-                    : "Vakaya başlama sırası"
+                    : "Vaka başlama sırası"
                 }
               >
                 <li className="task-sequence-step task-sequence-step-primary">
