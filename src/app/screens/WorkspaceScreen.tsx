@@ -1202,7 +1202,11 @@ export function WorkspaceScreen({
               <h1>{task.title}</h1>
               <ol
                 className="task-sequence"
-                aria-label={`${isDrill ? taskKindLabel(task) : "Vaka"} başlama sırası`}
+                aria-label={
+                  isDrill
+                    ? `${taskKindLabel(task)} başlama sırası`
+                    : "Vakaya başlama sırası"
+                }
               >
                 <li className="task-sequence-step task-sequence-step-primary">
                   <span className="task-step-index" aria-hidden="true">
