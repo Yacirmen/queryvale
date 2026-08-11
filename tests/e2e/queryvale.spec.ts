@@ -240,13 +240,20 @@ test("all drill subtypes guide learners through three hints, a result check and 
       ),
     ).toBeVisible();
     await expect(brief.getByText(drill!.solutionSql)).toHaveCount(0);
-    await expect(
-      help.getByRole("button", { name: /^Bir doğru sorguyu göster/ }),
-    ).toBeVisible();
+    const showSolution = help.getByRole("button", {
+      name: /^Bir doğru sorguyu göster/,
+    });
+    const solutionControl = help.locator(
+      `button[aria-controls="${drill!.id}-solution"]`,
+    );
+    await expect(showSolution).toBeVisible();
+    await expect(showSolution).toHaveAttribute("aria-expanded", "false");
+    await expect(showSolution).toHaveAttribute(
+      "aria-controls",
+      `${drill!.id}-solution`,
+    );
 
-    await help
-      .getByRole("button", { name: /^Bir doğru sorguyu göster/ })
-      .click();
+    await showSolution.click();
     const solutionConfirmation = help.getByRole("group", {
       name: "Çalışan çözümü açmak istiyor musun?",
     });
@@ -259,11 +266,23 @@ test("all drill subtypes guide learners through three hints, a result check and 
     await solutionConfirmation
       .getByRole("button", { name: "Çalışan çözümü göster" })
       .click();
+    await expect(solutionControl).toHaveAttribute("aria-expanded", "true");
+    const solutionRegion = brief.getByRole("region", {
+      name: "Çalışan çözüm örneği",
+    });
+    await expect(solutionRegion).toBeVisible();
     await expect(
-      page.getByLabel(`${drill!.title} için örnek SQL sorgusu`),
+      solutionRegion.getByLabel(`${drill!.title} için örnek SQL sorgusu`),
     ).toHaveText(drill!.solutionSql.replace(/\s+/g, " ").trim());
+    const copySolution = solutionRegion.getByRole("button", {
+      name: "SQL’i kopyala",
+    });
+    await expect(copySolution).toBeVisible();
+    await copySolution.click();
     await expect(
-      page.getByRole("button", { name: "SQL’i kopyala" }),
+      page.getByText(
+        /Çalışan örnek sorgu panoya kopyalandı\.|Panoya erişilemedi;/,
+      ),
     ).toBeVisible();
     await expect(
       page.getByRole("button", {
@@ -1132,7 +1151,7 @@ test("landing, onboarding and first real SQL task", async ({
     page.getByRole("heading", { name: "Katalog görünümünü hazırla" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("list", { name: "Vakaya başlama sırası" }),
+    page.getByRole("list", { name: "Vaka başlama sırası" }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "İstenen teslim" }),

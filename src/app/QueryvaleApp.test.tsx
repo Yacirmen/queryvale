@@ -2149,6 +2149,9 @@ describe("QueryvaleApp", () => {
 
       window.location.hash = `#/lab/${drill!.id}`;
       const user = userEvent.setup();
+      const writeClipboard = vi
+        .spyOn(navigator.clipboard, "writeText")
+        .mockClear();
       render(<QueryvaleApp />);
 
       expect(
@@ -2241,20 +2244,20 @@ describe("QueryvaleApp", () => {
             : /Satır sırası önemli değil\./,
         ),
       ).toBeVisible();
-      expect(
-        within(help).getByRole("button", {
-          name: /^Bir doğru sorguyu göster/,
-        }),
-      ).toBeVisible();
+      const showSolution = within(help).getByRole("button", {
+        name: /^Bir doğru sorguyu göster/,
+      });
+      expect(showSolution).toBeVisible();
+      expect(showSolution).toHaveAttribute("aria-expanded", "false");
+      expect(showSolution).toHaveAttribute(
+        "aria-controls",
+        `${drill!.id}-solution`,
+      );
       expect(
         within(brief).queryByText(drill!.solutionSql),
       ).not.toBeInTheDocument();
 
-      await user.click(
-        within(help).getByRole("button", {
-          name: /^Bir doğru sorguyu göster/,
-        }),
-      );
+      await user.click(showSolution);
       const solutionConfirmation = await within(help).findByRole("group", {
         name: "Çalışan çözümü açmak istiyor musun?",
       });
@@ -2278,15 +2281,25 @@ describe("QueryvaleApp", () => {
           name: "Çalışan çözümü göster",
         }),
       );
-      const revealedSolution = await screen.findByLabelText(
+      expect(showSolution).toHaveAttribute("aria-expanded", "true");
+      const solutionRegion = await within(brief).findByRole("region", {
+        name: "Çalışan çözüm örneği",
+      });
+      const revealedSolution = within(solutionRegion).getByLabelText(
         `${drill!.title} için örnek SQL sorgusu`,
       );
       expect(revealedSolution.textContent?.replace(/\s+/g, " ").trim()).toBe(
         drill!.solutionSql.replace(/\s+/g, " ").trim(),
       );
+      const copySolution = within(solutionRegion).getByRole("button", {
+        name: "SQL’i kopyala",
+      });
+      expect(copySolution).toBeVisible();
+      await user.click(copySolution);
+      expect(writeClipboard).toHaveBeenCalledWith(drill!.solutionSql);
       expect(
-        screen.getByRole("button", { name: "SQL’i kopyala" }),
-      ).toBeVisible();
+        await screen.findByText("Çalışan örnek sorgu panoya kopyalandı."),
+      ).toBeInTheDocument();
 
       await waitFor(async () => {
         const restored = await loadProgress();
