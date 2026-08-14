@@ -205,7 +205,7 @@ const DEFAULT_SQL_TASK_ID = "m1-t1";
 const DEFAULT_PYTHON_TASK_ID = "py-m1-t1";
 
 export const defaultSettings: EditorSettings = {
-  theme: "dark",
+  theme: "light",
   fontSize: 15,
   lineHeight: 1.65,
   autocomplete: true,

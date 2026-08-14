@@ -1261,9 +1261,11 @@ describe("progressStore", () => {
       createPythonEvidence(),
     );
     const account = createLocalAccount(withPythonProgress, "Ada Analist");
+    // Varsayılandan farklı bir tema seçilir; silme işleminin ayarları
+    // gerçekten sıfırladığı ancak bu fark üzerinden kanıtlanabilir.
     const personalized = {
       ...account,
-      settings: { ...account.settings, theme: "light" as const },
+      settings: { ...account.settings, theme: "dark" as const },
     };
     await saveProgressWithLocalProfileSession(
       personalized,

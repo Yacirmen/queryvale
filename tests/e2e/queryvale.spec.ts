@@ -178,11 +178,7 @@ test("all drill subtypes guide learners through three hints, a result check and 
     await expect(brief).toBeVisible();
     await expect(brief).toHaveAttribute("data-drill-type", presentation.type);
     await expect(brief.getByText(presentation.badge)).toBeVisible();
-    for (const section of [
-      "İstenen teslim",
-      "Çıktını tanı",
-      "Veriyi gör, sorgunu yaz",
-    ]) {
+    for (const section of ["İstenen teslim", "Çıktını tanı"]) {
       await expect(
         brief.getByRole("heading", { name: section, exact: true }),
       ).toBeVisible();
@@ -196,7 +192,7 @@ test("all drill subtypes guide learners through three hints, a result check and 
       name: `${presentation.label} yardımı`,
     });
     await expect(
-      help.getByRole("button", { name: "Yardım adımlarını aç" }),
+      help.getByRole("button", { name: "Yardım adımlarını kapat" }),
     ).toBeVisible();
     await expect(
       brief.getByRole("table", {
@@ -205,7 +201,7 @@ test("all drill subtypes guide learners through three hints, a result check and 
     ).toHaveCount(0);
     await expect(brief.getByText(drill!.solutionSql)).toHaveCount(0);
 
-    await help.getByRole("button", { name: "Yardım adımlarını aç" }).click();
+    // Merdiven açık gelir; ipuçlarına ek bir kapı tıklaması olmadan ulaşılır.
     for (const hintIndex of [0, 1, 2]) {
       await help
         .getByRole("button", { name: `${hintIndex + 1}. ipucunu aç` })
@@ -253,19 +249,14 @@ test("all drill subtypes guide learners through three hints, a result check and 
       `${drill!.id}-solution`,
     );
 
+    // Alıştırma puansızdır: onaylanacak bir puan kaybı olmadığı için çözüm
+    // tek tıklamayla açılır, araya onay adımı girmez.
     await showSolution.click();
-    const solutionConfirmation = help.getByRole("group", {
-      name: "Çalışan çözümü açmak istiyor musun?",
-    });
-    await expect(solutionConfirmation).toBeVisible();
-    await expect(solutionConfirmation.getByText(/puansız/)).toBeVisible();
-    await expect(solutionConfirmation.getByText(/0 puan/i)).toHaveCount(0);
     await expect(
-      solutionConfirmation.getByRole("button", { name: "Kendim deneyeyim" }),
-    ).toBeVisible();
-    await solutionConfirmation
-      .getByRole("button", { name: "Çalışan çözümü göster" })
-      .click();
+      help.getByRole("group", {
+        name: "Çalışan çözümü açmak istiyor musun?",
+      }),
+    ).toHaveCount(0);
     await expect(solutionControl).toHaveAttribute("aria-expanded", "true");
     const solutionRegion = brief.getByRole("region", {
       name: "Çalışan çözüm örneği",
@@ -1151,24 +1142,20 @@ test("landing, onboarding and first real SQL task", async ({
     page.getByRole("heading", { name: "Katalog görünümünü hazırla" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("list", { name: "Vaka başlama sırası" }),
-  ).toBeVisible();
-  await expect(
     page.getByRole("heading", { name: "İstenen teslim" }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Çıktını tanı" }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Veriyi gör, sorgunu yaz" }),
-  ).toBeVisible();
+  // Kabul kontrolleri brief ile birlikte görünür; açmak gerekmez.
+  await expect(page.getByText("Kendini kontrol et")).toBeVisible();
   const helpToggle = page.getByRole("button", {
     name: /Yardım adımlarını/,
   });
-  await expect(helpToggle).toHaveAttribute("aria-expanded", "false");
-  await expect(page.getByRole("button", { name: "1. ipucunu aç" })).toHaveCount(
-    0,
-  );
+  await expect(helpToggle).toHaveAttribute("aria-expanded", "true");
+  await expect(
+    page.getByRole("button", { name: "1. ipucunu aç" }),
+  ).toBeVisible();
   const runButton = page.getByRole("button", { name: /Çalıştır/i });
   const editor = page.getByRole("textbox", { name: "Editor content" });
   if (isMobile) {
@@ -1194,17 +1181,31 @@ test("landing, onboarding and first real SQL task", async ({
       .getByRole("button", { name: "SQL Studio — SQL Laboratuvarı" })
       .click();
     await expect(page).toHaveURL(/#\/lab\/m1-t1$/);
+    // Stüdyo yüzeyleri tema token'larından beslenmelidir. Sabit renk yazmak
+    // paleti her değiştiğinde testi kırar; iddiayı token'ın kendisine bağlıyoruz.
+    const tokenColor = (token: string) =>
+      page.evaluate((name) => {
+        const probe = document.createElement("div");
+        probe.style.color = getComputedStyle(document.documentElement)
+          .getPropertyValue(name)
+          .trim();
+        document.body.append(probe);
+        const resolved = getComputedStyle(probe).color;
+        probe.remove();
+        return resolved;
+      }, token);
+
     await expect(page.locator(".editor-toolbar")).toHaveCSS(
       "background-color",
-      "rgb(248, 250, 252)",
+      await tokenColor("--workbench-toolbar"),
     );
     await expect(page.locator(".results-content")).toHaveCSS(
       "background-color",
-      "rgb(255, 255, 255)",
+      await tokenColor("--workbench-surface"),
     );
     await expect(page.locator(".editor-frame .monaco-editor")).toHaveCSS(
       "background-color",
-      "rgb(241, 245, 249)",
+      await tokenColor("--code-bg"),
     );
   }
   const setSql = (sql: string) =>
@@ -1264,7 +1265,11 @@ test("landing, onboarding and first real SQL task", async ({
     )
     .toBe("");
 
-  await page.getByRole("button", { name: "Sorguyu yaz" }).click();
+  // "Sorguyu yaz" kısayol butonu brief'ten kaldırıldı: dar ekranda SQL
+  // görünümü sekmesi, geniş ekranda editörün kendisi zaten erişilebilir.
+  const sqlViewTab = page.getByRole("tab", { name: "SQL görünümü" });
+  if (await sqlViewTab.isVisible()) await sqlViewTab.click();
+  await editor.focus();
   await expect(editor).toBeFocused();
   await expect(runButton).toBeDisabled();
 
@@ -1278,8 +1283,6 @@ test("landing, onboarding and first real SQL task", async ({
   ).toBeVisible();
   const idleRailGeometry = await readRailGeometry();
 
-  await helpToggle.click();
-  await expect(helpToggle).toHaveAttribute("aria-expanded", "true");
   await page.getByRole("button", { name: "1. ipucunu aç" }).click();
   await expect(
     page.getByText(/Her ürün sonuçta bir satır olarak kalmalı/i),
@@ -1543,7 +1546,7 @@ test("learning path, settings and the in-flow route remain usable on a narrow vi
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(page.getByLabel("Adın")).toBeVisible();
   await expect(page.getByLabel("Adın")).toBeInViewport({ ratio: 1 });
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,

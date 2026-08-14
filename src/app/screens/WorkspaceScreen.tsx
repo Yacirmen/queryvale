@@ -76,6 +76,13 @@ import {
 
 const MonacoEditor = lazy(() => import("../components/LocalMonacoEditor"));
 
+/**
+ * Editör, uygulamanın geri kalanıyla aynı paketlenmiş mono aileyi kullanır.
+ * Monaco CSS değişkeni okumadığı için yığın burada düz metin olarak verilir.
+ */
+export const EDITOR_FONT_STACK =
+  '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
+
 interface WorkspaceScreenProps {
   task: LessonTask;
   modules: CurriculumModule[];
@@ -263,9 +270,12 @@ export function WorkspaceScreen({
   const [visibleHints, setVisibleHints] = useState<number[]>(
     () => progress.tasks[task.id]?.hintsUsed ?? [],
   );
-  const [helpExpanded, setHelpExpanded] = useState(
-    () => (progress.tasks[task.id]?.hintsUsed.length ?? 0) > 0,
-  );
+  /*
+   * Yardım merdiveni açık başlar. Kapalı hâl, kullanıcıyı ilk ipucuna
+   * ulaşmak için hiçbir şey göstermeyen bir kapıya tıklatıyordu; bu bir
+   * gezinme vergisiydi. Kapatma seçeneği duruyor, varsayılan tersine döndü.
+   */
+  const [helpExpanded, setHelpExpanded] = useState(true);
   const [solutionVisible, setSolutionVisible] = useState(false);
   const [solutionConfirmVisible, setSolutionConfirmVisible] = useState(false);
   const [solutionUsed, setSolutionUsed] = useState(
@@ -862,7 +872,9 @@ export function WorkspaceScreen({
       setSolutionAnnouncement("Tam çözüm kapatıldı.");
       return;
     }
-    if (taskCompleted || solutionUsed) {
+    // Onay adımı yalnız kaybedilecek bir puan varken anlamlıdır. Puansız
+    // alıştırmada ve tamamlanmış vakada koruduğu bir şey yok, doğrudan açılır.
+    if (taskCompleted || solutionUsed || !task.scored) {
       showSolution();
       return;
     }
@@ -994,6 +1006,10 @@ export function WorkspaceScreen({
     () => ({
       fontSize: settings.fontSize,
       lineHeight: Math.round(settings.fontSize * settings.lineHeight),
+      // Monaco kendi varsayılan yığınını kullanır; ürünün mono ailesini
+      // açıkça vermezsek editör paketlenmiş fontun dışında kalır.
+      fontFamily: EDITOR_FONT_STACK,
+      fontLigatures: false,
       minimap: { enabled: false },
       scrollBeyondLastLine: false,
       automaticLayout: true,
@@ -1200,124 +1216,83 @@ export function WorkspaceScreen({
                 </span>
               </div>
               <h1>{task.title}</h1>
-              <ol
-                className="task-sequence"
-                aria-label={
-                  isDrill
-                    ? `${taskKindLabel(task)} başlama sırası`
-                    : "Vaka başlama sırası"
-                }
-              >
-                <li className="task-sequence-step task-sequence-step-primary">
-                  <span className="task-step-index" aria-hidden="true">
-                    1
-                  </span>
-                  <div className="task-step-heading">
-                    <span>Önce</span>
-                    <h2 id={`${task.id}-objective-title`}>İstenen teslim</h2>
-                  </div>
-                  <p className="task-objective">{task.objective}</p>
-                </li>
 
-                <li className="task-sequence-step">
-                  <span className="task-step-index" aria-hidden="true">
-                    2
-                  </span>
-                  <div className="task-step-heading">
-                    <span>Sonra</span>
-                    <h2>Çıktını tanı</h2>
-                  </div>
-                  <div className="task-output-grain">
-                    <span>Bir sonuç satırı neyi temsil eder?</span>
-                    <strong>{task.learningBrief.outputGrain}</strong>
-                  </div>
-                  <div className="task-column-contract">
-                    <div
-                      id={`${task.id}-columns-title`}
-                      className="output-contract-label"
-                    >
-                      <Columns3 size={12} /> Beklenen kolonlar
-                    </div>
-                    <ul
-                      className="expected-columns"
-                      aria-labelledby={`${task.id}-columns-title`}
-                    >
-                      {task.expectedColumns.map((column) => (
-                        <li key={column}>
-                          <button
-                            className="expected-column"
-                            type="button"
-                            onClick={() => void copyExpectedColumn(column)}
-                            aria-label={`${column} kolonunu kopyala`}
-                            title="Kolon adını panoya kopyala"
-                          >
-                            <code>{column}</code>
-                            <Copy size={11} />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <details className="task-disclosure task-check-disclosure">
-                    <summary>
-                      <CheckCircle2 size={13} />
-                      <span>Kendini kontrol et</span>
-                      <small>
-                        {task.learningBrief.acceptanceChecks.length} madde
-                      </small>
-                    </summary>
-                    <ul className="task-check-list">
-                      {task.learningBrief.acceptanceChecks.map((check) => (
-                        <li key={check}>{check}</li>
-                      ))}
-                    </ul>
-                  </details>
-                </li>
+              {/*
+                Brief iki soruya cevap verir: ne teslim edeceğim, ve doğru
+                yaptığımı nasıl anlarım. Numaralı "önce/sonra/başla" anlatısı
+                ile arayüzü kullanmayı tarif eden adım kaldırıldı; şema sekmesi
+                ve editör zaten görünür durumda. Kabul kontrolleri açık gelir,
+                çünkü kullanıcının kendini doğrulaması ertelenecek bir ayrıntı
+                değil, işin tanımının parçasıdır.
+              */}
+              <section className="task-brief-block task-brief-objective">
+                <h2 id={`${task.id}-objective-title`}>İstenen teslim</h2>
+                <p className="task-objective">{task.objective}</p>
+              </section>
 
-                <li className="task-sequence-step">
-                  <span className="task-step-index" aria-hidden="true">
-                    3
+              <section className="task-brief-block">
+                <h2>Çıktını tanı</h2>
+                <div className="task-output-grain">
+                  <span>Bir sonuç satırı neyi temsil eder?</span>
+                  <strong>{task.learningBrief.outputGrain}</strong>
+                </div>
+                <div className="task-column-contract">
+                  <div
+                    id={`${task.id}-columns-title`}
+                    className="output-contract-label"
+                  >
+                    <Columns3 size={12} /> Beklenen kolonlar
+                  </div>
+                  <ul
+                    className="expected-columns"
+                    aria-labelledby={`${task.id}-columns-title`}
+                  >
+                    {task.expectedColumns.map((column) => (
+                      <li key={column}>
+                        <button
+                          className="expected-column"
+                          type="button"
+                          onClick={() => void copyExpectedColumn(column)}
+                          aria-label={`${column} kolonunu kopyala`}
+                          title="Kolon adını panoya kopyala"
+                        >
+                          <code>{column}</code>
+                          <Copy size={11} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="task-check-block">
+                  <div
+                    id={`${task.id}-checks-title`}
+                    className="output-contract-label"
+                  >
+                    <CheckCircle2 size={12} /> Kendini kontrol et
+                  </div>
+                  <ul
+                    className="task-check-list"
+                    aria-labelledby={`${task.id}-checks-title`}
+                  >
+                    {task.learningBrief.acceptanceChecks.map((check) => (
+                      <li key={check}>{check}</li>
+                    ))}
+                  </ul>
+                </div>
+              </section>
+
+              <details className="task-disclosure task-concept-disclosure">
+                <summary>
+                  <Braces size={13} />
+                  <span>
+                    Bu {isDrill ? "alıştırmada" : "vakada"} ne çalışıyorsun?
                   </span>
-                  <div className="task-step-heading">
-                    <span>Başla</span>
-                    <h2>Veriyi gör, sorgunu yaz</h2>
-                  </div>
-                  <div className="task-step-actions">
-                    <button
-                      className="brief-action primary"
-                      type="button"
-                      onClick={() => activatePanelTab("schema", true)}
-                    >
-                      <span className="task-action-index" aria-hidden="true">
-                        1
-                      </span>
-                      Şemayı incele <ArrowRight size={12} />
-                    </button>
-                    <button
-                      className="brief-action task-action-secondary"
-                      type="button"
-                      onClick={focusEditor}
-                    >
-                      <span className="task-action-index" aria-hidden="true">
-                        2
-                      </span>
-                      Sorguyu yaz <ArrowRight size={12} />
-                    </button>
-                  </div>
-                  <details className="task-disclosure task-concept-disclosure">
-                    <summary>
-                      <Braces size={13} />
-                      <span>
-                        Bu {isDrill ? "alıştırmada" : "vakada"} ne çalışıyorsun?
-                      </span>
-                      <small>Kavram</small>
-                    </summary>
-                    <p className="task-concept-copy">
-                      {task.learningBrief.conceptAnchor}
-                    </p>
-                  </details>
-                </li>
-              </ol>
+                  <small>Kavram</small>
+                </summary>
+                <p className="task-concept-copy">
+                  {task.learningBrief.conceptAnchor}
+                </p>
+              </details>
 
               <details className="task-disclosure task-context-disclosure">
                 <summary>
@@ -1373,34 +1348,19 @@ export function WorkspaceScreen({
                     role="region"
                     aria-labelledby={`${task.id}-help-toggle`}
                   >
-                    <p className="hint-section-intro">
-                      Her seferinde yalnız bir sonraki adımı aç. Son adımın
-                      ardından çalışan bir sorguyu da görebilirsin.
+                    {/*
+                      Puan durumu tek satıra indirildi: aynı bilgi zaten her
+                      ipucu butonunun altında somut karşılığıyla yazıyor
+                      ("−3 puan · açınca 7 puan kalır"). Ayrı bir açıklama
+                      kutusu ve mekaniği tarif eden paragraf kaldırıldı.
+                    */}
+                    <p className="task-score-line">
+                      {isDrill
+                        ? "Puan yok · üç ipucu ve çalışan çözüm ücretsiz"
+                        : taskCompleted
+                          ? `${awardedCaseScore}/${MAX_CASE_SCORE} puan kilitlendi · yardım artık puanını değiştirmez`
+                          : `${currentCaseScore}/${MAX_CASE_SCORE} puan kullanılabilir`}
                     </p>
-                    <div className="task-score-guide">
-                      <span
-                        className="task-score-guide-icon"
-                        aria-hidden="true"
-                      >
-                        <Target size={14} />
-                      </span>
-                      <span>
-                        <strong>
-                          {isDrill
-                            ? "Puan yok · rehberli pratik"
-                            : taskCompleted
-                              ? `${awardedCaseScore}/${MAX_CASE_SCORE} vaka puanı · kilitli`
-                              : `${currentCaseScore}/${MAX_CASE_SCORE} puan kullanılabilir`}
-                        </strong>
-                        <small>
-                          {isDrill
-                            ? "Üç ipucu ve çalışan çözüm ücretsizdir; tamamlanman ve rota erişimin etkilenmez."
-                            : taskCompleted
-                              ? "İnceleme modundasın; şimdi açacağın yardım kazanılmış puanını değiştirmez."
-                              : "Her ipucu −3 puan. Tam çözüm 0 puan; tamamlanman ve rota erişimin etkilenmez."}
-                        </small>
-                      </span>
-                    </div>
                     <div className="hint-stack">
                       {revealedHintCount > 0 && (
                         <ol
@@ -1874,60 +1834,63 @@ export function WorkspaceScreen({
                     }
                   }}
                   beforeMount={(monaco) => {
+                    // Editor teması global yüzey diliyle aynı grafit paletini
+                    // kullanır: anahtar kelime metin rengiyle taşınır, renk
+                    // yalnız string/sayı ayrımı ve imleç için harcanır.
                     monaco.editor.defineTheme("queryvale-dark", {
                       base: "vs-dark",
                       inherit: true,
                       rules: [
-                        { token: "keyword.sql", foreground: "F472B6" },
-                        { token: "string.sql", foreground: "34D399" },
-                        { token: "number.sql", foreground: "34D399" },
-                        { token: "comment.sql", foreground: "6B7280" },
+                        { token: "keyword.sql", foreground: "FAFAFA" },
+                        { token: "string.sql", foreground: "A3E635" },
+                        { token: "number.sql", foreground: "9C9CA3" },
+                        { token: "comment.sql", foreground: "6B6B72" },
                       ],
                       colors: {
-                        "editor.background": "#090D16",
-                        "editor.foreground": "#E2E8F0",
-                        "editor.lineHighlightBackground": "#111827",
-                        "editorGutter.background": "#090D16",
-                        "editorLineNumber.foreground": "#6B7280",
-                        "editorLineNumber.activeForeground": "#9CA3AF",
-                        "editorCursor.foreground": "#60A5FA",
-                        "editor.selectionBackground": "#312E81",
-                        "editor.inactiveSelectionBackground": "#1E293B",
-                        "editor.placeholder.foreground": "#6B7280",
-                        "editorIndentGuide.background1": "#1F2937",
-                        "editorIndentGuide.activeBackground1": "#4B5563",
+                        "editor.background": "#0D0D0F",
+                        "editor.foreground": "#FAFAFA",
+                        "editor.lineHighlightBackground": "#131316",
+                        "editorGutter.background": "#0D0D0F",
+                        "editorLineNumber.foreground": "#45454C",
+                        "editorLineNumber.activeForeground": "#9C9CA3",
+                        "editorCursor.foreground": "#FAFAFA",
+                        "editor.selectionBackground": "#2A2A30",
+                        "editor.inactiveSelectionBackground": "#1C1C20",
+                        "editor.placeholder.foreground": "#6B6B72",
+                        "editorIndentGuide.background1": "#26262A",
+                        "editorIndentGuide.activeBackground1": "#3A3A40",
                         "scrollbar.shadow": "#00000000",
-                        "scrollbarSlider.background": "#6B728040",
-                        "scrollbarSlider.hoverBackground": "#6B728066",
-                        "scrollbarSlider.activeBackground": "#6B728088",
+                        "scrollbarSlider.background": "#6B6B7240",
+                        "scrollbarSlider.hoverBackground": "#6B6B7266",
+                        "scrollbarSlider.activeBackground": "#6B6B7288",
                       },
                     });
                     monaco.editor.defineTheme("queryvale-light", {
                       base: "vs",
                       inherit: true,
                       rules: [
-                        { token: "keyword.sql", foreground: "D97706" },
-                        { token: "string.sql", foreground: "059669" },
-                        { token: "number.sql", foreground: "2563EB" },
-                        { token: "comment.sql", foreground: "64748B" },
+                        { token: "keyword.sql", foreground: "0E0E0D" },
+                        { token: "string.sql", foreground: "4D7C0F" },
+                        { token: "number.sql", foreground: "57574F" },
+                        { token: "comment.sql", foreground: "8E8E86" },
                       ],
                       colors: {
-                        "editor.background": "#F1F5F9",
-                        "editor.foreground": "#1E293B",
-                        "editor.lineHighlightBackground": "#E2E8F0",
-                        "editorGutter.background": "#F1F5F9",
-                        "editorLineNumber.foreground": "#94A3B8",
-                        "editorLineNumber.activeForeground": "#475569",
-                        "editorCursor.foreground": "#2563EB",
-                        "editor.selectionBackground": "#BFDBFE",
-                        "editor.inactiveSelectionBackground": "#DBEAFE",
-                        "editor.placeholder.foreground": "#64748B",
-                        "editorIndentGuide.background1": "#CBD5E1",
-                        "editorIndentGuide.activeBackground1": "#94A3B8",
+                        "editor.background": "#FAFAF9",
+                        "editor.foreground": "#0E0E0D",
+                        "editor.lineHighlightBackground": "#EFEFEE",
+                        "editorGutter.background": "#FAFAF9",
+                        "editorLineNumber.foreground": "#B4B4AC",
+                        "editorLineNumber.activeForeground": "#57574F",
+                        "editorCursor.foreground": "#0E0E0D",
+                        "editor.selectionBackground": "#DFDFDC",
+                        "editor.inactiveSelectionBackground": "#EFEFEE",
+                        "editor.placeholder.foreground": "#8A8A82",
+                        "editorIndentGuide.background1": "#E2E2E0",
+                        "editorIndentGuide.activeBackground1": "#C9C9C5",
                         "scrollbar.shadow": "#00000000",
-                        "scrollbarSlider.background": "#64748B33",
-                        "scrollbarSlider.hoverBackground": "#64748B55",
-                        "scrollbarSlider.activeBackground": "#64748B77",
+                        "scrollbarSlider.background": "#8A8A8233",
+                        "scrollbarSlider.hoverBackground": "#8A8A8255",
+                        "scrollbarSlider.activeBackground": "#8A8A8277",
                       },
                     });
                   }}

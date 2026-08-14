@@ -63,6 +63,7 @@ import {
   MAX_CASE_SCORE,
 } from "../../features/progress/scoring";
 import { ConfirmationDialog } from "../components/Dialogs";
+import { EDITOR_FONT_STACK } from "./WorkspaceScreen";
 import {
   StudioActionRail,
   StudioResultStrip,
@@ -929,6 +930,8 @@ export function PythonStudioScreen({
                       lineHeight: Math.round(
                         settings.fontSize * settings.lineHeight,
                       ),
+                      fontFamily: EDITOR_FONT_STACK,
+                      fontLigatures: false,
                       minimap: { enabled: false },
                       scrollBeyondLastLine: false,
                       automaticLayout: true,

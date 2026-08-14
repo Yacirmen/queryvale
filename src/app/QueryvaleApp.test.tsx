@@ -882,9 +882,6 @@ describe("QueryvaleApp", () => {
     expect(editor).toHaveValue("");
     expect(runButton).toBeDisabled();
 
-    await user.click(
-      screen.getByRole("button", { name: "Yardım adımlarını aç" }),
-    );
     await user.click(screen.getByRole("button", { name: "1. ipucunu aç" }));
     expect(
       screen.getByText(/Her ürün sonuçta bir satır olarak kalmalı/i),
@@ -1705,9 +1702,6 @@ describe("QueryvaleApp", () => {
     await user.type(editor, "SELECT product_name, category FROM products;");
     await screen.findByText("PostgreSQL hazır");
     await user.click(screen.getByRole("button", { name: "Çalıştır" }));
-    await user.click(
-      screen.getByRole("button", { name: "Yardım adımlarını aç" }),
-    );
     await user.click(screen.getByRole("button", { name: "1. ipucunu aç" }));
     await user.clear(editor);
     await user.click(screen.getByRole("button", { name: "Kaydet" }));
@@ -1744,24 +1738,22 @@ describe("QueryvaleApp", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("list", { name: "Vaka başlama sırası" }),
-    ).toBeInTheDocument();
-    expect(
       screen.getByRole("heading", { name: "İstenen teslim" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Çıktını tanı" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Veriyi gör, sorgunu yaz" }),
-    ).toBeInTheDocument();
+    // Kabul kontrolleri artık açılır bölüm değil; brief ile birlikte gelir.
+    expect(screen.getByText("Kendini kontrol et")).toBeVisible();
+    // Yardım merdiveni açık gelir: ilk ipucu ekstra bir kapı tıklaması
+    // istemeden erişilebilir olmalıdır.
     const initialHelpToggle = screen.getByRole("button", {
-      name: "Yardım adımlarını aç",
+      name: "Yardım adımlarını kapat",
     });
-    expect(initialHelpToggle).toHaveAttribute("aria-expanded", "false");
+    expect(initialHelpToggle).toHaveAttribute("aria-expanded", "true");
     expect(
-      screen.queryByRole("button", { name: "1. ipucunu aç" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "1. ipucunu aç" }),
+    ).toBeInTheDocument();
 
     const earlyMobileSteps = await screen.findByRole("tablist", {
       name: "Vaka çalışma adımları",
@@ -1789,9 +1781,12 @@ describe("QueryvaleApp", () => {
       await screen.findByText("product_name panoya kopyalandı."),
     ).toBeInTheDocument();
 
+    // Merdiven açık gelir; toggle yine de çalışmalı ve odağı korumalıdır.
     const helpToggle = screen.getByRole("button", {
-      name: "Yardım adımlarını aç",
+      name: "Yardım adımlarını kapat",
     });
+    await user.click(helpToggle);
+    expect(helpToggle).toHaveAttribute("aria-expanded", "false");
     await user.click(helpToggle);
     expect(helpToggle).toHaveAttribute("aria-expanded", "true");
     expect(helpToggle).toHaveFocus();
@@ -1869,9 +1864,6 @@ describe("QueryvaleApp", () => {
       screen.queryByRole("region", { name: "Çalışan çözüm örneği" }),
     ).not.toBeInTheDocument();
 
-    await user.click(
-      screen.getByRole("button", { name: "Yardım adımlarını aç" }),
-    );
     await user.click(screen.getByRole("button", { name: "1. ipucunu aç" }));
     await user.click(screen.getByRole("button", { name: "2. ipucunu aç" }));
     await user.click(screen.getByRole("button", { name: "3. ipucunu aç" }));
@@ -2160,11 +2152,7 @@ describe("QueryvaleApp", () => {
       const brief = screen.getByRole("tabpanel", { name: label });
       expect(brief).toHaveAttribute("data-drill-type", type);
       expect(within(brief).getByText(badge)).toBeVisible();
-      for (const heading of [
-        "İstenen teslim",
-        "Çıktını tanı",
-        "Veriyi gör, sorgunu yaz",
-      ]) {
+      for (const heading of ["İstenen teslim", "Çıktını tanı"]) {
         expect(
           within(brief).getByRole("heading", {
             name: new RegExp(`^${heading}$`),
@@ -2180,7 +2168,7 @@ describe("QueryvaleApp", () => {
         name: `${label} yardımı`,
       });
       expect(
-        within(help).getByRole("button", { name: "Yardım adımlarını aç" }),
+        within(help).getByRole("button", { name: "Yardım adımlarını kapat" }),
       ).toBeVisible();
       expect(
         within(brief).queryByRole("table", {
@@ -2191,9 +2179,6 @@ describe("QueryvaleApp", () => {
         within(brief).queryByText(drill!.solutionSql),
       ).not.toBeInTheDocument();
 
-      await user.click(
-        within(help).getByRole("button", { name: "Yardım adımlarını aç" }),
-      );
       for (const hintIndex of [0, 1, 2]) {
         await user.click(
           within(help).getByRole("button", {
@@ -2257,30 +2242,14 @@ describe("QueryvaleApp", () => {
         within(brief).queryByText(drill!.solutionSql),
       ).not.toBeInTheDocument();
 
+      // Alıştırma puansız olduğu için onay adımı yoktur: onaylanacak bir
+      // puan kaybı yok, çözüm tek tıklamayla açılır.
       await user.click(showSolution);
-      const solutionConfirmation = await within(help).findByRole("group", {
-        name: "Çalışan çözümü açmak istiyor musun?",
-      });
-      expect(within(solutionConfirmation).getByText(/puansız/)).toBeVisible();
       expect(
-        within(solutionConfirmation).queryByText(/0 puan/i),
+        within(help).queryByRole("group", {
+          name: "Çalışan çözümü açmak istiyor musun?",
+        }),
       ).not.toBeInTheDocument();
-      expect(
-        within(solutionConfirmation).getByRole("button", {
-          name: "Kendim deneyeyim",
-        }),
-      ).toBeVisible();
-      expect(
-        within(solutionConfirmation).getByRole("button", {
-          name: "Çalışan çözümü göster",
-        }),
-      ).toBeVisible();
-
-      await user.click(
-        within(solutionConfirmation).getByRole("button", {
-          name: "Çalışan çözümü göster",
-        }),
-      );
       expect(showSolution).toHaveAttribute("aria-expanded", "true");
       const solutionRegion = await within(brief).findByRole("region", {
         name: "Çalışan çözüm örneği",
@@ -2569,7 +2538,9 @@ describe("QueryvaleApp", () => {
     progressPersistenceHarness.loadGate = undefined;
     const restored = await loadProgress();
     expect(restored.profile).toEqual(stored.profile);
-    expect(restored.settings.theme).toBe("dark");
+    // Kaydedilen tercih hidrasyonda korunur; sabit bir tema adı yerine
+    // kaydın kendisiyle karşılaştırmak varsayılan değişse de anlamlı kalır.
+    expect(restored.settings.theme).toBe(stored.settings.theme);
   });
 
   it("keeps focus on an invalid profile name and explains the constraint", async () => {
@@ -2909,7 +2880,7 @@ describe("QueryvaleApp", () => {
     window.location.hash = "#/settings";
     render(<QueryvaleApp />);
     await waitFor(() =>
-      expect(document.documentElement.dataset.theme).toBe("dark"),
+      expect(document.documentElement.dataset.theme).toBe("light"),
     );
     await waitFor(() =>
       expect(document.querySelector(".app-shell")).toHaveAttribute(
@@ -2917,9 +2888,9 @@ describe("QueryvaleApp", () => {
         "false",
       ),
     );
-    fireEvent.click(getThemeChoice("Açık"));
+    fireEvent.click(getThemeChoice("Koyu"));
     await waitFor(() =>
-      expect(document.documentElement.dataset.theme).toBe("light"),
+      expect(document.documentElement.dataset.theme).toBe("dark"),
     );
   });
 });
