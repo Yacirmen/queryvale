@@ -13,7 +13,7 @@ describe("AppHeader", () => {
     const logo = brand.querySelector("img.brand-logo");
 
     expect(logo).toBeInTheDocument();
-    expect(logo).toHaveAttribute("src", "./queryvale-logo.svg");
+    expect(logo).toHaveAttribute("src", "./queryvale-mark.svg");
     expect(logo).toHaveAttribute("alt", "");
     expect(logo).toHaveAttribute("aria-hidden", "true");
     expect(logo).toHaveAttribute("width", "42");

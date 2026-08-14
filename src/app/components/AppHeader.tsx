@@ -69,7 +69,7 @@ export function AppHeader({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               className="brand-logo"
-              src="./queryvale-logo.svg"
+              src="./queryvale-mark.svg"
               width={42}
               height={30}
               alt=""
