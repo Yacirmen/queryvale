@@ -1842,7 +1842,7 @@ export function WorkspaceScreen({
                       inherit: true,
                       rules: [
                         { token: "keyword.sql", foreground: "FAFAFA" },
-                        { token: "string.sql", foreground: "A3E635" },
+                        { token: "string.sql", foreground: "3F9D5C" },
                         { token: "number.sql", foreground: "9C9CA3" },
                         { token: "comment.sql", foreground: "6B6B72" },
                       ],
@@ -1870,7 +1870,7 @@ export function WorkspaceScreen({
                       inherit: true,
                       rules: [
                         { token: "keyword.sql", foreground: "0E0E0D" },
-                        { token: "string.sql", foreground: "4D7C0F" },
+                        { token: "string.sql", foreground: "15703F" },
                         { token: "number.sql", foreground: "57574F" },
                         { token: "comment.sql", foreground: "8E8E86" },
                       ],
