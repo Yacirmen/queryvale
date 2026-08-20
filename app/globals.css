@@ -2909,7 +2909,7 @@ body:has(.app-shell[data-screen="workspace"]) {
 
 .brief-action.primary {
   border-color: color-mix(in srgb, var(--signal) 75%, var(--line));
-  color: #ffffff;
+  color: var(--bg);
   background: var(--signal);
 }
 
@@ -3034,7 +3034,7 @@ body:has(.app-shell[data-screen="workspace"]) {
 
 .first-case-guide-actions > button:first-child {
   border-color: color-mix(in srgb, var(--signal) 58%, var(--line));
-  color: #ffffff;
+  color: var(--bg);
   background: var(--signal);
 }
 
@@ -3766,7 +3766,7 @@ body:has(.app-shell[data-screen="workspace"]) {
 
 .solution-action.primary {
   border-color: color-mix(in srgb, var(--signal) 75%, var(--line));
-  color: #ffffff;
+  color: var(--bg);
   background: var(--signal);
 }
 
@@ -4877,7 +4877,7 @@ body:has(.app-shell[data-screen="workspace"]) {
 
 .profile-name-save {
   padding: 0 13px;
-  color: #ffffff;
+  color: var(--bg);
   border-color: transparent;
   background: var(--signal);
   font-size: var(--font-size-small);
@@ -7954,7 +7954,7 @@ body:has(.app-shell[data-screen="workspace"]) {
 }
 
 .landing-token-string {
-  color: #15703f;
+  color: var(--success);
 }
 
 .landing-token-number {
@@ -7966,7 +7966,7 @@ body:has(.app-shell[data-screen="workspace"]) {
 }
 
 [data-theme="dark"] .landing-token-string {
-  color: #3f9d5c;
+  color: var(--success);
 }
 
 [data-theme="dark"] .landing-token-number {
@@ -8602,7 +8602,7 @@ body:has(.app-shell[data-screen="workspace"]) {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  color: #64748b;
+  color: var(--text-soft);
   background: transparent;
   font-size: 15.2px;
   font-weight: 500;
@@ -8634,7 +8634,7 @@ body:has(.app-shell[data-screen="workspace"]) {
 }
 
 [data-theme="dark"] .reference-nav-link {
-  color: #d1d5db;
+  color: var(--text-soft);
 }
 
 .reference-nav-link:hover,
@@ -8645,7 +8645,7 @@ body:has(.app-shell[data-screen="workspace"]) {
 
 [data-theme="dark"] .reference-nav-link:hover,
 [data-theme="dark"] .reference-nav-link[aria-current="page"] {
-  color: #ffffff;
+  color: var(--text);
 }
 
 .reference-nav-link[aria-current="page"]::after {
@@ -9200,13 +9200,13 @@ body:has(.app-shell[data-screen="python"]) {
 
 .landing-sql-film-actions .landing-sql-film-start {
   border-color: color-mix(in srgb, var(--signal) 56%, var(--line));
-  color: #ffffff;
+  color: var(--bg);
   background: var(--signal);
 }
 
 .landing-sql-film-actions .landing-sql-film-start:hover {
   border-color: var(--signal);
-  color: #0d160e;
+  color: var(--bg);
   background: color-mix(in srgb, var(--signal) 88%, white);
 }
 
