@@ -178,12 +178,16 @@ test("all drill subtypes guide learners through three hints, a result check and 
     await expect(brief).toBeVisible();
     await expect(brief).toHaveAttribute("data-drill-type", presentation.type);
     await expect(brief.getByText(presentation.badge)).toBeVisible();
-    for (const section of ["İstenen teslim", "Çıktını tanı"]) {
+    for (const section of ["İstenen teslim", "Beklenen çıktı"]) {
       await expect(
         brief.getByRole("heading", { name: section, exact: true }),
       ).toBeVisible();
     }
-    await expect(brief.getByText("Beklenen kolonlar")).toBeVisible();
+    for (const column of drill!.expectedColumns) {
+      await expect(
+        brief.getByRole("button", { name: `${column} kolonunu kopyala` }),
+      ).toBeVisible();
+    }
     await expect(
       brief.getByText("Bu alıştırmada ne çalışıyorsun?"),
     ).toBeVisible();
@@ -1145,7 +1149,7 @@ test("landing, onboarding and first real SQL task", async ({
     page.getByRole("heading", { name: "İstenen teslim" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Çıktını tanı" }),
+    page.getByRole("heading", { name: "Beklenen çıktı" }),
   ).toBeVisible();
   // Kabul kontrolleri brief ile birlikte görünür; açmak gerekmez.
   await expect(page.getByText("Kendini kontrol et")).toBeVisible();

@@ -1218,12 +1218,11 @@ export function WorkspaceScreen({
               <h1>{task.title}</h1>
 
               {/*
-                Brief iki soruya cevap verir: ne teslim edeceğim, ve doğru
-                yaptığımı nasıl anlarım. Numaralı "önce/sonra/başla" anlatısı
-                ile arayüzü kullanmayı tarif eden adım kaldırıldı; şema sekmesi
-                ve editör zaten görünür durumda. Kabul kontrolleri açık gelir,
-                çünkü kullanıcının kendini doğrulaması ertelenecek bir ayrıntı
-                değil, işin tanımının parçasıdır.
+                Vakayı açtığı anda kullanıcının ihtiyacı iki şeydir: ne teslim
+                edeceği ve hangi kolonların beklendiği. Kendini doğrulama,
+                kavram ve iş bağlamı ancak bir denemeden sonra anlam kazanır;
+                bu yüzden hepsi katlanmış gelir. Panelin varsayılan hâli tek
+                ekrana sığmalıdır — okunmayan metin, okunmayı da caydırır.
               */}
               <section className="task-brief-block task-brief-objective">
                 <h2 id={`${task.id}-objective-title`}>İstenen teslim</h2>
@@ -1231,55 +1230,45 @@ export function WorkspaceScreen({
               </section>
 
               <section className="task-brief-block">
-                <h2>Çıktını tanı</h2>
-                <div className="task-output-grain">
-                  <span>Bir sonuç satırı neyi temsil eder?</span>
-                  <strong>{task.learningBrief.outputGrain}</strong>
-                </div>
-                <div className="task-column-contract">
-                  <div
-                    id={`${task.id}-columns-title`}
-                    className="output-contract-label"
-                  >
-                    <Columns3 size={12} /> Beklenen kolonlar
-                  </div>
-                  <ul
-                    className="expected-columns"
-                    aria-labelledby={`${task.id}-columns-title`}
-                  >
-                    {task.expectedColumns.map((column) => (
-                      <li key={column}>
-                        <button
-                          className="expected-column"
-                          type="button"
-                          onClick={() => void copyExpectedColumn(column)}
-                          aria-label={`${column} kolonunu kopyala`}
-                          title="Kolon adını panoya kopyala"
-                        >
-                          <code>{column}</code>
-                          <Copy size={11} />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="task-check-block">
-                  <div
-                    id={`${task.id}-checks-title`}
-                    className="output-contract-label"
-                  >
-                    <CheckCircle2 size={12} /> Kendini kontrol et
-                  </div>
-                  <ul
-                    className="task-check-list"
-                    aria-labelledby={`${task.id}-checks-title`}
-                  >
-                    {task.learningBrief.acceptanceChecks.map((check) => (
-                      <li key={check}>{check}</li>
-                    ))}
-                  </ul>
-                </div>
+                <h2 id={`${task.id}-columns-title`}>Beklenen çıktı</h2>
+                <p className="task-grain-line">
+                  {task.learningBrief.outputGrain}
+                </p>
+                <ul
+                  className="expected-columns"
+                  aria-labelledby={`${task.id}-columns-title`}
+                >
+                  {task.expectedColumns.map((column) => (
+                    <li key={column}>
+                      <button
+                        className="expected-column"
+                        type="button"
+                        onClick={() => void copyExpectedColumn(column)}
+                        aria-label={`${column} kolonunu kopyala`}
+                        title="Kolon adını panoya kopyala"
+                      >
+                        <code>{column}</code>
+                        <Copy size={11} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               </section>
+
+              <details className="task-disclosure task-check-disclosure">
+                <summary>
+                  <CheckCircle2 size={13} />
+                  <span>Kendini kontrol et</span>
+                  <small>
+                    {task.learningBrief.acceptanceChecks.length} madde
+                  </small>
+                </summary>
+                <ul className="task-check-list">
+                  {task.learningBrief.acceptanceChecks.map((check) => (
+                    <li key={check}>{check}</li>
+                  ))}
+                </ul>
+              </details>
 
               <details className="task-disclosure task-concept-disclosure">
                 <summary>
@@ -1354,7 +1343,7 @@ export function WorkspaceScreen({
                       ("−3 puan · açınca 7 puan kalır"). Ayrı bir açıklama
                       kutusu ve mekaniği tarif eden paragraf kaldırıldı.
                     */}
-                    <p className="task-score-line">
+                    <p className="sr-only">
                       {isDrill
                         ? "Puan yok · üç ipucu ve çalışan çözüm ücretsiz"
                         : taskCompleted
@@ -1841,56 +1830,56 @@ export function WorkspaceScreen({
                       base: "vs-dark",
                       inherit: true,
                       rules: [
-                        { token: "keyword.sql", foreground: "FAFAFA" },
-                        { token: "string.sql", foreground: "3F9D5C" },
-                        { token: "number.sql", foreground: "9C9CA3" },
-                        { token: "comment.sql", foreground: "6B6B72" },
+                        { token: "keyword.sql", foreground: "F0F1F5" },
+                        { token: "string.sql", foreground: "4FB98A" },
+                        { token: "number.sql", foreground: "C9A961" },
+                        { token: "comment.sql", foreground: "6B7080" },
                       ],
                       colors: {
-                        "editor.background": "#0D0D0F",
-                        "editor.foreground": "#FAFAFA",
-                        "editor.lineHighlightBackground": "#131316",
-                        "editorGutter.background": "#0D0D0F",
-                        "editorLineNumber.foreground": "#45454C",
-                        "editorLineNumber.activeForeground": "#9C9CA3",
-                        "editorCursor.foreground": "#FAFAFA",
-                        "editor.selectionBackground": "#2A2A30",
-                        "editor.inactiveSelectionBackground": "#1C1C20",
-                        "editor.placeholder.foreground": "#6B6B72",
-                        "editorIndentGuide.background1": "#26262A",
-                        "editorIndentGuide.activeBackground1": "#3A3A40",
+                        "editor.background": "#0D1018",
+                        "editor.foreground": "#F0F1F5",
+                        "editor.lineHighlightBackground": "#12151F",
+                        "editorGutter.background": "#0D1018",
+                        "editorLineNumber.foreground": "#3D4354",
+                        "editorLineNumber.activeForeground": "#9BA0AE",
+                        "editorCursor.foreground": "#8CA6E8",
+                        "editor.selectionBackground": "#232B44",
+                        "editor.inactiveSelectionBackground": "#1A1F2E",
+                        "editor.placeholder.foreground": "#6B7080",
+                        "editorIndentGuide.background1": "#232734",
+                        "editorIndentGuide.activeBackground1": "#343A4A",
                         "scrollbar.shadow": "#00000000",
-                        "scrollbarSlider.background": "#6B6B7240",
-                        "scrollbarSlider.hoverBackground": "#6B6B7266",
-                        "scrollbarSlider.activeBackground": "#6B6B7288",
+                        "scrollbarSlider.background": "#6B708040",
+                        "scrollbarSlider.hoverBackground": "#6B708066",
+                        "scrollbarSlider.activeBackground": "#6B708088",
                       },
                     });
                     monaco.editor.defineTheme("queryvale-light", {
                       base: "vs",
                       inherit: true,
                       rules: [
-                        { token: "keyword.sql", foreground: "0E0E0D" },
-                        { token: "string.sql", foreground: "15703F" },
-                        { token: "number.sql", foreground: "57574F" },
-                        { token: "comment.sql", foreground: "8E8E86" },
+                        { token: "keyword.sql", foreground: "14161F" },
+                        { token: "string.sql", foreground: "16643F" },
+                        { token: "number.sql", foreground: "9A7B3F" },
+                        { token: "comment.sql", foreground: "9B9DA6" },
                       ],
                       colors: {
-                        "editor.background": "#FAFAF9",
-                        "editor.foreground": "#0E0E0D",
-                        "editor.lineHighlightBackground": "#EFEFEE",
-                        "editorGutter.background": "#FAFAF9",
-                        "editorLineNumber.foreground": "#B4B4AC",
-                        "editorLineNumber.activeForeground": "#57574F",
-                        "editorCursor.foreground": "#0E0E0D",
-                        "editor.selectionBackground": "#DFDFDC",
-                        "editor.inactiveSelectionBackground": "#EFEFEE",
-                        "editor.placeholder.foreground": "#8A8A82",
-                        "editorIndentGuide.background1": "#E2E2E0",
-                        "editorIndentGuide.activeBackground1": "#C9C9C5",
+                        "editor.background": "#FBFAF7",
+                        "editor.foreground": "#14161F",
+                        "editor.lineHighlightBackground": "#F1F0EB",
+                        "editorGutter.background": "#FBFAF7",
+                        "editorLineNumber.foreground": "#B9BAC2",
+                        "editorLineNumber.activeForeground": "#575A66",
+                        "editorCursor.foreground": "#1C2E63",
+                        "editor.selectionBackground": "#D8DEEE",
+                        "editor.inactiveSelectionBackground": "#F1F0EB",
+                        "editor.placeholder.foreground": "#8A8C96",
+                        "editorIndentGuide.background1": "#E4E2DA",
+                        "editorIndentGuide.activeBackground1": "#CBC8BC",
                         "scrollbar.shadow": "#00000000",
-                        "scrollbarSlider.background": "#8A8A8233",
-                        "scrollbarSlider.hoverBackground": "#8A8A8255",
-                        "scrollbarSlider.activeBackground": "#8A8A8277",
+                        "scrollbarSlider.background": "#8A8C9633",
+                        "scrollbarSlider.hoverBackground": "#8A8C9655",
+                        "scrollbarSlider.activeBackground": "#8A8C9677",
                       },
                     });
                   }}

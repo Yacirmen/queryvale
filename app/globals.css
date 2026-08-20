@@ -39,6 +39,27 @@
     U+A720-A7FF;
 }
 @font-face {
+  font-family: "Source Serif 4";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("./fonts/source-serif-4-var-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7,
+    U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+    U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+@font-face {
+  font-family: "Source Serif 4";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("./fonts/source-serif-4-var-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6,
+    U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+    U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
   font-family: "JetBrains Mono";
   font-style: normal;
   font-weight: 400 700;
@@ -59,64 +80,64 @@
  *      --success/--danger yalnız durum bildirir. İkisi karıştırılmaz.
  */
 :root {
-  --bg: #f7f7f6;
+  --bg: #fafaf7;
   --bg-raised: #ffffff;
   --surface: #ffffff;
   --surface-strong: #ffffff;
-  --surface-muted: #efefee;
-  --text: #0e0e0d;
-  --text-soft: #57574f;
-  --text-faint: #8a8a82;
-  --line: #e2e2e0;
-  --line-strong: #c9c9c5;
-  --accent: #18181b;
-  --accent-strong: #18181b;
-  --accent-soft: #f0f0ef;
+  --surface-muted: #f1f0eb;
+  --text: #14161f;
+  --text-soft: #575a66;
+  --text-faint: #8a8c96;
+  --line: #e4e2da;
+  --line-strong: #cbc8bc;
+  --accent: #1c2e63;
+  --accent-strong: #1c2e63;
+  --accent-soft: #ebeef6;
   /*
    * --signal ve --cyan eski sistemin birincil vurgusuydu; artık accent'e
    * bağlıdırlar, yani nötr. --amber ise gerçek bir durum rengidir
    * (dikkat / tekrar gerekiyor) ve yalnız o anlamda kullanılır.
    */
-  --signal: #18181b;
-  --cyan: #18181b;
+  --signal: #1c2e63;
+  --cyan: #1c2e63;
   /*
    * Turuncu bir vurgu rengi olarak kullanılmaz. "Dikkat / tekrar" durumları
    * ayrımını renk tonundan değil, değer kontrastı ve etiketten alır.
    * Gerçek hata için --danger korunur.
    */
-  --amber: #57574f;
-  --danger: #b02e20;
-  --success: #15703f;
-  --code-bg: #fafaf9;
-  --code-line: #e2e2e0;
-  --code-text: #0e0e0d;
-  --code-muted: #8e8e86;
-  --code-keyword: #0e0e0d;
-  --code-field: #15703f;
-  --code-number: #57574f;
-  --workbench-bg: #efefee;
+  --amber: #9a7b3f;
+  --danger: #a8321f;
+  --success: #16643f;
+  --code-bg: #fbfaf7;
+  --code-line: #e4e2da;
+  --code-text: #14161f;
+  --code-muted: #9b9da6;
+  --code-keyword: #14161f;
+  --code-field: #16643f;
+  --code-number: #9a7b3f;
+  --workbench-bg: #f1f0eb;
   --workbench-surface: #ffffff;
   --workbench-toolbar: #ffffff;
   --workbench-control: #ffffff;
-  --workbench-hover: #efefee;
-  --workbench-rail: #efefee;
-  --workbench-line: #e2e2e0;
-  --workbench-line-soft: #efefee;
-  --workbench-text: #57574f;
-  --workbench-text-strong: #0e0e0d;
-  --workbench-text-muted: #57574f;
-  --workbench-text-faint: #8a8a82;
-  --workbench-rail-handle: #c9c9c5;
+  --workbench-hover: #f1f0eb;
+  --workbench-rail: #f1f0eb;
+  --workbench-line: #e4e2da;
+  --workbench-line-soft: #f1f0eb;
+  --workbench-text: #575a66;
+  --workbench-text-strong: #14161f;
+  --workbench-text-muted: #575a66;
+  --workbench-text-faint: #8a8c96;
+  --workbench-rail-handle: #cbc8bc;
   --shadow: 0 1px 3px rgb(0 0 0 / 8%), 0 0 0 1px rgb(0 0 0 / 6%);
   --shadow-soft: 0 1px 2px rgb(0 0 0 / 5%);
-  --brand-start: #18181b;
-  --brand-end: #18181b;
-  --action-primary-bg: #18181b;
-  --action-primary-hover: #000000;
+  --brand-start: #1c2e63;
+  --brand-end: #1c2e63;
+  --action-primary-bg: #1c2e63;
+  --action-primary-hover: #16264f;
   --action-primary-shadow: none;
-  --state-current: #18181b;
-  --state-next: #8a8a82;
-  --state-success: #15703f;
+  --state-current: #1c2e63;
+  --state-next: #8a8c96;
+  --state-success: #16643f;
   --radius-control: 2px;
   --radius-card: 3px;
   --radius-feature: 4px;
@@ -144,60 +165,60 @@
     monospace;
   --font-ui: var(--font-geist-sans);
   --font-prose: var(--font-geist-sans);
-  --font-head: var(--font-geist-mono);
+  --font-head: "Source Serif 4", Georgia, "Times New Roman", serif;
   --font-label: var(--font-geist-mono);
   --label-tracking: 0.07em;
 }
 
 [data-theme="dark"] {
-  --bg: #09090b;
-  --bg-raised: #0d0d0f;
-  --surface: #131316;
-  --surface-strong: #131316;
-  --surface-muted: #1c1c20;
-  --text: #fafafa;
-  --text-soft: #9c9ca3;
-  --text-faint: #6b6b72;
-  --line: #26262a;
-  --line-strong: #3a3a40;
-  --accent: #fafafa;
-  --accent-strong: #fafafa;
-  --accent-soft: #1c1c20;
-  --signal: #fafafa;
-  --cyan: #fafafa;
-  --amber: #9c9ca3;
-  --danger: #f87171;
-  --success: #3f9d5c;
-  --code-bg: #0d0d0f;
-  --code-line: #26262a;
-  --code-text: #fafafa;
-  --code-muted: #6b6b72;
-  --code-keyword: #fafafa;
-  --code-field: #3f9d5c;
-  --code-number: #9c9ca3;
-  --workbench-bg: #0d0d0f;
-  --workbench-surface: #131316;
-  --workbench-toolbar: #131316;
-  --workbench-control: #131316;
-  --workbench-hover: #1c1c20;
-  --workbench-rail: #0d0d0f;
-  --workbench-line: #26262a;
-  --workbench-line-soft: #1c1c20;
-  --workbench-text: #9c9ca3;
-  --workbench-text-strong: #fafafa;
-  --workbench-text-muted: #9c9ca3;
-  --workbench-text-faint: #6b6b72;
-  --workbench-rail-handle: #3a3a40;
+  --bg: #0a0c14;
+  --bg-raised: #0d1018;
+  --surface: #12151f;
+  --surface-strong: #12151f;
+  --surface-muted: #1a1f2e;
+  --text: #f0f1f5;
+  --text-soft: #9ba0ae;
+  --text-faint: #6b7080;
+  --line: #232734;
+  --line-strong: #343a4a;
+  --accent: #8ca6e8;
+  --accent-strong: #8ca6e8;
+  --accent-soft: #161b2b;
+  --signal: #8ca6e8;
+  --cyan: #8ca6e8;
+  --amber: #c9a961;
+  --danger: #e8705c;
+  --success: #4fb98a;
+  --code-bg: #0d1018;
+  --code-line: #232734;
+  --code-text: #f0f1f5;
+  --code-muted: #6b7080;
+  --code-keyword: #f0f1f5;
+  --code-field: #4fb98a;
+  --code-number: #c9a961;
+  --workbench-bg: #0d1018;
+  --workbench-surface: #12151f;
+  --workbench-toolbar: #12151f;
+  --workbench-control: #12151f;
+  --workbench-hover: #1a1f2e;
+  --workbench-rail: #0d1018;
+  --workbench-line: #232734;
+  --workbench-line-soft: #1a1f2e;
+  --workbench-text: #9ba0ae;
+  --workbench-text-strong: #f0f1f5;
+  --workbench-text-muted: #9ba0ae;
+  --workbench-text-faint: #6b7080;
+  --workbench-rail-handle: #343a4a;
   --shadow: 0 1px 3px rgb(0 0 0 / 60%), 0 0 0 1px rgb(255 255 255 / 8%);
   --shadow-soft: 0 1px 2px rgb(0 0 0 / 40%);
-  --brand-start: #fafafa;
-  --brand-end: #fafafa;
-  --action-primary-bg: #fafafa;
-  --action-primary-hover: #ffffff;
+  --brand-start: #8ca6e8;
+  --brand-end: #8ca6e8;
+  --action-primary-bg: #8ca6e8;
+  --action-primary-hover: #a6bbef;
   --action-primary-shadow: none;
-  --state-current: #fafafa;
-  --state-next: #6b6b72;
-  --state-success: #3f9d5c;
+  --state-current: #8ca6e8;
+  --state-next: #6b7080;
+  --state-success: #4fb98a;
 }
 
 @theme inline {
@@ -9301,8 +9322,8 @@ body:has(.app-shell[data-screen="python"]) {
   border-radius: 28px 28px 28px 10px;
   display: grid;
   grid-template-rows: 42px minmax(0, 1fr) 42px;
-  color: #e6e8ec;
-  background: #0d0d0f;
+  color: #f0f1f5;
+  background: #0d1018;
   box-shadow:
     0 34px 90px rgb(0 0 0 / 34%),
     inset 0 1px rgb(255 255 255 / 4%);
@@ -9316,7 +9337,7 @@ body:has(.app-shell[data-screen="python"]) {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  color: #6b6b72;
+  color: #6b7080;
   font-family: var(--font-geist-mono), monospace;
   font-size: 10px;
 }
@@ -9336,7 +9357,7 @@ body:has(.app-shell[data-screen="python"]) {
 
 .landing-sql-editor-bar > span {
   overflow: hidden;
-  color: #9c9ca3;
+  color: #9ba0ae;
   font-weight: 720;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -9346,12 +9367,12 @@ body:has(.app-shell[data-screen="python"]) {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #6b6b72;
+  background: #6b7080;
   box-shadow: none;
 }
 
 .landing-sql-editor-bar > strong {
-  color: #6b6b72;
+  color: #6b7080;
   font-weight: 620;
 }
 
@@ -9405,7 +9426,7 @@ body:has(.app-shell[data-screen="python"]) {
   position: absolute;
   right: calc(100% + 12px);
   width: 24px;
-  color: #45454c;
+  color: #3d4354;
   text-align: right;
 }
 
@@ -9414,24 +9435,24 @@ body:has(.app-shell[data-screen="python"]) {
 }
 
 .sql-token-keyword {
-  color: #e6e8ec;
+  color: #f0f1f5;
   font-weight: 720;
 }
 
 .sql-token-function {
-  color: #9c9ca3;
+  color: #9ba0ae;
 }
 
 .sql-token-string {
-  color: #3f9d5c;
+  color: #4fb98a;
 }
 
 .sql-token-number {
-  color: #9c9ca3;
+  color: #9ba0ae;
 }
 
 .sql-token-comment {
-  color: #6b6b72;
+  color: #6b7080;
   font-style: italic;
 }
 
@@ -9440,13 +9461,13 @@ body:has(.app-shell[data-screen="python"]) {
 }
 
 .landing-sql-editor-result > span {
-  color: #9c9ca3;
+  color: #9ba0ae;
   font-weight: 680;
 }
 
 .landing-sql-editor-result > strong {
   overflow: hidden;
-  color: #9c9ca3;
+  color: #9ba0ae;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -16602,11 +16623,20 @@ body:has(.app-shell[data-screen="python"]) {
 .feedback-banner h2,
 .feedback-banner h3,
 .workspace-breadcrumb strong,
-.empty-result strong,
+.empty-result strong {
+  font-family: var(--font-head);
+  letter-spacing: -0.03em;
+}
+
+/*
+ * Display ölçeğinde serif kullanılır. Mono bu boyutta harf genişliği sabit
+ * olduğu için satırı kırar ve terminal çıktısı gibi okunur; serif ise tam
+ * tersine büyüdükçe karakter kazanır.
+ */
 .landing-role-stage h1,
 .landing-dynamic-role {
   font-family: var(--font-head);
-  letter-spacing: -0.03em;
+  letter-spacing: -0.025em;
 }
 
 /* Mikro etiketler ve sayaçlar */
@@ -16639,12 +16669,12 @@ body:has(.app-shell[data-screen="python"]) {
  * ═══════════════════════════════════════════════════════════════════════════ */
 
 .task-brief-block {
-  margin: 0 0 20px;
+  margin: 0 0 15px;
   padding: 0;
 }
 
 .task-brief-block + .task-brief-block {
-  padding-top: 18px;
+  padding-top: 14px;
   border-top: 1px solid var(--line);
 }
 
@@ -16666,30 +16696,15 @@ body:has(.app-shell[data-screen="python"]) {
   line-height: 1.55;
 }
 
-.task-output-grain {
-  margin: 0 0 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.task-output-grain > span {
-  color: var(--text-faint);
-  font-size: 12px;
-}
-
-.task-output-grain > strong {
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 500;
+/* Çıktı tanesi: retorik soru kaldırıldı, tek satır kaldı. */
+.task-grain-line {
+  margin: 0 0 12px;
+  color: var(--text-soft);
+  font-size: 12.5px;
   line-height: 1.5;
 }
 
-.task-check-block {
-  margin-top: 14px;
-}
-
-.task-check-block .task-check-list {
+.task-check-disclosure .task-check-list {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -16698,7 +16713,7 @@ body:has(.app-shell[data-screen="python"]) {
   gap: 6px;
 }
 
-.task-check-block .task-check-list li {
+.task-check-disclosure .task-check-list li {
   position: relative;
   padding-left: 15px;
   color: var(--text-soft);
@@ -16707,7 +16722,7 @@ body:has(.app-shell[data-screen="python"]) {
 }
 
 /* Nokta yerine mono tire: liste terminal çıktısı gibi okunur, renk harcamaz. */
-.task-check-block .task-check-list li::before {
+.task-check-disclosure .task-check-list li::before {
   position: absolute;
   left: 0;
   color: var(--text-faint);
@@ -16722,4 +16737,21 @@ body:has(.app-shell[data-screen="python"]) {
   font-family: var(--font-label);
   font-size: 11px;
   letter-spacing: var(--label-tracking);
+}
+
+/*
+ * Yardım merdiveni tek satıra sıkışır: başlık satırı + ipucu butonu.
+ * Puan bilgisi butonun kendi meta satırında zaten yazılı olduğu için
+ * ayrı bir puan satırı görünmez; yalnız ekran okuyucuya kalır.
+ */
+.task-help-console .hint-button {
+  padding-block: 9px;
+}
+
+.task-help-console .hint-button-copy strong {
+  font-size: 13px;
+}
+
+.task-help-console .hint-button-copy small {
+  font-size: 11.5px;
 }

@@ -1741,7 +1741,7 @@ describe("QueryvaleApp", () => {
       screen.getByRole("heading", { name: "İstenen teslim" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Çıktını tanı" }),
+      screen.getByRole("heading", { name: "Beklenen çıktı" }),
     ).toBeInTheDocument();
     // Kabul kontrolleri artık açılır bölüm değil; brief ile birlikte gelir.
     expect(screen.getByText("Kendini kontrol et")).toBeVisible();
@@ -2152,14 +2152,22 @@ describe("QueryvaleApp", () => {
       const brief = screen.getByRole("tabpanel", { name: label });
       expect(brief).toHaveAttribute("data-drill-type", type);
       expect(within(brief).getByText(badge)).toBeVisible();
-      for (const heading of ["İstenen teslim", "Çıktını tanı"]) {
+      for (const heading of ["İstenen teslim", "Beklenen çıktı"]) {
         expect(
           within(brief).getByRole("heading", {
             name: new RegExp(`^${heading}$`),
           }),
         ).toBeVisible();
       }
-      expect(within(brief).getByText("Beklenen kolonlar")).toBeVisible();
+      // Etiket "Beklenen çıktı" başlığına katlandı; asıl sözleşme
+      // kolon çipleridir, onların görünürlüğünü doğrula.
+      for (const column of drill!.expectedColumns) {
+        expect(
+          within(brief).getByRole("button", {
+            name: `${column} kolonunu kopyala`,
+          }),
+        ).toBeVisible();
+      }
       expect(
         within(brief).getByText("Bu alıştırmada ne çalışıyorsun?"),
       ).toBeVisible();
