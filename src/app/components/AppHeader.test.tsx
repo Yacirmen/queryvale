@@ -10,12 +10,13 @@ describe("AppHeader", () => {
     render(<AppHeader screen="home" onNavigate={onNavigate} />);
 
     const brand = screen.getByRole("button", { name: "Queryvale ana sayfa" });
-    const logo = brand.querySelector("img.brand-logo");
+    // İşaret artık satır içi SVG; rengini temadan alabilmesi için <img>
+    // olmaktan çıktı. Erişilebilirlik sözleşmesi aynı: dekoratif, gizli.
+    const logo = brand.querySelector("svg.brand-logo");
 
     expect(logo).toBeInTheDocument();
-    expect(logo).toHaveAttribute("src", "./queryvale-mark.svg");
-    expect(logo).toHaveAttribute("alt", "");
     expect(logo).toHaveAttribute("aria-hidden", "true");
+    expect(logo).toHaveAttribute("focusable", "false");
     expect(logo).toHaveAttribute("width", "42");
     expect(logo).toHaveAttribute("height", "30");
     expect(brand).toHaveTextContent("Queryvale");
@@ -110,12 +111,11 @@ describe("AppHeader", () => {
     expect(onStart).toHaveBeenCalledOnce();
   });
 
-  it("locks only the landing Studio actions and explains how they open", async () => {
+  it("keeps both Studio targets reachable from the landing header", async () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
     const onStudio = vi.fn();
     const onPythonStudio = vi.fn();
-    const onStart = vi.fn();
 
     render(
       <AppHeader
@@ -123,8 +123,7 @@ describe("AppHeader", () => {
         onNavigate={onNavigate}
         onStudio={onStudio}
         onPythonStudio={onPythonStudio}
-        onStart={onStart}
-        studioNavigationLocked
+        onStart={vi.fn()}
       />,
     );
 
@@ -137,34 +136,22 @@ describe("AppHeader", () => {
     const pythonStudio = within(navigation).getByRole("button", {
       name: "Python Studio",
     });
-    const explanation = screen.getByText(
-      /ana sayfanın sonuna ulaştığında açılır/i,
-    );
 
+    // Bu bağlantılar bir zamanlar giriş sayfasının sonuna ulaşana kadar
+    // kilitliydi. Kilit yalnız `screen === "home"` iken uygulandığı için
+    // başka bir ekrana geçen herkes onu atlıyordu; üstelik her vakaya
+    // doğrudan bağlantıyla girilebildiği de ayrıca test ediliyor. Kilit
+    // hiçbir şeyi korumadığı için kaldırıldı.
     for (const studio of [sqlStudio, pythonStudio]) {
-      expect(studio).toHaveAttribute("aria-disabled", "true");
-      expect(studio).toHaveAttribute(
-        "aria-describedby",
-        explanation.getAttribute("id"),
-      );
-      expect(studio).toHaveAttribute(
-        "title",
-        "Sayfanın sonuna ulaştığında açılır",
-      );
-      await user.click(studio);
+      expect(studio).toBeEnabled();
+      expect(studio).not.toHaveAttribute("aria-disabled");
     }
 
-    expect(onStudio).not.toHaveBeenCalled();
-    expect(onPythonStudio).not.toHaveBeenCalled();
+    await user.click(sqlStudio);
+    await user.click(pythonStudio);
 
-    await user.click(
-      screen.getByRole("button", { name: "Queryvale ana sayfa" }),
-    );
-    await user.click(screen.getByRole("button", { name: /^Hemen Başla/ }));
-
-    expect(onNavigate).toHaveBeenCalledWith("home");
-    expect(onStart).toHaveBeenCalledOnce();
-    expect(screen.getByRole("banner")).toHaveAttribute("aria-busy", "false");
+    expect(onStudio).toHaveBeenCalledOnce();
+    expect(onPythonStudio).toHaveBeenCalledOnce();
   });
 
   it("falls back to the SQL workspace, Python Studio and account screen", async () => {
@@ -199,7 +186,6 @@ describe("AppHeader", () => {
         onNavigate={onNavigate}
         accountStatus="local"
         profileName="Ada Yılmaz"
-        studioNavigationLocked
       />,
     );
 
@@ -222,7 +208,7 @@ describe("AppHeader", () => {
       within(
         screen.getByRole("navigation", { name: "Ana bölümler" }),
       ).getByRole("button", { name: "SQL Studio — SQL Laboratuvarı" }),
-    ).toHaveAttribute("aria-disabled", "true");
+    ).toBeEnabled();
     expect(
       screen.queryByRole("button", { name: /^Hemen Başla/ }),
     ).not.toBeInTheDocument();

@@ -450,11 +450,7 @@ describe("QueryvaleApp", () => {
     await loadProgress();
   });
 
-  it("unlocks both landing Studio targets only at the page end and keeps them open while navigating", async () => {
-    Object.defineProperty(document.documentElement, "scrollHeight", {
-      configurable: true,
-      value: 2400,
-    });
+  it("reaches both Studio targets from the landing header without scrolling", async () => {
     const user = userEvent.setup();
     render(<QueryvaleApp />);
 
@@ -474,29 +470,13 @@ describe("QueryvaleApp", () => {
       name: "Python Studio",
     });
 
-    expect(sqlStudio).toHaveAttribute("aria-disabled", "true");
-    expect(pythonStudio).toHaveAttribute("aria-disabled", "true");
-    await user.click(pythonStudio);
-    expect(window.location.hash).toBe("#/");
-    expect(
-      within(screen.getByRole("banner")).getByRole("button", {
-        name: /^Hemen Başla/,
-      }),
-    ).toBeEnabled();
-
-    Object.defineProperty(window, "scrollY", {
-      configurable: true,
-      value: 1632,
-    });
-    fireEvent.scroll(window);
-
-    await waitFor(() => {
-      expect(sqlStudio).not.toHaveAttribute("aria-disabled");
-      expect(pythonStudio).not.toHaveAttribute("aria-disabled");
-    });
-    expect(
-      screen.getByText("SQL Studio ve Python Studio bağlantıları açıldı."),
-    ).toBeInTheDocument();
+    // Bu bağlantılar giriş sayfasının sonuna ulaşana kadar kilitliydi, ama
+    // kilit yalnız ana sayfada uygulanıyordu: "Hemen Başla" ile giriş
+    // ekranına geçen herkes oradan doğrudan Studio'ya girebiliyordu.
+    // Hiçbir şeyi korumayan kilit kaldırıldı.
+    expect(sqlStudio).toBeEnabled();
+    expect(pythonStudio).toBeEnabled();
+    expect(sqlStudio).not.toHaveAttribute("aria-disabled");
 
     await user.click(pythonStudio);
     expect(window.location.hash).toBe(`#/python/${pythonTasks[0].id}`);
@@ -506,13 +486,13 @@ describe("QueryvaleApp", () => {
       screen.getByRole("button", { name: "Queryvale ana sayfa" }),
     );
     await screen.findByRole("heading", {
-      name: /Geleceğin Veri Analistleri.*İçin İnteraktif SQL Studio/i,
+      name: /SQL ezberleme.*Veri analisti gibi çalış/i,
     });
     expect(
       within(
         screen.getByRole("navigation", { name: "Ana bölümler" }),
       ).getByRole("button", { name: "Python Studio" }),
-    ).not.toHaveAttribute("aria-disabled");
+    ).toBeEnabled();
   });
 
   it("keeps engine initialization failures separate from query coaching", async () => {
@@ -834,19 +814,15 @@ describe("QueryvaleApp", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Geleceğin Veri Analistleri.*İçin İnteraktif SQL Studio/i,
+        name: /SQL ezberleme.*Veri analisti gibi çalış/i,
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("region", { name: "Üç adımda çalışan SQL sorgusu" }),
-    ).toBeInTheDocument();
-    await user.click(
-      screen.getByRole("button", {
-        name: "3. adım: Sorgu Çalıştırıldı, Sonuç Hazır",
+      screen.getByRole("figure", {
+        name: "Rotanın ilk vakası ve gerçek çıktısı",
       }),
-    );
-    expect(screen.getByText("damla_data")).toBeInTheDocument();
-    expect(screen.getAllByText("Active")).toHaveLength(3);
+    ).toBeInTheDocument();
+    expect(screen.queryByText("damla_data")).not.toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", { name: /Hesabını Aç & Vaka Çöz/i }),
@@ -1060,8 +1036,10 @@ describe("QueryvaleApp", () => {
       within(signOutDialog).getByRole("button", { name: "Profilden çık" }),
     );
 
+    // Giriş sayfası düğmesi artık ilerlemesi olan kullanıcıya ne yapacağını
+    // görünür metinde söylüyor; bağlam eki aria-label'da kalıyor.
     await screen.findByRole("button", {
-      name: "Hemen Başla — Profiline Gir",
+      name: "Kaldığın Yerden Devam Et — Profiline Gir",
     });
     expect(window.location.hash).toBe("#/");
     expect(

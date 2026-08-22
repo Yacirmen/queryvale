@@ -34,9 +34,12 @@ test("server-renders Queryvale product metadata and shell", async () => {
     /<title>Queryvale — SQL ve Python ile veri analisti gibi çalış<\/title>/i,
   );
   assert.match(html, /Gerçek iş sorularını SQL ve Python ile çöz/i);
-  assert.match(html, /Geleceğin/i);
-  assert.match(html, /İnteraktif SQL Studio/i);
-  assert.match(html, /Teoriyi Bırakın, İlk Vakanızı Çözmeye Başlayın/i);
+  assert.match(html, /SQL ezberleme/i);
+  assert.match(html, /Veri analisti gibi çalış/i);
+  assert.match(html, /İlk vakan hazır/i);
+  // Vitrin sunucuda da müfredattan gelir; sahte satır kalmamalı.
+  assert.match(html, /Desk Lamp/);
+  assert.doesNotMatch(html, /damla_data/i);
   assert.match(html, /Queryvale/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
 });

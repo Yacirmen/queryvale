@@ -1,7 +1,8 @@
 "use client";
 
-import { LockKeyhole, Settings2 } from "lucide-react";
+import { Settings2 } from "lucide-react";
 import type { AppScreen, Navigate } from "../appTypes";
+import { QueryvaleMark } from "./QueryvaleMark";
 
 type HeaderAccountStatus = "loading" | "guest" | "local";
 
@@ -15,7 +16,6 @@ interface AppHeaderProps {
   accountStatus?: HeaderAccountStatus;
   profileName?: string;
   disabled?: boolean;
-  studioNavigationLocked?: boolean;
 }
 
 function profileInitials(profileName?: string): string {
@@ -40,7 +40,6 @@ export function AppHeader({
   accountStatus = "guest",
   profileName,
   disabled = false,
-  studioNavigationLocked = false,
 }: AppHeaderProps) {
   const openStudio = onStudio ?? (() => onNavigate("workspace"));
   const openPythonStudio = onPythonStudio ?? (() => onNavigate("python"));
@@ -65,78 +64,29 @@ export function AppHeader({
             aria-label="Queryvale ana sayfa"
             aria-current={screen === "home" ? "page" : undefined}
           >
-            {/* Shared Vite/Next header needs a base-path-relative portable asset. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              className="brand-logo"
-              src="./queryvale-mark.svg"
-              width={42}
-              height={30}
-              alt=""
-              aria-hidden="true"
-            />
+            <QueryvaleMark className="brand-logo" />
             <strong className="brand-word">Queryvale</strong>
           </button>
 
           <nav className="reference-primary-nav" aria-label="Ana bölümler">
-            {studioNavigationLocked ? (
-              <span id="landing-studio-lock-note" className="sr-only">
-                SQL ve Python Studio bağlantıları ana sayfanın sonuna
-                ulaştığında açılır.
-              </span>
-            ) : null}
             <button
               className="reference-nav-link"
               type="button"
               disabled={disabled}
-              onClick={studioNavigationLocked ? undefined : openStudio}
+              onClick={openStudio}
               aria-label="SQL Studio — SQL Laboratuvarı"
-              aria-disabled={studioNavigationLocked || undefined}
-              aria-describedby={
-                studioNavigationLocked ? "landing-studio-lock-note" : undefined
-              }
-              title={
-                studioNavigationLocked
-                  ? "Sayfanın sonuna ulaştığında açılır"
-                  : undefined
-              }
               aria-current={screen === "workspace" ? "page" : undefined}
             >
               <span>SQL Studio</span>
-              <span className="reference-nav-lock-slot" aria-hidden="true">
-                <LockKeyhole
-                  className="reference-nav-lock"
-                  data-visible={studioNavigationLocked}
-                  size={13}
-                  strokeWidth={2}
-                />
-              </span>
             </button>
             <button
               className="reference-nav-link"
               type="button"
               disabled={disabled}
-              onClick={studioNavigationLocked ? undefined : openPythonStudio}
-              aria-disabled={studioNavigationLocked || undefined}
-              aria-describedby={
-                studioNavigationLocked ? "landing-studio-lock-note" : undefined
-              }
-              title={
-                studioNavigationLocked
-                  ? "Sayfanın sonuna ulaştığında açılır"
-                  : undefined
-              }
+              onClick={openPythonStudio}
               aria-current={screen === "python" ? "page" : undefined}
             >
               <span>Python Studio</span>
-              <span className="reference-nav-lock-slot" aria-hidden="true">
-                <LockKeyhole
-                  className="reference-nav-lock"
-                  data-visible={studioNavigationLocked}
-                  size={13}
-                  strokeWidth={2}
-                />
-              </span>
             </button>
           </nav>
 

@@ -91,8 +91,6 @@ export function QueryvaleApp() {
     useState<LocalProfileAccess>("guest");
   const [persistenceAvailable, setPersistenceAvailable] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [landingStudiosUnlocked, setLandingStudiosUnlocked] = useState(false);
-  const [landingUnlockAnnounced, setLandingUnlockAnnounced] = useState(false);
   const [pendingAnchor, setPendingAnchor] =
     useState<NavigateOptions["anchor"]>();
   const [notice, setNotice] = useState<{
@@ -103,7 +101,6 @@ export function QueryvaleApp() {
   const isLoadedRef = useRef(false);
   const isReplacingProgressRef = useRef(false);
   const localProfileAccessRef = useRef<LocalProfileAccess>("guest");
-  const landingStudiosUnlockedRef = useRef(false);
   const shouldFocusScreenRef = useRef(false);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const localAccountWriteRef = useRef<Promise<boolean> | undefined>(undefined);
@@ -168,13 +165,6 @@ export function QueryvaleApp() {
   const localAccountExists = hasLocalAccount(progress);
   const localProfileActive =
     localAccountExists && localProfileAccess === "active";
-
-  const unlockLandingStudios = useCallback(() => {
-    if (landingStudiosUnlockedRef.current) return;
-    landingStudiosUnlockedRef.current = true;
-    setLandingStudiosUnlocked(true);
-    setLandingUnlockAnnounced(true);
-  }, []);
 
   useEffect(() => {
     let current = true;
@@ -1156,11 +1146,6 @@ export function QueryvaleApp() {
             : "Yerel profil işlemi güvenle kaydediliyor."}
         </span>
       ) : null}
-      {landingUnlockAnnounced ? (
-        <span className="sr-only" role="status" aria-live="polite" aria-atomic>
-          SQL Studio ve Python Studio bağlantıları açıldı.
-        </span>
-      ) : null}
       <div
         className="app-shell"
         data-screen={screen}
@@ -1188,9 +1173,6 @@ export function QueryvaleApp() {
             isCreatingLocalAccount ||
             isUpdatingLocalProfile
           }
-          studioNavigationLocked={
-            isLoaded && screen === "home" && !landingStudiosUnlocked
-          }
           startLabel={
             localProfileAccess === "signed-out"
               ? `${progress.profile.displayName} profiline gir`
@@ -1211,7 +1193,6 @@ export function QueryvaleApp() {
             profileActive={localProfileActive}
             startDisabled={isCreatingLocalAccount || isUpdatingLocalProfile}
             reducedMotion={progress.settings.reducedMotion}
-            onJourneyComplete={unlockLandingStudios}
           />
         )}
         {screen === "account" && (

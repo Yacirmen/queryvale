@@ -5,11 +5,11 @@
     query'siyle kurulur: açık tarayıcı çubuğunda koyu, koyu çubukta açık.
   -->
   <style>
-    .mark { fill: #0e0e0d; }
-    .mark-stroke { stroke: #0e0e0d; }
+    .mark { fill: #1c2e63; }
+    .mark-stroke { stroke: #1c2e63; }
     @media (prefers-color-scheme: dark) {
-      .mark { fill: #fafafa; }
-      .mark-stroke { stroke: #fafafa; }
+      .mark { fill: #8ca6e8; }
+      .mark-stroke { stroke: #8ca6e8; }
     }
   </style>
   <path class="mark-stroke" d="M300 205 L545 400 L300 595" fill="none" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
