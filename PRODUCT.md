@@ -92,7 +92,7 @@ Geri bildirim kullanıcıya sonraki kontrol edilebilir eylemi söylemelidir. Tam
 
 İlk on modül üretim kalitesinde dörder vakadan oluşur. Modül 1–3 temel sorgu akıcılığını; modül 4–7 aggregation, join, alt sorgu/CTE ve analitik SQL derinliğini; Modül 8–10 güvenli veri değişikliği, modelleme/veri güveni ve yönetici karar teslimlerini kurar. Son modül, edinimden büyüme kararına uzanan 12 pazarlama analitiği projesiyle portföy teslimi yaptırır.
 
-Bu 11 modül kariyer rotasında **Temeli kur**, **İş sorusunu çöz**, **Örüntüyü keşfet** ve **Karara dönüştür** adlı dört bölüm altında sunulur. Bölümler ayrı ilerleme üretmez. İlk modül açıktır; her sonraki modül yalnız önceki bütün modüllerin çalışmaları tamamlandığında açılır. Kilitli modüller gizlenmez, açılma koşulunu gösterir; mevcut ileri ilerleme ve kanıtlar silinmez.
+Bu 11 modül kariyer rotasında **Temeli kur**, **İş sorusunu çöz**, **Örüntüyü keşfet** ve **Karara dönüştür** adlı dört bölüm altında sunulur. Bölümler ayrı ilerleme üretmez. Modül sırası önerilen öğrenme yoludur, erişim kapısı değildir: her çalışma baştan açıktır ve doğrudan URL ile de açılabilir. Rota, kilitle değil sıralama ve öneriyle yönlendirir; ileri ilerleme ve kanıtlar hiçbir durumda silinmez.
 
 Python Studio ayrı ve bağımsız bir rota taşır: **Veriyi tanı — EDA**, **Veriyi güvenilir hâle getir**, **KPI ve segment analizi**, **Zaman ve örüntü**. Her modül üç çalışan pandas vakası içerir; hem modüller hem vakalar ön koşul sırasıyla açılır. SQL ilerlemesi Python’a, Python ilerlemesi SQL’e erişim engeli koymaz.
 

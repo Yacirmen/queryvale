@@ -78,6 +78,7 @@ export type SQLConcept =
   | "EXISTS"
   | "CTE"
   | "RECURSIVE_CTE"
+  | "UNION"
   | "ROW_NUMBER"
   | "RANK"
   | "DENSE_RANK"

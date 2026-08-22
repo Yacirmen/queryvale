@@ -393,6 +393,55 @@ export const TASK_SOLUTIONS: Readonly<Record<string, string>> = {
     FROM branch_totals
     WHERE branch_total > (SELECT AVG(branch_total) FROM branch_totals);
   `),
+  "m7-d1": sql(`
+    SELECT rep_name, revenue,
+           ROW_NUMBER() OVER (ORDER BY revenue DESC, rep_name) AS row_no
+    FROM representative_sales
+    ORDER BY row_no;
+  `),
+  "m7-d2": sql(`
+    SELECT category, rep_name, revenue,
+           DENSE_RANK() OVER (PARTITION BY category ORDER BY revenue DESC) AS revenue_rank
+    FROM representative_sales
+    ORDER BY category, revenue_rank, rep_name;
+  `),
+  "m7-d3": sql(`
+    SELECT demand_date, units,
+           SUM(units) OVER (
+             ORDER BY demand_date
+             ROWS BETWEEN 2 PRECEDING AND CURRENT ROW
+           ) AS rolling_3d_units
+    FROM daily_demand
+    ORDER BY demand_date;
+  `),
+  "m6-d1": sql(`
+    SELECT product_name, unit_price
+    FROM products
+    WHERE unit_price > (SELECT AVG(unit_price) FROM products)
+    ORDER BY unit_price DESC;
+  `),
+  "m6-d2": sql(`
+    WITH child_counts AS (
+      SELECT parent_id, COUNT(*) AS child_count
+      FROM categories
+      WHERE parent_id IS NOT NULL
+      GROUP BY parent_id
+    )
+    SELECT c.category_name, cc.child_count
+    FROM child_counts cc
+    INNER JOIN categories c ON c.category_id = cc.parent_id
+    ORDER BY c.category_name;
+  `),
+  "m6-d3": sql(`
+    SELECT category_name, 0 AS depth
+    FROM categories
+    WHERE parent_id IS NULL
+    UNION ALL
+    SELECT category_name, 1
+    FROM categories
+    WHERE parent_id = 1
+    ORDER BY depth, category_name;
+  `),
   "m6-t2": sql(`
     SELECT product_name, unit_price
     FROM products

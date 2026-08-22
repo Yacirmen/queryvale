@@ -52,7 +52,7 @@ Servis sonuçları ayrıştırılmış hata türleri döndürür; UI ham bağım
 
 Sayfa kabukları ve feature bileşenleri servisleri hook’lar üzerinden kullanır. Sunum bileşenleri mümkün olduğunca veri alıp olay üretir. Uygulama çapındaki geçici state sade React reducer/context ile; URL’de paylaşılabilir navigasyon state’i rotayla; kalıcı state IndexedDB ile yönetilir.
 
-`StudioCurriculumMenu`, SQL ve Python çalışma alanlarının yalnız sunum sözleşmesini paylaşır. Her ekran modül/vaka görünüm modelini kendi erişim seçicisinden üretir: SQL modül bazlı, Python vaka ön koşulu bazlı kilitleri korur. Menüden seçim ortak uygulama navigasyonuna geri döner; böylece hash çözümleme, güvenli devam konumu, taslak kaydı ve kilit yönlendirmesi ikinci kez uygulanmaz.
+`StudioCurriculumMenu`, SQL ve Python çalışma alanlarının yalnız sunum sözleşmesini paylaşır. Her ekran modül/vaka görünüm modelini kendi erişim seçicisinden üretir. Erişim seçicileri kilit uygulamaz; tamamlanma durumunu ve önerilen sıradaki durağı hesaplarlar. Menüden seçim ortak uygulama navigasyonuna geri döner; böylece hash çözümleme, güvenli devam konumu, taslak kaydı ve kilit yönlendirmesi ikinci kez uygulanmaz.
 
 ## SQL motoru kararı
 
@@ -83,7 +83,7 @@ Varsayılan motor **PGlite**’tır.
 11. Yalnız puanlı vaka `correct` olduğunda sınırlı bir `VerifiedRunSnapshot` oluşturulur ve tamamlanan görevin kanıt kaydına eklenir. Alıştırma sonuçları kısa tamamlanma bildirimiyle kalır.
 12. Kullanıcı isterse bu kayda bulgu, öneri ve isteğe bağlı çekince içeren bir karar notu ekler; not evaluator tarafından puanlanmaz.
 13. `ProgressState` v6 tek transaction ile IndexedDB’ye yazılır. SQL taslağı 700 ms debounce ile ve görevden ayrılırken kaydedilir; sonuç paneli açık kalır, sonraki göreve geçiş ayrı kullanıcı eylemidir.
-14. Rota erişimi ayrıca persist edilmez: saf modül erişim seçicisi mevcut tamamlanmalardan ilk eksik modülü bulur; UI ve hash yönlendirmesi sonraki modülleri aynı kararla kilitler, eski ileri kayıtları değiştirmez.
+14. Rota erişimi ayrıca persist edilmez: saf modül erişim seçicisi mevcut tamamlanmalardan ilk eksik durağı bulur ve devam konumu olarak önerir. Bu bir kilit değil yönlendirmedir; her durak doğrudan URL ile de açılır ve eski ileri kayıtlar değişmez.
 
 Görev değişimi, reset ve timeout eski oturumun çıktısını geçersiz kılan bir generation/run kimliği kullanır; geç gelen sonuç yeni göreve yazılamaz.
 

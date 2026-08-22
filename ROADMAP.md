@@ -35,7 +35,7 @@ Bu yol haritası tarih vaadi değil, bağımlılık ve değer sırasıdır. Her 
 ### P0: Öğrenme ve kalıcılık
 
 - İlk on modülde dörder çalışan ve doğrulanmış vaka; final modülde 12 pazarlama analitiği portföy projesi; toplam 52 çalışma
-- Önceki modüllerin bütün çalışmaları tamamlandıkça sıradakini açan, doğrudan URL'yi de kapsayan erişim sırası
+- Modül sırası önerilen yoldur, kapı değildir: her vaka baştan açıktır ve doğrudan URL ile de erişilir
 - Her vakada kavram odağı, çıktı tanesi, kabul kontrolleri ve üç kademeli ipucu
 - Hazırlık ipuçları yetmediğinde açık talep üzerine, puan etkisi önceden açıklanan ve ilerlemeyi engellemeyen tam çalışan çözüm
 - Değerlendirme durumuna özel koçluk ve başarı sonrası transfer odaklı debrief

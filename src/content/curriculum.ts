@@ -6,6 +6,7 @@ import {
   type TaskSchema,
 } from "../types/lesson";
 import { assertValidTaskCollection } from "../features/validation/task-content";
+import { normalizeConceptName } from "../features/validation/sql-concepts";
 import { createTask, READ_ONLY_FORBIDDEN } from "./curriculumTaskFactory";
 import {
   module8ExpansionTasks,
@@ -3262,30 +3263,12 @@ const joinTask = createTask({
   nextTaskId: "m6-t2",
 });
 
-const subqueryFoundationTasks: LessonTask[] = [
-  createTask({
-    id: "m6-t2",
-    slug: "campaign-product-shortlist",
-    moduleId: "module-6",
-    title: "Kampanya ürünlerini kısa listele",
-    subtitle: "IN ve scalar alt sorguyu iki ayrı iş kuralı için kullan.",
-    scenario:
-      "Kategori ekibi yalnızca aktif kampanya kategorilerindeki ve genel ürün ortalamasından pahalı ürünleri premium vitrine alacak.",
-    objective:
-      "category_id değeri aktif kampanya kategorilerini döndüren bir IN alt sorgusunda bulunan ve unit_price değeri tüm ürünlerin ortalamasından yüksek olan ürünlerin product_name ve unit_price kolonlarını fiyata göre azalan sırada getir.",
-    difficulty: "intermediate",
-    estimatedMinutes: 14,
-    prerequisites: ["m5-t1"],
-    concepts: [
-      "SUBQUERY",
-      "IN",
-      "AVG",
-      "WHERE",
-      "AND",
-      "COMPARISON",
-      "ORDER_BY",
-    ],
-    setupSql: `
+/**
+ * Modül 6 fixture'ları hem vakalar hem köprü alıştırmaları tarafından
+ * kullanılır. Aynı veriyi iki yerde tanımlamak, birinin güncellenip
+ * diğerinin unutulmasına açık kapı bırakır.
+ */
+const campaignCatalogSetupSql = `
       CREATE TABLE categories (
         category_id INTEGER PRIMARY KEY,
         category_name TEXT NOT NULL,
@@ -3308,8 +3291,9 @@ const subqueryFoundationTasks: LessonTask[] = [
         (4, 'Akıllı Hoparlör', 3, 400.00),
         (5, 'Ses Kablosu', 3, 50.00),
         (6, 'Çalışma Masası', 2, 150.00);
-    `,
-    schema: {
+    `;
+
+const campaignCatalogSchema = {
       tables: [
         {
           name: "categories",
@@ -3355,8 +3339,9 @@ const subqueryFoundationTasks: LessonTask[] = [
           label: "Ürün bir kategoriye aittir",
         },
       ],
-    },
-    sampleRows: [
+    };
+
+const campaignCatalogSamples = [
       {
         tableName: "categories",
         rows: [
@@ -3389,7 +3374,94 @@ const subqueryFoundationTasks: LessonTask[] = [
           },
         ],
       },
+    ];
+
+const categoryTreeSetupSql = `
+      CREATE TABLE categories (
+        category_id INTEGER PRIMARY KEY,
+        category_name TEXT NOT NULL,
+        parent_id INTEGER REFERENCES categories(category_id)
+      );
+      INSERT INTO categories VALUES
+        (1, 'Ürünler', NULL),
+        (2, 'Elektronik', 1),
+        (3, 'Ev', 1),
+        (4, 'Bilgisayar', 2),
+        (5, 'Ses', 2),
+        (6, 'Mutfak', 3);
+    `;
+
+const categoryTreeSchema = {
+      tables: [
+        {
+          name: "categories",
+          description:
+            "parent_id ile kendi üzerine bağlanan katalog kategorileri.",
+          columns: [
+            {
+              name: "category_id",
+              dataType: "INTEGER",
+              nullable: false,
+              primaryKey: true,
+            },
+            { name: "category_name", dataType: "TEXT", nullable: false },
+            {
+              name: "parent_id",
+              dataType: "INTEGER",
+              nullable: true,
+              references: { table: "categories", column: "category_id" },
+            },
+          ],
+        },
+      ],
+      relationships: [
+        {
+          fromTable: "categories",
+          fromColumn: "parent_id",
+          toTable: "categories",
+          toColumn: "category_id",
+          label: "Alt kategori üst kategoriye bağlanır",
+        },
+      ],
+    };
+
+const categoryTreeSamples = [
+      {
+        tableName: "categories",
+        rows: [
+          { category_id: 1, category_name: "Ürünler", parent_id: null },
+          { category_id: 2, category_name: "Elektronik", parent_id: 1 },
+          { category_id: 4, category_name: "Bilgisayar", parent_id: 2 },
+        ],
+      },
+    ];
+
+const subqueryFoundationTasks: LessonTask[] = [
+  createTask({
+    id: "m6-t2",
+    slug: "campaign-product-shortlist",
+    moduleId: "module-6",
+    title: "Kampanya ürünlerini kısa listele",
+    subtitle: "IN ve scalar alt sorguyu iki ayrı iş kuralı için kullan.",
+    scenario:
+      "Kategori ekibi yalnızca aktif kampanya kategorilerindeki ve genel ürün ortalamasından pahalı ürünleri premium vitrine alacak.",
+    objective:
+      "category_id değeri aktif kampanya kategorilerini döndüren bir IN alt sorgusunda bulunan ve unit_price değeri tüm ürünlerin ortalamasından yüksek olan ürünlerin product_name ve unit_price kolonlarını fiyata göre azalan sırada getir.",
+    difficulty: "intermediate",
+    estimatedMinutes: 14,
+    prerequisites: ["m5-t1"],
+    concepts: [
+      "SUBQUERY",
+      "IN",
+      "AVG",
+      "WHERE",
+      "AND",
+      "COMPARISON",
+      "ORDER_BY",
     ],
+    setupSql: campaignCatalogSetupSql,
+    schema: campaignCatalogSchema,
+    sampleRows: campaignCatalogSamples,
     expectedColumns: ["product_name", "unit_price"],
     validationMode: "result-and-concepts",
     expectedResult: [
@@ -3556,63 +3628,9 @@ const subqueryFoundationTasks: LessonTask[] = [
       "ARITHMETIC",
       "ORDER_BY",
     ],
-    setupSql: `
-      CREATE TABLE categories (
-        category_id INTEGER PRIMARY KEY,
-        category_name TEXT NOT NULL,
-        parent_id INTEGER REFERENCES categories(category_id)
-      );
-      INSERT INTO categories VALUES
-        (1, 'Ürünler', NULL),
-        (2, 'Elektronik', 1),
-        (3, 'Ev', 1),
-        (4, 'Bilgisayar', 2),
-        (5, 'Ses', 2),
-        (6, 'Mutfak', 3);
-    `,
-    schema: {
-      tables: [
-        {
-          name: "categories",
-          description:
-            "parent_id ile kendi üzerine bağlanan katalog kategorileri.",
-          columns: [
-            {
-              name: "category_id",
-              dataType: "INTEGER",
-              nullable: false,
-              primaryKey: true,
-            },
-            { name: "category_name", dataType: "TEXT", nullable: false },
-            {
-              name: "parent_id",
-              dataType: "INTEGER",
-              nullable: true,
-              references: { table: "categories", column: "category_id" },
-            },
-          ],
-        },
-      ],
-      relationships: [
-        {
-          fromTable: "categories",
-          fromColumn: "parent_id",
-          toTable: "categories",
-          toColumn: "category_id",
-          label: "Alt kategori üst kategoriye bağlanır",
-        },
-      ],
-    },
-    sampleRows: [
-      {
-        tableName: "categories",
-        rows: [
-          { category_id: 1, category_name: "Ürünler", parent_id: null },
-          { category_id: 2, category_name: "Elektronik", parent_id: 1 },
-          { category_id: 4, category_name: "Bilgisayar", parent_id: 2 },
-        ],
-      },
-    ],
+    setupSql: categoryTreeSetupSql,
+    schema: categoryTreeSchema,
+    sampleRows: categoryTreeSamples,
     expectedColumns: ["category_path", "depth"],
     validationMode: "result-and-concepts",
     expectedResult: [
@@ -3636,6 +3654,153 @@ const subqueryFoundationTasks: LessonTask[] = [
     completionMessage:
       "Kategori ağacı tam yollarıyla açıldı. Değişken derinlikteki hiyerarşiyi recursive olarak dolaştın.",
     nextTaskId: "m6-t1",
+  }),
+];
+
+/**
+ * Köprü alıştırmaları — müfredat denetiminin 20↔21 ve 22↔23 müdahale
+ * noktaları. Vaka 21 aynı anda hem scalar hem IN alt sorgusu istiyor; vaka 23
+ * ise recursive CTE ile UNION ALL'ı birlikte getiriyor. Bu alıştırmalar her
+ * yapıyı, gerekli olduğu vakadan önce tek başına çalıştırır.
+ */
+const subqueryBridgeDrills: LessonTask[] = [
+  createTask({
+    id: "m6-d1",
+    slug: "products-above-average-price",
+    moduleId: "module-6",
+    title: "Ortalamanın üzerini seç",
+    subtitle: "Tek bir scalar alt sorguyu eşik olarak kullan.",
+    scenario:
+      "Kategori yöneticisi, katalog ortalamasının üzerinde fiyatlanan ürünleri gözden geçiriyor.",
+    objective:
+      "products tablosundan product_name ve unit_price kolonlarını getir; yalnız birim fiyatı katalog ortalamasının üzerinde olan ürünleri bırak ve fiyata göre azalan sırala.",
+    difficulty: "intermediate",
+    estimatedMinutes: 3,
+    type: "drill_intro",
+    scored: false,
+    routeOrder: 20.1,
+    conceptNew: "K31",
+    conceptsReinforced: ["K01", "K03", "K06"],
+    curriculumConcepts: ["K01", "K03", "K06", "K31"],
+    drillConcept:
+      "Scalar alt sorgu tek bir değer üretir ve o değer bir eşik gibi kullanılabilir. Ortalamayı önceden bilmen gerekmez; sorgu onu kendisi hesaplar.",
+    prerequisites: [],
+    concepts: ["SELECT", "SUBQUERY", "AVG", "COMPARISON", "ORDER_BY"],
+    setupSql: campaignCatalogSetupSql,
+    schema: campaignCatalogSchema,
+    sampleRows: campaignCatalogSamples,
+    expectedColumns: ["product_name", "unit_price"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["Ofis Koltuğu", "500.00"],
+      ["Akıllı Hoparlör", "400.00"],
+      ["Monitör", "300.00"],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["SUBQUERY", "AVG", "COMPARISON", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "Eşiği elle yazma. Katalogun ortalama fiyatını sorgunun kendisi hesaplasın, sonra her satırı o değerle karşılaştır.",
+      "Parantez içindeki bir SELECT tek bir değer döndürebilir; bu değeri WHERE karşılaştırmasının sağ tarafına koyabilirsin.",
+      "İskelet: SELECT [ürün adı], [fiyat] FROM [ürün tablosu] WHERE [fiyat] > (SELECT AVG([fiyat]) FROM [ürün tablosu]) ORDER BY [fiyat] DESC;",
+    ],
+    explanation:
+      "Parantez içindeki SELECT tek bir ortalama değer üretir; dış sorgu her satırı bu değerle karşılaştırır. Eşik veriyle birlikte değişir, sabit kalmaz.",
+    completionMessage:
+      "Scalar alt sorguyu tek başına kullandın. Sıradaki vakada bunu bir IN kontrolüyle birleştireceksin.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m6-d2",
+    slug: "category-child-counts-cte",
+    moduleId: "module-6",
+    title: "Ara sonucu adlandır",
+    subtitle: "Düz bir CTE ile iki adımlı sorguyu okunaklı hâle getir.",
+    scenario:
+      "Katalog ekibi, hangi üst kategorinin kaç alt kategori taşıdığını görmek istiyor.",
+    objective:
+      "Önce her üst kategorinin alt kategori sayısını hesapla, sonra bu ara sonucu kategori tablosuyla eşleştirerek category_name ve child_count kolonlarını ada göre artan sırada getir.",
+    difficulty: "intermediate",
+    estimatedMinutes: 3,
+    type: "drill_intro",
+    scored: false,
+    routeOrder: 22.1,
+    conceptNew: "K33",
+    conceptsReinforced: ["K01", "K14", "K16", "K20"],
+    curriculumConcepts: ["K01", "K14", "K16", "K20", "K33"],
+    drillConcept:
+      "CTE, sorgunun bir adımına isim verip sonraki adımda o ismi tablo gibi kullanmaktır. Henüz özyineleme yok; yalnız okunaklı bir ara sonuç var.",
+    prerequisites: [],
+    concepts: ["SELECT", "CTE", "GROUP_BY", "COUNT", "INNER_JOIN", "ORDER_BY"],
+    setupSql: categoryTreeSetupSql,
+    schema: categoryTreeSchema,
+    sampleRows: categoryTreeSamples,
+    expectedColumns: ["category_name", "child_count"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["Elektronik", 2],
+      ["Ev", 1],
+      ["Ürünler", 2],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["CTE", "GROUP_BY", "COUNT", "INNER_JOIN", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "Sorguyu iki adıma böl: önce üst kategori başına alt kategori sayısı, sonra o sayıyı kategori adıyla eşleştirme.",
+      "WITH ad AS ( ... ) yazarak ilk adıma isim verebilir, ana sorguda bu ismi tablo gibi kullanabilirsin. Üst kategorisi olmayan satırlar sayıma girmemeli.",
+      "İskelet: WITH [ad] AS (SELECT [üst kimlik], COUNT(*) AS [sayı] FROM [kategori tablosu] WHERE [üst kimlik] IS NOT NULL GROUP BY [üst kimlik]) SELECT c.[kategori adı], a.[sayı] FROM [ad] a INNER JOIN [kategori tablosu] c ON c.[kimlik] = a.[üst kimlik] ORDER BY c.[kategori adı];",
+    ],
+    explanation:
+      "CTE ara sonucu adlandırır; ana sorgu o adı normal bir tablo gibi okur. Aynı sonuç iç içe alt sorguyla da alınabilir, fakat adlandırılmış adım okunması ve hata ayıklanması kolay olanıdır.",
+    completionMessage:
+      "Ara sonucu adlandırdın. Sıradaki alıştırmada iki sonucu alt alta eklemeyi göreceksin.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m6-d3",
+    slug: "category-root-and-children-union",
+    moduleId: "module-6",
+    title: "İki sonucu alt alta ekle",
+    subtitle: "UNION ALL ile iki seçimi tek listede birleştir.",
+    scenario:
+      "Katalog ekibi kök kategoriyi ve onun doğrudan altındakileri tek bir liste hâlinde görmek istiyor.",
+    objective:
+      "Üst kategorisi olmayan kategoriyi 0 derinlikle, doğrudan onun altındaki kategorileri 1 derinlikle seç ve iki sonucu tek listede birleştir; category_name ve depth kolonlarını önce derinliğe, sonra ada göre artan sırala.",
+    difficulty: "intermediate",
+    estimatedMinutes: 3,
+    type: "drill_intro",
+    scored: false,
+    routeOrder: 22.2,
+    conceptNew: "K38",
+    conceptsReinforced: ["K01", "K02", "K03", "K09"],
+    curriculumConcepts: ["K01", "K02", "K03", "K09", "K38"],
+    drillConcept:
+      "UNION ALL iki sorgunun satırlarını alt alta ekler. Kolon sayısı ve sırası iki tarafta aynı olmalıdır. Özyinelemeli CTE de tam olarak bu yapıyı kullanır: bir başlangıç kümesi, bir de ona eklenen adım.",
+    prerequisites: [],
+    concepts: ["SELECT", "UNION", "ALIAS", "IS_NULL", "COMPARISON", "ORDER_BY"],
+    setupSql: categoryTreeSetupSql,
+    schema: categoryTreeSchema,
+    sampleRows: categoryTreeSamples,
+    expectedColumns: ["category_name", "depth"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["Ürünler", 0],
+      ["Elektronik", 1],
+      ["Ev", 1],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["UNION", "IS_NULL", "ALIAS", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "İki ayrı soru sor: üst kategorisi olmayan satır hangisi, ve üst kategorisi kök olan satırlar hangileri. Sonra iki cevabı alt alta ekle.",
+      "UNION ALL iki SELECT'i birleştirir. Derinliği her iki tarafta sabit bir sayı olarak yazıp kolona ad verebilirsin.",
+      "İskelet: SELECT [kategori adı], 0 AS depth FROM [kategori tablosu] WHERE [üst kimlik] IS NULL UNION ALL SELECT [kategori adı], 1 FROM [kategori tablosu] WHERE [üst kimlik] = [kök kimlik] ORDER BY depth, [kategori adı];",
+    ],
+    explanation:
+      "UNION ALL, kolon sözleşmesi aynı olan iki sonucu tek listeye çevirir ve tekrarları elemez. Özyinelemeli CTE bu yapıyı kendi içinde tekrarlayarak ağacın tamamını açar.",
+    completionMessage:
+      "İki seçimi tek listede birleştirdin. Sıradaki vakada aynı yapı özyinelemeyle bütün ağacı açacak.",
+    nextTaskId: null,
   }),
 ];
 
@@ -3713,6 +3878,272 @@ const cteTask = createTask({
   nextTaskId: "m7-t2",
 });
 
+/**
+ * Modül 7 fixture'ları hem vakalar hem köprü alıştırmaları tarafından
+ * kullanılır; entegrasyon testi alıştırmanın kendinden sonraki vakayla
+ * aynı fixture'ı taşımasını şart koşar.
+ */
+const representativeSalesSetupSql = `
+      CREATE TABLE representative_sales (
+        rep_id INTEGER PRIMARY KEY,
+        category TEXT NOT NULL,
+        rep_name TEXT NOT NULL,
+        revenue NUMERIC(10, 2) NOT NULL
+      );
+      INSERT INTO representative_sales VALUES
+        (1, 'Enterprise', 'Ayla', 1200.00),
+        (2, 'Enterprise', 'Bora', 1200.00),
+        (3, 'Enterprise', 'Cem', 900.00),
+        (4, 'SMB', 'Derya', 800.00),
+        (5, 'SMB', 'Eren', 600.00),
+        (6, 'SMB', 'Figen', 600.00);
+    `;
+
+const representativeSalesSchema = {
+      tables: [
+        {
+          name: "representative_sales",
+          description: "Kategori bazında temsilci gelir sonuçları.",
+          columns: [
+            {
+              name: "rep_id",
+              dataType: "INTEGER",
+              nullable: false,
+              primaryKey: true,
+            },
+            { name: "category", dataType: "TEXT", nullable: false },
+            { name: "rep_name", dataType: "TEXT", nullable: false },
+            { name: "revenue", dataType: "NUMERIC(10,2)", nullable: false },
+          ],
+        },
+      ],
+    };
+
+const representativeSalesSamples = [
+      {
+        tableName: "representative_sales",
+        rows: [
+          {
+            rep_id: 1,
+            category: "Enterprise",
+            rep_name: "Ayla",
+            revenue: 1200,
+          },
+          {
+            rep_id: 2,
+            category: "Enterprise",
+            rep_name: "Bora",
+            revenue: 1200,
+          },
+          { rep_id: 5, category: "SMB", rep_name: "Eren", revenue: 600 },
+        ],
+      },
+    ];
+
+const dailyDemandSetupSql = `
+      CREATE TABLE daily_demand (
+        demand_date DATE PRIMARY KEY,
+        units INTEGER NOT NULL
+      );
+      INSERT INTO daily_demand VALUES
+        (DATE '2026-05-01', 10),
+        (DATE '2026-05-02', 14),
+        (DATE '2026-05-03', 12),
+        (DATE '2026-05-04', 18),
+        (DATE '2026-05-05', 16),
+        (DATE '2026-05-06', 20),
+        (DATE '2026-05-07', 15),
+        (DATE '2026-05-08', 22);
+    `;
+
+const dailyDemandSchema = {
+      tables: [
+        {
+          name: "daily_demand",
+          description: "Günlük sevkiyat talep adetleri.",
+          columns: [
+            {
+              name: "demand_date",
+              dataType: "DATE",
+              nullable: false,
+              primaryKey: true,
+            },
+            { name: "units", dataType: "INTEGER", nullable: false },
+          ],
+        },
+      ],
+    };
+
+const dailyDemandSamples = [
+      {
+        tableName: "daily_demand",
+        rows: [
+          { demand_date: "2026-05-01", units: 10 },
+          { demand_date: "2026-05-02", units: 14 },
+          { demand_date: "2026-05-03", units: 12 },
+        ],
+      },
+    ];
+
+/**
+ * Köprü alıştırmaları — denetimin 24↔25 ve 26↔27 müdahale noktaları.
+ * Vaka 25 aynı anda ROW_NUMBER, RANK, DENSE_RANK ve PARTITION BY istiyor;
+ * vaka 27 ise hareketli ortalamayı açık pencere çerçevesiyle birlikte
+ * getiriyor. Bu alıştırmalar her yapıyı ihtiyaç duyulan vakadan önce
+ * tek başına çalıştırır.
+ */
+const analyticsBridgeDrills: LessonTask[] = [
+  createTask({
+    id: "m7-d1",
+    slug: "representative-revenue-row-number",
+    moduleId: "module-7",
+    title: "Satırları numaralandır",
+    subtitle: "Pencere fonksiyonunu bölümlendirmeden, tek listede tanı.",
+    scenario:
+      "Satış müdürü tüm temsilcileri tek bir ciro sıralamasında numaralı görmek istiyor.",
+    objective:
+      "representative_sales tablosundan rep_name ve revenue kolonlarını getir; ciroya göre azalan, eşitlikte isme göre artan bir sıra numarası üret ve row_no adıyla ekle. Sonucu sıra numarasına göre sırala.",
+    difficulty: "intermediate",
+    estimatedMinutes: 3,
+    type: "drill_intro",
+    scored: false,
+    routeOrder: 24.1,
+    conceptNew: "K34",
+    conceptsReinforced: ["K01", "K02", "K03"],
+    curriculumConcepts: ["K01", "K02", "K03", "K34"],
+    drillConcept:
+      "Pencere fonksiyonu satırları gruplayıp yok etmez; her satırı yerinde bırakıp yanına bir hesap ekler. ROW_NUMBER her satıra benzersiz bir sıra verir — eşit değerlerde bile.",
+    prerequisites: [],
+    concepts: ["SELECT", "ROW_NUMBER", "ALIAS", "ORDER_BY"],
+    setupSql: representativeSalesSetupSql,
+    schema: representativeSalesSchema,
+    sampleRows: representativeSalesSamples,
+    expectedColumns: ["rep_name", "revenue", "row_no"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["Ayla", "1200.00", 1],
+      ["Bora", "1200.00", 2],
+      ["Cem", "900.00", 3],
+      ["Derya", "800.00", 4],
+      ["Eren", "600.00", 5],
+      ["Figen", "600.00", 6],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["ROW_NUMBER", "ALIAS", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "GROUP BY kullanma; altı temsilcinin altısı da sonuçta kalmalı. Yanlarına yalnız bir sıra numarası eklenecek.",
+      "ROW_NUMBER() OVER (ORDER BY ...) her satıra sıra verir. Parantez içindeki ORDER BY numaranın hangi mantıkla dağıtılacağını söyler; sondaki ORDER BY ise ekrana çıkan satır sırasını belirler.",
+      "İskelet: SELECT [temsilci], [ciro], ROW_NUMBER() OVER (ORDER BY [ciro] DESC, [temsilci]) AS row_no FROM [temsilci tablosu] ORDER BY row_no;",
+    ],
+    explanation:
+      "ROW_NUMBER eşit ciroları bile ayırır: Ayla ve Bora aynı tutarda olsa da 1 ve 2 numarasını alır. Eşitliği korumak istediğinde farklı bir sıralama fonksiyonuna ihtiyacın olacak.",
+    completionMessage:
+      "Satır numarasını tek listede ürettin. Sıradaki alıştırma eşitlikleri koruyan sıralamayı ve bölümlendirmeyi gösterecek.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m7-d2",
+    slug: "representative-dense-rank-by-category",
+    moduleId: "module-7",
+    title: "Her kategoriyi kendi içinde sırala",
+    subtitle: "Bölümlendirme ve eşitliği koruyan sıralamayı birlikte kullan.",
+    scenario:
+      "Satış müdürü her kategoride kimin önde olduğunu, beraberlikleri gizlemeden görmek istiyor.",
+    objective:
+      "representative_sales tablosundan category, rep_name ve revenue kolonlarını getir; sıralamayı her kategori kendi içinde olacak biçimde kur, eşit cirolar aynı sırayı paylaşsın ve revenue_rank adını taşısın. Sonucu kategoriye, sonra sıraya, sonra isme göre sırala.",
+    difficulty: "intermediate",
+    estimatedMinutes: 3,
+    type: "drill_intro",
+    scored: false,
+    routeOrder: 24.2,
+    conceptNew: "K35",
+    conceptsReinforced: ["K01", "K02", "K03", "K34"],
+    curriculumConcepts: ["K01", "K02", "K03", "K34", "K35"],
+    drillConcept:
+      "PARTITION BY sıralamayı her grup içinde sıfırlar. DENSE_RANK ise eşit değerlere aynı sırayı verir ve sonraki sırayı atlamaz — ROW_NUMBER'ın aksine beraberliği görünür bırakır.",
+    prerequisites: [],
+    concepts: ["SELECT", "DENSE_RANK", "PARTITION_BY", "ALIAS", "ORDER_BY"],
+    setupSql: representativeSalesSetupSql,
+    schema: representativeSalesSchema,
+    sampleRows: representativeSalesSamples,
+    expectedColumns: ["category", "rep_name", "revenue", "revenue_rank"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["Enterprise", "Ayla", "1200.00", 1],
+      ["Enterprise", "Bora", "1200.00", 1],
+      ["Enterprise", "Cem", "900.00", 2],
+      ["SMB", "Derya", "800.00", 1],
+      ["SMB", "Eren", "600.00", 2],
+      ["SMB", "Figen", "600.00", 2],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["DENSE_RANK", "PARTITION_BY", "ALIAS", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "İki ayrı karar var: sıralama hangi grup içinde sıfırlanacak, ve eşit değerler aynı sırayı paylaşacak mı.",
+      "OVER (PARTITION BY [grup] ORDER BY [ölçüt] DESC) sıralamayı her grupta yeniden başlatır. Eşitliği korumak için ROW_NUMBER yerine DENSE_RANK kullan.",
+      "İskelet: SELECT [kategori], [temsilci], [ciro], DENSE_RANK() OVER (PARTITION BY [kategori] ORDER BY [ciro] DESC) AS revenue_rank FROM [temsilci tablosu] ORDER BY [kategori], revenue_rank, [temsilci];",
+    ],
+    explanation:
+      "Ayla ve Bora aynı ciroda olduğu için ikisi de 1. sıradadır; Cem 2. sıraya gelir, 3'e atlanmaz. DENSE_RANK ile RANK arasındaki fark tam olarak budur.",
+    completionMessage:
+      "Bölümlendirmeyi ve eşitliği koruyan sıralamayı ayrı ayrı gördün. Sıradaki vaka üçünü tek sorguda isteyecek.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m7-d3",
+    slug: "daily-demand-rolling-window-frame",
+    moduleId: "module-7",
+    title: "Pencerenin sınırını sen çiz",
+    subtitle: "Bilinen bir toplamı açık çerçeveyle kayan hâle getir.",
+    scenario:
+      "Talep planlamacısı günlük adetlerin son üç günlük toplamını takip ediyor.",
+    objective:
+      "daily_demand tablosundan demand_date ve units kolonlarını getir; her güne, o gün ve önceki iki günü kapsayan kayan bir toplam ekle ve rolling_3d_units adını ver. Sonucu tarihe göre artan sırala.",
+    difficulty: "intermediate",
+    estimatedMinutes: 3,
+    type: "drill_intro",
+    scored: false,
+    routeOrder: 26.1,
+    conceptNew: "K99-PENCERE_CERCEVESI",
+    conceptsReinforced: ["K01", "K02", "K03", "K15", "K36"],
+    curriculumConcepts: ["K01", "K02", "K03", "K15", "K36", "K99-PENCERE_CERCEVESI"],
+    drillConcept:
+      "Pencere fonksiyonu varsayılan olarak baştan o ana kadar bakar. ROWS BETWEEN ile bu görüş alanını sen daraltırsın: kaç satır geriye bakılacağını söylersin ve toplam kayan bir pencereye dönüşür.",
+    prerequisites: [],
+    concepts: ["SELECT", "SUM", "ALIAS", "ORDER_BY"],
+    setupSql: dailyDemandSetupSql,
+    schema: dailyDemandSchema,
+    sampleRows: dailyDemandSamples,
+    expectedColumns: ["demand_date", "units", "rolling_3d_units"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["2026-05-01", 10, 10],
+      ["2026-05-02", 14, 24],
+      ["2026-05-03", 12, 36],
+      ["2026-05-04", 18, 44],
+      ["2026-05-05", 16, 46],
+      ["2026-05-06", 20, 54],
+      ["2026-05-07", 15, 51],
+      ["2026-05-08", 22, 57],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["SUM", "ALIAS", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "İlk günlerde geriye üç gün yok; pencere o günlerde elindeki kadar satırı toplar. Bu beklenen davranıştır, hata değil.",
+      "SUM(...) OVER (ORDER BY [tarih] ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) yazdığında pencere o gün dahil üç satırı kapsar.",
+      "İskelet: SELECT [tarih], [adet], SUM([adet]) OVER (ORDER BY [tarih] ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS rolling_3d_units FROM [talep tablosu] ORDER BY [tarih];",
+    ],
+    explanation:
+      "Çerçeve olmadan pencere baştan itibaren biriktirir. ROWS BETWEEN 2 PRECEDING AND CURRENT ROW görüşü üç satırla sınırlar; hareketli ortalama da tam olarak bu çerçevenin üzerine kurulur.",
+    completionMessage:
+      "Pencerenin sınırını kendin çizdin. Sıradaki vaka aynı çerçeveyi ortalamaya taşıyacak.",
+    nextTaskId: null,
+  }),
+];
+
 const analyticsFoundationTasks: LessonTask[] = [
   createTask({
     id: "m7-t2",
@@ -3736,60 +4167,9 @@ const analyticsFoundationTasks: LessonTask[] = [
       "ORDER_BY",
       "ALIAS",
     ],
-    setupSql: `
-      CREATE TABLE representative_sales (
-        rep_id INTEGER PRIMARY KEY,
-        category TEXT NOT NULL,
-        rep_name TEXT NOT NULL,
-        revenue NUMERIC(10, 2) NOT NULL
-      );
-      INSERT INTO representative_sales VALUES
-        (1, 'Enterprise', 'Ayla', 1200.00),
-        (2, 'Enterprise', 'Bora', 1200.00),
-        (3, 'Enterprise', 'Cem', 900.00),
-        (4, 'SMB', 'Derya', 800.00),
-        (5, 'SMB', 'Eren', 600.00),
-        (6, 'SMB', 'Figen', 600.00);
-    `,
-    schema: {
-      tables: [
-        {
-          name: "representative_sales",
-          description: "Kategori bazında temsilci gelir sonuçları.",
-          columns: [
-            {
-              name: "rep_id",
-              dataType: "INTEGER",
-              nullable: false,
-              primaryKey: true,
-            },
-            { name: "category", dataType: "TEXT", nullable: false },
-            { name: "rep_name", dataType: "TEXT", nullable: false },
-            { name: "revenue", dataType: "NUMERIC(10,2)", nullable: false },
-          ],
-        },
-      ],
-    },
-    sampleRows: [
-      {
-        tableName: "representative_sales",
-        rows: [
-          {
-            rep_id: 1,
-            category: "Enterprise",
-            rep_name: "Ayla",
-            revenue: 1200,
-          },
-          {
-            rep_id: 2,
-            category: "Enterprise",
-            rep_name: "Bora",
-            revenue: 1200,
-          },
-          { rep_id: 5, category: "SMB", rep_name: "Eren", revenue: 600 },
-        ],
-      },
-    ],
+    setupSql: representativeSalesSetupSql,
+    schema: representativeSalesSchema,
+    sampleRows: representativeSalesSamples,
     expectedColumns: [
       "category",
       "rep_name",
@@ -3921,48 +4301,9 @@ const analyticsFoundationTasks: LessonTask[] = [
     estimatedMinutes: 15,
     prerequisites: ["m7-t3"],
     concepts: ["AVG", "MOVING_AVERAGE", "ORDER_BY", "ALIAS"],
-    setupSql: `
-      CREATE TABLE daily_demand (
-        demand_date DATE PRIMARY KEY,
-        units INTEGER NOT NULL
-      );
-      INSERT INTO daily_demand VALUES
-        (DATE '2026-05-01', 10),
-        (DATE '2026-05-02', 14),
-        (DATE '2026-05-03', 12),
-        (DATE '2026-05-04', 18),
-        (DATE '2026-05-05', 16),
-        (DATE '2026-05-06', 20),
-        (DATE '2026-05-07', 15),
-        (DATE '2026-05-08', 22);
-    `,
-    schema: {
-      tables: [
-        {
-          name: "daily_demand",
-          description: "Günlük sevkiyat talep adetleri.",
-          columns: [
-            {
-              name: "demand_date",
-              dataType: "DATE",
-              nullable: false,
-              primaryKey: true,
-            },
-            { name: "units", dataType: "INTEGER", nullable: false },
-          ],
-        },
-      ],
-    },
-    sampleRows: [
-      {
-        tableName: "daily_demand",
-        rows: [
-          { demand_date: "2026-05-01", units: 10 },
-          { demand_date: "2026-05-02", units: 14 },
-          { demand_date: "2026-05-03", units: 12 },
-        ],
-      },
-    ],
+    setupSql: dailyDemandSetupSql,
+    schema: dailyDemandSchema,
+    sampleRows: dailyDemandSamples,
     expectedColumns: ["demand_date", "units", "moving_avg_7d"],
     validationMode: "result-and-concepts",
     expectedResult: [
@@ -4665,7 +5006,11 @@ const authoredCurriculum: CurriculumModule[] = [
     description:
       "Scalar ve ilişkili alt sorguları, IN ve EXISTS kontrollerini, CTE ve recursive CTE yapılarını keşfet.",
     difficulty: "intermediate",
-    estimatedMinutes: 64,
+    estimatedMinutes: [
+      ...subqueryFoundationTasks,
+      cteTask,
+      ...subqueryBridgeDrills,
+    ].reduce((total, task) => total + task.estimatedMinutes, 0),
     topics: [
       "Scalar subquery",
       "IN subquery",
@@ -4675,7 +5020,7 @@ const authoredCurriculum: CurriculumModule[] = [
       "Recursive CTE",
     ],
     prerequisites: ["module-5"],
-    tasks: [...subqueryFoundationTasks, cteTask],
+    tasks: [...subqueryFoundationTasks, cteTask, ...subqueryBridgeDrills],
   }),
   defineModule({
     id: "module-7",
@@ -4686,7 +5031,11 @@ const authoredCurriculum: CurriculumModule[] = [
     description:
       "Window function ailesiyle kategori sıralaması, önceki dönem karşılaştırması, running total ve hareketli ortalama üret.",
     difficulty: "advanced",
-    estimatedMinutes: 66,
+    estimatedMinutes: [
+      ...analyticsFoundationTasks,
+      analyticsTask,
+      ...analyticsBridgeDrills,
+    ].reduce((total, task) => total + task.estimatedMinutes, 0),
     topics: [
       "ROW_NUMBER, RANK ve DENSE_RANK",
       "LAG ile önceki dönem",
@@ -4697,7 +5046,7 @@ const authoredCurriculum: CurriculumModule[] = [
       "Eşitlik ve deterministik sıra",
     ],
     prerequisites: ["module-6"],
-    tasks: [...analyticsFoundationTasks, analyticsTask],
+    tasks: [...analyticsFoundationTasks, analyticsTask, ...analyticsBridgeDrills],
   }),
   defineModule({
     id: "module-8",
@@ -4988,6 +5337,23 @@ export const assertCurriculumIsValid = (
 
     taskIds.add(task.id);
     taskSlugs.add(task.slug);
+  }
+
+  /*
+   * Zorunlu kavram, değerlendirici tarafından gerçekten tespit edilebilmelidir.
+   * SQLConcept birliğinde olup alias haritasında karşılığı bulunmayan bir kod
+   * (örneğin PRIMARY_KEY) "eksik kavram" olarak okunur ve vaka doğru çözülse
+   * bile asla tamamlanamaz. Bu kapı, o sessiz kilidi yazım anında yakalar.
+   */
+  for (const task of authoredTasks) {
+    for (const concept of task.requiredConcepts) {
+      if (!normalizeConceptName(concept)) {
+        throw new Error(
+          `${task.id} zorunlu kavramı "${concept}" değerlendirici tarafından tespit edilemiyor; ` +
+            "bu vaka doğru çözülse bile tamamlanamaz.",
+        );
+      }
+    }
   }
 
   for (const task of authoredTasks) {

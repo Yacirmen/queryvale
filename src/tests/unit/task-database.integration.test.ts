@@ -379,7 +379,9 @@ describe("PGlite task database integration", () => {
   it("executes every foundation drill on the exact fixture of its following case", async () => {
     const drills = tasks.filter(isDrillTask);
 
-    expect(drills).toHaveLength(30);
+    // Bu testin işi sayı saymak değil, her alıştırmanın gerçek motorda
+    // çalıştığını kanıtlamak. Alt sınır yalnız sessiz kayba karşı durur.
+    expect(drills.length).toBeGreaterThanOrEqual(30);
 
     for (const drill of drills) {
       const drillIndex = tasks.findIndex((task) => task.id === drill.id);

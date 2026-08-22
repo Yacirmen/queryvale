@@ -60,9 +60,9 @@ describe("task learning content", () => {
     const drills = tasks.filter(isDrillTask);
 
     // The implementation derives the exact number from the coverage gaps;
-    // this guards the intended 24–30 bridge range without fossilizing 59.
-    expect(drills.length).toBeGreaterThanOrEqual(24);
-    expect(drills.length).toBeLessThanOrEqual(30);
+    // this guards the intended 30–41 bridge range without fossilizing a total.
+    expect(drills.length).toBeGreaterThanOrEqual(30);
+    expect(drills.length).toBeLessThanOrEqual(41);
     expect(new Set(drills.map((drill) => drill.type))).toEqual(
       new Set(DRILL_TYPES),
     );

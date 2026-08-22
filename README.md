@@ -38,7 +38,9 @@ Queryvale, komut ezberleten bir kurs değil; gerçek iş sorularını SQL ve Pyt
 - İki stüdyoda da sonucu örtmeden kalan kalıcı aksiyon rail'i; önceki/sonraki vaka, rota özeti ve klavye kısayolları
 - Akış içinde yukarı açılan, kendi içinde kaydırılan ve bütün çalışmaları erişilebilir tutan rota çekmecesi: SQL'de 11 modül/82 çalışma (52 vaka-proje + 30 alıştırma), Python'da 4 modül/12 vaka
 - Yazarken otomatik kaydedilen SQL taslakları; `⌘/Ctrl+S` ile anında kayıt
-- Açık/koyu tema, editör tercihleri ve reduced-motion desteği
+- Açık varsayılan tema ve tam destekli koyu tema, editör tercihleri, reduced-motion desteği
+- Mürekkep laciverti yüzey dili: tek accent, gradient ve renkli glow yok, derinlik yüzey katmanlarıyla
+- Üç kayıtlı tipografi: başlıklarda Source Serif 4, gövdede IBM Plex Sans, kod ve etiketlerde JetBrains Mono — hepsi aynı origin'den, CDN çağrısı olmadan
 - Dışa/içe aktarılabilir ilerleme verisi
 - Masaüstü öncelikli; her iki Studio'da belgeyi değil yalnız ilgili paneli kaydıran tek-viewport çalışma alanı ve mobilde dört sekmeli responsive deneyim
 - Python Studio’da mobil `Vaka | Veri | Python | Sonuç` akışı, otomatik taslak kaydı ve `⌘/Ctrl+Enter` çalıştırma
