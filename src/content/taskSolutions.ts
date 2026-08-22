@@ -409,6 +409,45 @@ export const TASK_SOLUTIONS: Readonly<Record<string, string>> = {
     WHERE batch_id = 'B-77' AND status = 'draft'
     ORDER BY import_row_id;
   `),
+  "m9-d1": sql(`
+    SELECT sale_key, product_key, quantity
+    FROM fact_sales
+    WHERE product_key IN (
+      SELECT product_key
+      FROM dim_product
+      WHERE category = 'Technology'
+    )
+    ORDER BY sale_key;
+  `),
+  "m9-d2": sql(`
+    SELECT DISTINCT customer_id, customer_name
+    FROM dim_customer
+    ORDER BY customer_id;
+  `),
+  "m9-d3": sql(`
+    SELECT customer_id, MAX(valid_from) AS latest_version_start
+    FROM dim_customer
+    GROUP BY customer_id
+    ORDER BY customer_id;
+  `),
+  "m10-d1": sql(`
+    SELECT b.branch_name, SUM(s.amount) AS actual_amount
+    FROM branches b
+    LEFT JOIN branch_sales s
+      ON s.branch_id = b.branch_id
+     AND s.sale_month = '2026-05'
+    GROUP BY b.branch_name
+    ORDER BY b.branch_name;
+  `),
+  "m10-d2": sql(`
+    SELECT b.branch_name, COALESCE(SUM(s.amount), 0) AS actual_amount
+    FROM branches b
+    LEFT JOIN branch_sales s
+      ON s.branch_id = b.branch_id
+     AND s.sale_month = '2026-05'
+    GROUP BY b.branch_name
+    ORDER BY b.branch_name;
+  `),
   "m8-d4": sql(`
     DELETE FROM import_rows
     WHERE batch_id = 'B-79' AND status = 'rejected'

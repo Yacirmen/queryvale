@@ -11,6 +11,7 @@ import { createTask, READ_ONLY_FORBIDDEN } from "./curriculumTaskFactory";
 import {
   module8BridgeDrills,
   module8ExpansionTasks,
+  module9BridgeDrills,
   module9ExpansionTasks,
   module10ExpansionTasks,
 } from "./advancedExpansionTasks";
@@ -4714,28 +4715,7 @@ const mutationTask = createTask({
   nextTaskId: "m8-t2",
 });
 
-const modelingTask = createTask({
-  id: "m9-t1",
-  slug: "star-schema-revenue",
-  moduleId: "module-9",
-  title: "Yıldız şemadan aylık gelir üret",
-  subtitle: "Fact ve dimension tablolarını analitik çıktıda buluştur.",
-  scenario:
-    "BI ekibi, ürün kategorisi ve ay boyutlarında gelir üreten ilk veri martı sorgusunu doğruluyor.",
-  objective:
-    "fact_sales tablosunu dim_product ve dim_date ile birleştir. month_label ve category bazında quantity * unit_price toplamını revenue adıyla getir; ay ve kategoriye göre artan sırala.",
-  difficulty: "advanced",
-  estimatedMinutes: 20,
-  prerequisites: ["m8-t4"],
-  concepts: [
-    "STAR_SCHEMA",
-    "INNER_JOIN",
-    "MULTI_JOIN",
-    "GROUP_BY",
-    "SUM",
-    "ORDER_BY",
-  ],
-  setupSql: `
+const starSchemaSetupSql = `
     CREATE TABLE dim_product (
       product_key INTEGER PRIMARY KEY,
       product_name TEXT NOT NULL,
@@ -4763,110 +4743,252 @@ const modelingTask = createTask({
       (902, 11, 1, 1, 300.00),
       (903, 10, 2, 3, 100.00),
       (904, 11, 2, 2, 300.00);
-  `,
-  schema: {
-    tables: [
-      {
-        name: "dim_product",
-        description: "Ürün niteliklerini tutan boyut tablosu.",
-        columns: [
-          {
-            name: "product_key",
-            dataType: "INTEGER",
-            nullable: false,
-            primaryKey: true,
-          },
-          { name: "product_name", dataType: "TEXT", nullable: false },
-          { name: "category", dataType: "TEXT", nullable: false },
-        ],
-      },
-      {
-        name: "dim_date",
-        description: "Raporlama dönemlerini tutan tarih boyutu.",
-        columns: [
-          {
-            name: "date_key",
-            dataType: "INTEGER",
-            nullable: false,
-            primaryKey: true,
-          },
-          { name: "month_label", dataType: "TEXT", nullable: false },
-        ],
-      },
-      {
-        name: "fact_sales",
-        description: "Boyut anahtarları ve ölçüleri içeren satış fact tablosu.",
-        columns: [
-          {
-            name: "sale_key",
-            dataType: "INTEGER",
-            nullable: false,
-            primaryKey: true,
-          },
-          {
-            name: "product_key",
-            dataType: "INTEGER",
-            nullable: false,
-            references: { table: "dim_product", column: "product_key" },
-          },
-          {
-            name: "date_key",
-            dataType: "INTEGER",
-            nullable: false,
-            references: { table: "dim_date", column: "date_key" },
-          },
-          { name: "quantity", dataType: "INTEGER", nullable: false },
-          { name: "unit_price", dataType: "NUMERIC(10,2)", nullable: false },
-        ],
-      },
-    ],
-    relationships: [
-      {
-        fromTable: "fact_sales",
-        fromColumn: "product_key",
-        toTable: "dim_product",
-        toColumn: "product_key",
-      },
-      {
-        fromTable: "fact_sales",
-        fromColumn: "date_key",
-        toTable: "dim_date",
-        toColumn: "date_key",
-      },
-    ],
-  },
-  sampleRows: [
+  `;
+
+const starSchemaSchema = {
+  tables: [
     {
-      tableName: "dim_product",
-      rows: [
+      name: "dim_product",
+      description: "Ürün niteliklerini tutan boyut tablosu.",
+      columns: [
         {
-          product_key: 10,
-          product_name: "Office Chair",
-          category: "Furniture",
+          name: "product_key",
+          dataType: "INTEGER",
+          nullable: false,
+          primaryKey: true,
         },
-        { product_key: 11, product_name: "Monitor", category: "Technology" },
+        { name: "product_name", dataType: "TEXT", nullable: false },
+        { name: "category", dataType: "TEXT", nullable: false },
       ],
     },
     {
-      tableName: "fact_sales",
-      rows: [
+      name: "dim_date",
+      description: "Raporlama dönemlerini tutan tarih boyutu.",
+      columns: [
         {
-          sale_key: 901,
-          product_key: 10,
-          date_key: 1,
-          quantity: 2,
-          unit_price: 100,
+          name: "date_key",
+          dataType: "INTEGER",
+          nullable: false,
+          primaryKey: true,
+        },
+        { name: "month_label", dataType: "TEXT", nullable: false },
+      ],
+    },
+    {
+      name: "fact_sales",
+      description: "Boyut anahtarları ve ölçüleri içeren satış fact tablosu.",
+      columns: [
+        {
+          name: "sale_key",
+          dataType: "INTEGER",
+          nullable: false,
+          primaryKey: true,
         },
         {
-          sale_key: 902,
-          product_key: 11,
-          date_key: 1,
-          quantity: 1,
-          unit_price: 300,
+          name: "product_key",
+          dataType: "INTEGER",
+          nullable: false,
+          references: { table: "dim_product", column: "product_key" },
         },
+        {
+          name: "date_key",
+          dataType: "INTEGER",
+          nullable: false,
+          references: { table: "dim_date", column: "date_key" },
+        },
+        { name: "quantity", dataType: "INTEGER", nullable: false },
+        { name: "unit_price", dataType: "NUMERIC(10,2)", nullable: false },
       ],
     },
   ],
+  relationships: [
+    {
+      fromTable: "fact_sales",
+      fromColumn: "product_key",
+      toTable: "dim_product",
+      toColumn: "product_key",
+    },
+    {
+      fromTable: "fact_sales",
+      fromColumn: "date_key",
+      toTable: "dim_date",
+      toColumn: "date_key",
+    },
+  ],
+};
+
+const starSchemaSamples = [
+  {
+    tableName: "dim_product",
+    rows: [
+      {
+        product_key: 10,
+        product_name: "Office Chair",
+        category: "Furniture",
+      },
+      { product_key: 11, product_name: "Monitor", category: "Technology" },
+    ],
+  },
+  {
+    tableName: "fact_sales",
+    rows: [
+      {
+        sale_key: 901,
+        product_key: 10,
+        date_key: 1,
+        quantity: 2,
+        unit_price: 100,
+      },
+      {
+        sale_key: 902,
+        product_key: 11,
+        date_key: 1,
+        quantity: 1,
+        unit_price: 300,
+      },
+    ],
+  },
+];
+
+const branchTargetSetupSql = `
+    CREATE TABLE branches (
+      branch_id INTEGER PRIMARY KEY,
+      branch_name TEXT NOT NULL
+    );
+    CREATE TABLE monthly_targets (
+      branch_id INTEGER NOT NULL REFERENCES branches(branch_id),
+      target_month TEXT NOT NULL,
+      target_amount NUMERIC(12, 2) NOT NULL,
+      PRIMARY KEY (branch_id, target_month)
+    );
+    CREATE TABLE branch_sales (
+      sale_id INTEGER PRIMARY KEY,
+      branch_id INTEGER NOT NULL REFERENCES branches(branch_id),
+      sale_month TEXT NOT NULL,
+      amount NUMERIC(12, 2) NOT NULL
+    );
+    INSERT INTO branches VALUES
+      (1, 'Istanbul Hub'),
+      (2, 'Ankara Hub'),
+      (3, 'Izmir Hub');
+    INSERT INTO monthly_targets VALUES
+      (1, '2026-05', 10000.00),
+      (2, '2026-05', 8000.00),
+      (3, '2026-05', 6000.00);
+    INSERT INTO branch_sales VALUES
+      (1001, 1, '2026-05', 4000.00),
+      (1002, 1, '2026-05', 5500.00),
+      (1003, 2, '2026-05', 8200.00),
+      (1004, 3, '2026-04', 5000.00);
+  `;
+
+const branchTargetSchema = {
+  tables: [
+    {
+      name: "branches",
+      description: "Şube ana verisi.",
+      columns: [
+        {
+          name: "branch_id",
+          dataType: "INTEGER",
+          nullable: false,
+          primaryKey: true,
+        },
+        { name: "branch_name", dataType: "TEXT", nullable: false },
+      ],
+    },
+    {
+      name: "monthly_targets",
+      description: "Şube ve ay bazında satış hedefleri.",
+      columns: [
+        {
+          name: "branch_id",
+          dataType: "INTEGER",
+          nullable: false,
+          references: { table: "branches", column: "branch_id" },
+        },
+        { name: "target_month", dataType: "TEXT", nullable: false },
+        { name: "target_amount", dataType: "NUMERIC(12,2)", nullable: false },
+      ],
+    },
+    {
+      name: "branch_sales",
+      description: "Şubelerin ay içindeki satış hareketleri.",
+      columns: [
+        {
+          name: "sale_id",
+          dataType: "INTEGER",
+          nullable: false,
+          primaryKey: true,
+        },
+        {
+          name: "branch_id",
+          dataType: "INTEGER",
+          nullable: false,
+          references: { table: "branches", column: "branch_id" },
+        },
+        { name: "sale_month", dataType: "TEXT", nullable: false },
+        { name: "amount", dataType: "NUMERIC(12,2)", nullable: false },
+      ],
+    },
+  ],
+  relationships: [
+    {
+      fromTable: "monthly_targets",
+      fromColumn: "branch_id",
+      toTable: "branches",
+      toColumn: "branch_id",
+    },
+    {
+      fromTable: "branch_sales",
+      fromColumn: "branch_id",
+      toTable: "branches",
+      toColumn: "branch_id",
+    },
+  ],
+};
+
+const branchTargetSamples = [
+  {
+    tableName: "monthly_targets",
+    rows: [
+      { branch_id: 1, target_month: "2026-05", target_amount: 10000 },
+      { branch_id: 2, target_month: "2026-05", target_amount: 8000 },
+    ],
+  },
+  {
+    tableName: "branch_sales",
+    rows: [
+      { sale_id: 1001, branch_id: 1, sale_month: "2026-05", amount: 4000 },
+      { sale_id: 1003, branch_id: 2, sale_month: "2026-05", amount: 8200 },
+    ],
+  },
+];
+
+const modelingTask = createTask({
+  id: "m9-t1",
+  slug: "star-schema-revenue",
+  moduleId: "module-9",
+  title: "Yıldız şemadan aylık gelir üret",
+  subtitle: "Fact ve dimension tablolarını analitik çıktıda buluştur.",
+  scenario:
+    "BI ekibi, ürün kategorisi ve ay boyutlarında gelir üreten ilk veri martı sorgusunu doğruluyor.",
+  objective:
+    "fact_sales tablosunu dim_product ve dim_date ile birleştir. month_label ve category bazında quantity * unit_price toplamını revenue adıyla getir; ay ve kategoriye göre artan sırala.",
+  difficulty: "advanced",
+  estimatedMinutes: 20,
+  prerequisites: ["m8-t4"],
+  concepts: [
+    "STAR_SCHEMA",
+    "INNER_JOIN",
+    "MULTI_JOIN",
+    "GROUP_BY",
+    "SUM",
+    "ORDER_BY",
+  ],
+  setupSql: starSchemaSetupSql,
+  schema: starSchemaSchema,
+  sampleRows: starSchemaSamples,
   expectedColumns: ["month_label", "category", "revenue"],
   validationMode: "result-and-concepts",
   expectedResult: [
@@ -4919,118 +5041,9 @@ const capstoneTask = createTask({
     "ARITHMETIC",
     "ORDER_BY",
   ],
-  setupSql: `
-    CREATE TABLE branches (
-      branch_id INTEGER PRIMARY KEY,
-      branch_name TEXT NOT NULL
-    );
-    CREATE TABLE monthly_targets (
-      branch_id INTEGER NOT NULL REFERENCES branches(branch_id),
-      target_month TEXT NOT NULL,
-      target_amount NUMERIC(12, 2) NOT NULL,
-      PRIMARY KEY (branch_id, target_month)
-    );
-    CREATE TABLE branch_sales (
-      sale_id INTEGER PRIMARY KEY,
-      branch_id INTEGER NOT NULL REFERENCES branches(branch_id),
-      sale_month TEXT NOT NULL,
-      amount NUMERIC(12, 2) NOT NULL
-    );
-    INSERT INTO branches VALUES
-      (1, 'Istanbul Hub'),
-      (2, 'Ankara Hub'),
-      (3, 'Izmir Hub');
-    INSERT INTO monthly_targets VALUES
-      (1, '2026-05', 10000.00),
-      (2, '2026-05', 8000.00),
-      (3, '2026-05', 6000.00);
-    INSERT INTO branch_sales VALUES
-      (1001, 1, '2026-05', 4000.00),
-      (1002, 1, '2026-05', 5500.00),
-      (1003, 2, '2026-05', 8200.00),
-      (1004, 3, '2026-04', 5000.00);
-  `,
-  schema: {
-    tables: [
-      {
-        name: "branches",
-        description: "Şube ana verisi.",
-        columns: [
-          {
-            name: "branch_id",
-            dataType: "INTEGER",
-            nullable: false,
-            primaryKey: true,
-          },
-          { name: "branch_name", dataType: "TEXT", nullable: false },
-        ],
-      },
-      {
-        name: "monthly_targets",
-        description: "Şube ve ay bazında satış hedefleri.",
-        columns: [
-          {
-            name: "branch_id",
-            dataType: "INTEGER",
-            nullable: false,
-            references: { table: "branches", column: "branch_id" },
-          },
-          { name: "target_month", dataType: "TEXT", nullable: false },
-          { name: "target_amount", dataType: "NUMERIC(12,2)", nullable: false },
-        ],
-      },
-      {
-        name: "branch_sales",
-        description: "Şubelerin ay içindeki satış hareketleri.",
-        columns: [
-          {
-            name: "sale_id",
-            dataType: "INTEGER",
-            nullable: false,
-            primaryKey: true,
-          },
-          {
-            name: "branch_id",
-            dataType: "INTEGER",
-            nullable: false,
-            references: { table: "branches", column: "branch_id" },
-          },
-          { name: "sale_month", dataType: "TEXT", nullable: false },
-          { name: "amount", dataType: "NUMERIC(12,2)", nullable: false },
-        ],
-      },
-    ],
-    relationships: [
-      {
-        fromTable: "monthly_targets",
-        fromColumn: "branch_id",
-        toTable: "branches",
-        toColumn: "branch_id",
-      },
-      {
-        fromTable: "branch_sales",
-        fromColumn: "branch_id",
-        toTable: "branches",
-        toColumn: "branch_id",
-      },
-    ],
-  },
-  sampleRows: [
-    {
-      tableName: "monthly_targets",
-      rows: [
-        { branch_id: 1, target_month: "2026-05", target_amount: 10000 },
-        { branch_id: 2, target_month: "2026-05", target_amount: 8000 },
-      ],
-    },
-    {
-      tableName: "branch_sales",
-      rows: [
-        { sale_id: 1001, branch_id: 1, sale_month: "2026-05", amount: 4000 },
-        { sale_id: 1003, branch_id: 2, sale_month: "2026-05", amount: 8200 },
-      ],
-    },
-  ],
+  setupSql: branchTargetSetupSql,
+  schema: branchTargetSchema,
+  sampleRows: branchTargetSamples,
   expectedColumns: [
     "branch_name",
     "target_amount",
@@ -5066,6 +5079,160 @@ const capstoneTask = createTask({
     "Yönetici raporu yayına hazır. SQL yapı taşlarını uçtan uca bir iş kararına dönüştürdün.",
   nextTaskId: "m10-t2",
 });
+
+/**
+ * Modül 9 ve 10 vakaları arka arkaya beş ağır teslim içeriyordu; aralarında
+ * tek bir alıştırma yoktu. Bu köprüler o boşluğa giriyor ve ilk yarıda
+ * öğrenilip sonra rotadan kaybolan kavramları ağır vakanın hemen önünde
+ * yeniden dolaşıma sokuyor.
+ */
+const starSchemaBridgeDrills: LessonTask[] = [
+  createTask({
+    id: "m9-d1",
+    slug: "fact-rows-of-one-category",
+    moduleId: "module-9",
+    title: "Boyuttan gelen listeyle süz",
+    subtitle: "IN'i uzun bir aradan sonra fact tablosunda tekrar kullan.",
+    scenario:
+      "BI ekibi teknoloji kategorisinin fact satırlarını, henüz JOIN kurmadan ayırmak istiyor.",
+    objective:
+      "fact_sales tablosundan yalnız Technology kategorisindeki ürünlere ait satırların sale_key, product_key ve quantity kolonlarını sale_key artan sırada getir. Kategori bilgisini dim_product tablosundan bir alt sorgu ile al.",
+    difficulty: "advanced",
+    estimatedMinutes: 3,
+    type: "drill_practice",
+    scored: false,
+    routeOrder: 32.1,
+    conceptsReinforced: ["K01", "K03", "K05", "K10", "K31"],
+    curriculumConcepts: ["K01", "K03", "K05", "K10", "K31"],
+    drillConcept:
+      "Bir fact satırı kategoriyi taşımaz, yalnız boyut anahtarını taşır. IN ile bir alt sorgunun döndürdüğü anahtar listesine bakmak, JOIN kurmadan önce fact ve dimension arasındaki bağı görmenin en kısa yoludur.",
+    prerequisites: [],
+    concepts: ["SELECT", "WHERE", "IN", "SUBQUERY", "ORDER_BY"],
+    setupSql: starSchemaSetupSql,
+    schema: starSchemaSchema,
+    sampleRows: starSchemaSamples,
+    expectedColumns: ["sale_key", "product_key", "quantity"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      [902, 11, 1],
+      [904, 11, 2],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["IN", "SUBQUERY", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "fact_sales tablosunda kategori kolonu yok. Önce hangi product_key değerlerinin Technology olduğunu bul, sonra fact satırlarını o listeye göre süz.",
+      "Alt sorgu tek kolon döndürdüğünde WHERE ... IN (SELECT ...) yazabilirsin. Alt sorgu dim_product tablosundan yalnız anahtarı seçmeli.",
+      "İskelet: SELECT [ölçü kolonları] FROM fact_sales WHERE product_key IN (SELECT product_key FROM dim_product WHERE category = '[kategori]') ORDER BY sale_key;",
+    ],
+    explanation:
+      "İki satır döner; ikisi de Monitor ürününe ait. Sıradaki vaka aynı bağı IN yerine JOIN ile kuracak, çünkü orada boyuttan yalnız filtre değil rapor etiketi de gerekiyor.",
+    completionMessage:
+      "Fact ile dimension arasındaki bağı önce filtre olarak gördün. Sıradaki vaka aynı bağı iki boyutla birden kuracak.",
+    nextTaskId: null,
+  }),
+];
+
+const branchTargetBridgeDrills: LessonTask[] = [
+  createTask({
+    id: "m10-d1",
+    slug: "branch-actuals-with-null-gap",
+    moduleId: "module-10",
+    title: "Satışsız şube kaybolmasın",
+    subtitle: "Dönem filtresini WHERE'e değil ON'a koy.",
+    scenario:
+      "Genel müdür Mayıs raporunda hiç satış yapmayan şubenin de satırda görünmesini istiyor.",
+    objective:
+      "branches tablosundaki her şube için 2026-05 dönemine ait satış toplamını actual_amount adıyla getir. Dönem koşulunu birleşim koşulunun içine koy ki satışsız şube de listede kalsın. Sonucu branch_name artan sırada sırala.",
+    difficulty: "advanced",
+    estimatedMinutes: 3,
+    type: "drill_practice",
+    scored: false,
+    routeOrder: 36.1,
+    conceptsReinforced: ["K01", "K02", "K03", "K15", "K16", "K22"],
+    curriculumConcepts: ["K01", "K02", "K03", "K15", "K16", "K22"],
+    drillConcept:
+      "LEFT JOIN'de dönem filtresinin yeri sonucu değiştirir. ON içinde yazarsan eşleşmeyen şube NULL ölçüyle kalır; WHERE içinde yazarsan o NULL satır elenir ve LEFT JOIN sessizce INNER JOIN'e döner.",
+    prerequisites: [],
+    concepts: ["SELECT", "LEFT_JOIN", "SUM", "GROUP_BY", "ALIAS", "ORDER_BY"],
+    setupSql: branchTargetSetupSql,
+    schema: branchTargetSchema,
+    sampleRows: branchTargetSamples,
+    expectedColumns: ["branch_name", "actual_amount"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["Ankara Hub", 8200],
+      ["Istanbul Hub", 9500],
+      ["Izmir Hub", null],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["LEFT_JOIN", "SUM", "GROUP_BY", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "Izmir Hub'ın Mayıs satışı yok, Nisan satışı var. Üç şube de sonuçta görünmeli ve Izmir'in tutarı boş kalmalı.",
+      "Dönem koşulunu WHERE'e taşırsan Izmir satırı düşer. Koşulu LEFT JOIN'in ON bloğuna ekle.",
+      "İskelet: SELECT b.branch_name, SUM(s.amount) AS actual_amount FROM branches b LEFT JOIN branch_sales s ON s.branch_id = b.branch_id AND s.[dönem kolonu] = '[dönem]' GROUP BY b.branch_name ORDER BY b.branch_name;",
+    ],
+    explanation:
+      "Izmir Hub boş tutarla listede kalır. Bu NULL bir hata değil, raporun sana söylediği gerçek: o şubenin o ay satışı yok. Sıradaki alıştırma bu boşluğu okunur bir sıfıra çevirecek.",
+    completionMessage:
+      "Kapsamı korudun. Boş tutarın raporda nasıl görüneceğine sıradaki alıştırmada karar vereceksin.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m10-d2",
+    slug: "branch-actuals-zero-filled",
+    moduleId: "module-10",
+    title: "Boşluğu sıfıra çevir",
+    subtitle: "NULL ölçüyü rapora uygun bir değere indir.",
+    scenario:
+      "Rapor yöneticiye gidiyor; boş hücre yerine sıfır görmek istiyorlar.",
+    objective:
+      "Bir önceki sorguyu koru ama satışı olmayan şubenin actual_amount değeri boş yerine 0 olsun. Sonucu yine branch_name artan sırada getir.",
+    difficulty: "advanced",
+    estimatedMinutes: 5,
+    type: "drill_mix",
+    scored: false,
+    routeOrder: 36.2,
+    conceptsReinforced: ["K01", "K02", "K03", "K15", "K16", "K22", "K27"],
+    curriculumConcepts: ["K01", "K02", "K03", "K15", "K16", "K22", "K27"],
+    drillConcept:
+      "COALESCE ilk boş olmayan değeri seçer. Kapsamı LEFT JOIN korur, okunabilirliği COALESCE sağlar; ikisi ayrı karardır ve sırayla verilir.",
+    prerequisites: [],
+    concepts: [
+      "SELECT",
+      "LEFT_JOIN",
+      "SUM",
+      "COALESCE",
+      "GROUP_BY",
+      "ALIAS",
+      "ORDER_BY",
+    ],
+    setupSql: branchTargetSetupSql,
+    schema: branchTargetSchema,
+    sampleRows: branchTargetSamples,
+    expectedColumns: ["branch_name", "actual_amount"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["Ankara Hub", 8200],
+      ["Istanbul Hub", 9500],
+      ["Izmir Hub", 0],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["LEFT_JOIN", "COALESCE", "SUM", "GROUP_BY", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "Yalnız görünen değer değişecek; üç şube de listede kalmalı ve dönem koşulu hâlâ ON içinde durmalı.",
+      "COALESCE(toplam, 0) boş toplamı sıfıra indirir. Sarmalamayı SUM'ın dışında yap.",
+      "İskelet: SELECT b.branch_name, COALESCE(SUM(s.amount), 0) AS actual_amount FROM branches b LEFT JOIN branch_sales s ON ... GROUP BY b.branch_name ORDER BY b.branch_name;",
+    ],
+    explanation:
+      "Sıfır ile boş aynı şey değildir: sıfır ölçüldü ve satış yoktu demektir, boş ise ölçülmedi demektir. Raporda hangisini gösterdiğini bilerek seçmelisin. Sıradaki vaka bu sıfırı hedefle karşılaştırıp oran ve etiket üretecek.",
+    completionMessage:
+      "Kapsam ve okunabilirlik kararlarını ayrı ayrı verdin. Vaka artık yalnız oran ve etiket katmanını isteyecek.",
+    nextTaskId: null,
+  }),
+];
 
 const authoredCurriculum: CurriculumModule[] = [
   defineModule({
@@ -5270,7 +5437,12 @@ const authoredCurriculum: CurriculumModule[] = [
     description:
       "Yıldız şema raporu, SCD Type 2 güncelliği, yetim fact denetimi ve sıfır kombinasyonları koruyan yoğun veri martı üret.",
     difficulty: "advanced",
-    estimatedMinutes: 72,
+    estimatedMinutes: [
+      modelingTask,
+      ...module9ExpansionTasks,
+      ...starSchemaBridgeDrills,
+      ...module9BridgeDrills,
+    ].reduce((total, task) => total + task.estimatedMinutes, 0),
     topics: [
       "Fact ve dimension rolleri",
       "Star schema",
@@ -5282,7 +5454,12 @@ const authoredCurriculum: CurriculumModule[] = [
       "Kapsama omurgası ve sıfır olay",
     ],
     prerequisites: ["module-8"],
-    tasks: [modelingTask, ...module9ExpansionTasks],
+    tasks: [
+      modelingTask,
+      ...module9ExpansionTasks,
+      ...starSchemaBridgeDrills,
+      ...module9BridgeDrills,
+    ],
   }),
   defineModule({
     id: "module-10",
@@ -5293,7 +5470,11 @@ const authoredCurriculum: CurriculumModule[] = [
     description:
       "Hedef gerçekleşme, müşteri kayıp riski, kampanya kârlılığı ve operasyon erken uyarısını cardinality güvenli, çok adımlı SQL teslimlerine dönüştür.",
     difficulty: "advanced",
-    estimatedMinutes: 121,
+    estimatedMinutes: [
+      capstoneTask,
+      ...module10ExpansionTasks,
+      ...branchTargetBridgeDrills,
+    ].reduce((total, task) => total + task.estimatedMinutes, 0),
     topics: [
       "Satış hedef gerçekleşme analizi",
       "Kapsam koruyan JOIN",
@@ -5305,7 +5486,11 @@ const authoredCurriculum: CurriculumModule[] = [
       "Window tabanlı erken uyarı",
     ],
     prerequisites: ["module-9"],
-    tasks: [capstoneTask, ...module10ExpansionTasks],
+    tasks: [
+      capstoneTask,
+      ...module10ExpansionTasks,
+      ...branchTargetBridgeDrills,
+    ],
   }),
   marketingProjectModule,
 ];

@@ -79,6 +79,7 @@ export type SQLConcept =
   | "CTE"
   | "RECURSIVE_CTE"
   | "UNION"
+  | "COALESCE"
   | "ROW_NUMBER"
   | "RANK"
   | "DENSE_RANK"

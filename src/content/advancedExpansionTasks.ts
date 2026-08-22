@@ -621,21 +621,7 @@ export const module8ExpansionTasks: LessonTask[] = [
   upsertDailyMetricTask,
 ];
 
-const currentCustomerSegmentTask = createTask({
-  id: "m9-t2",
-  slug: "select-current-customer-segment",
-  moduleId: "module-9",
-  title: "Güncel müşteri segmentini seç",
-  subtitle: "SCD Type 2 geçmişinden açık boyut kaydını ayır.",
-  scenario:
-    "CRM ekibi kampanya hedeflemesi için müşterilerin yalnız güncel segmentini istiyor. Boyut tablosu geçmiş sürümleri de tuttuğu için aynı müşteri birden fazla fiziksel satırda görünebilir.",
-  objective:
-    "dim_customer tablosunda valid_to değeri NULL olan güncel kayıtları seç. customer_id, segment ve valid_from kolonlarını bu sırada getir; customer_id değerine göre artan sırala.",
-  difficulty: "advanced",
-  estimatedMinutes: 14,
-  prerequisites: ["m9-t1"],
-  concepts: ["STAR_SCHEMA", "NORMALIZATION", "WHERE", "IS_NULL", "ORDER_BY"],
-  setupSql: `
+const customerHistorySetupSql = `
     CREATE TABLE dim_customer (
       customer_key INTEGER PRIMARY KEY,
       customer_id INTEGER NOT NULL,
@@ -651,66 +637,86 @@ const currentCustomerSegmentTask = createTask({
       (4, 103, 'Ceres Labs', 'Premium', DATE '2026-01-01', DATE '2026-04-30'),
       (5, 103, 'Ceres Labs', 'At Risk', DATE '2026-05-01', NULL),
       (6, 104, 'Delta Works', 'Standard', DATE '2025-11-01', DATE '2026-02-28');
-  `,
-  schema: {
-    tables: [
-      {
-        name: "dim_customer",
-        description:
-          "Müşteri segment değişimlerini başlangıç ve bitiş tarihleriyle saklayan SCD Type 2 boyutu.",
-        columns: [
-          {
-            name: "customer_key",
-            dataType: "INTEGER",
-            nullable: false,
-            primaryKey: true,
-            description: "Her tarihsel boyut sürümünün surrogate key değeri",
-          },
-          {
-            name: "customer_id",
-            dataType: "INTEGER",
-            nullable: false,
-            description: "Sürümler boyunca değişmeyen müşteri iş anahtarı",
-          },
-          { name: "customer_name", dataType: "TEXT", nullable: false },
-          { name: "segment", dataType: "TEXT", nullable: false },
-          { name: "valid_from", dataType: "DATE", nullable: false },
-          { name: "valid_to", dataType: "DATE", nullable: true },
-        ],
-      },
-    ],
-  },
-  sampleRows: [
+  `;
+
+const customerHistorySchema = {
+  tables: [
     {
-      tableName: "dim_customer",
-      rows: [
+      name: "dim_customer",
+      description:
+        "Müşteri segment değişimlerini başlangıç ve bitiş tarihleriyle saklayan SCD Type 2 boyutu.",
+      columns: [
         {
-          customer_key: 1,
-          customer_id: 101,
-          customer_name: "Atlas Market",
-          segment: "Standard",
-          valid_from: "2026-01-01",
-          valid_to: "2026-03-31",
+          name: "customer_key",
+          dataType: "INTEGER",
+          nullable: false,
+          primaryKey: true,
+          description: "Her tarihsel boyut sürümünün surrogate key değeri",
         },
         {
-          customer_key: 2,
-          customer_id: 101,
-          customer_name: "Atlas Market",
-          segment: "Premium",
-          valid_from: "2026-04-01",
-          valid_to: null,
+          name: "customer_id",
+          dataType: "INTEGER",
+          nullable: false,
+          description: "Sürümler boyunca değişmeyen müşteri iş anahtarı",
         },
-        {
-          customer_key: 6,
-          customer_id: 104,
-          customer_name: "Delta Works",
-          segment: "Standard",
-          valid_from: "2025-11-01",
-          valid_to: "2026-02-28",
-        },
+        { name: "customer_name", dataType: "TEXT", nullable: false },
+        { name: "segment", dataType: "TEXT", nullable: false },
+        { name: "valid_from", dataType: "DATE", nullable: false },
+        { name: "valid_to", dataType: "DATE", nullable: true },
       ],
     },
   ],
+};
+
+const customerHistorySamples = [
+  {
+    tableName: "dim_customer",
+    rows: [
+      {
+        customer_key: 1,
+        customer_id: 101,
+        customer_name: "Atlas Market",
+        segment: "Standard",
+        valid_from: "2026-01-01",
+        valid_to: "2026-03-31",
+      },
+      {
+        customer_key: 2,
+        customer_id: 101,
+        customer_name: "Atlas Market",
+        segment: "Premium",
+        valid_from: "2026-04-01",
+        valid_to: null,
+      },
+      {
+        customer_key: 6,
+        customer_id: 104,
+        customer_name: "Delta Works",
+        segment: "Standard",
+        valid_from: "2025-11-01",
+        valid_to: "2026-02-28",
+      },
+    ],
+  },
+];
+
+const currentCustomerSegmentTask = createTask({
+  id: "m9-t2",
+  slug: "select-current-customer-segment",
+  moduleId: "module-9",
+  title: "Güncel müşteri segmentini seç",
+  subtitle: "SCD Type 2 geçmişinden açık boyut kaydını ayır.",
+  scenario:
+    "CRM ekibi kampanya hedeflemesi için müşterilerin yalnız güncel segmentini istiyor. Boyut tablosu geçmiş sürümleri de tuttuğu için aynı müşteri birden fazla fiziksel satırda görünebilir.",
+  objective:
+    "dim_customer tablosunda valid_to değeri NULL olan güncel kayıtları seç. customer_id, segment ve valid_from kolonlarını bu sırada getir; customer_id değerine göre artan sırala.",
+  difficulty: "advanced",
+  estimatedMinutes: 14,
+  prerequisites: ["m9-t1"],
+  concepts: ["STAR_SCHEMA", "NORMALIZATION", "WHERE", "IS_NULL", "ORDER_BY"],
+  setupSql: customerHistorySetupSql,
+  schema: customerHistorySchema,
+  sampleRows: customerHistorySamples,
   expectedColumns: ["customer_id", "segment", "valid_from"],
   validationMode: "result-and-concepts",
   expectedResult: [
@@ -732,6 +738,106 @@ const currentCustomerSegmentTask = createTask({
     "Tarihsel boyut korunurken CRM için müşteri başına tek güncel segment üretildi.",
   nextTaskId: "m9-t3",
 });
+
+/**
+ * SCD Type 2 boyutu, satır sayısının varlık sayısına eşit olmadığı ilk yer.
+ * Bu iki alıştırma o ayrımı vakadan önce görünür kılar ve rotanın ilk
+ * çeyreğinde öğrenilip bir daha uğranmayan DISTINCT ile MAX'ı geri getirir.
+ */
+export const module9BridgeDrills: LessonTask[] = [
+  createTask({
+    id: "m9-d2",
+    slug: "distinct-customers-behind-versions",
+    moduleId: "module-9",
+    title: "Kaç satır, kaç müşteri",
+    subtitle: "Sürüm satırlarının ardındaki gerçek varlık sayısını gör.",
+    scenario:
+      "CRM ekibi boyut tablosunda altı satır görüyor ve bunun kaç müşteriye karşılık geldiğini soruyor.",
+    objective:
+      "dim_customer tablosundaki farklı müşterileri bir kez listele; customer_id ve customer_name kolonlarını customer_id artan sırada getir.",
+    difficulty: "advanced",
+    estimatedMinutes: 3,
+    type: "drill_practice",
+    scored: false,
+    routeOrder: 33.1,
+    conceptsReinforced: ["K01", "K03", "K13"],
+    curriculumConcepts: ["K01", "K03", "K13"],
+    drillConcept:
+      "Bir tablonun satır sayısı ile temsil ettiği varlık sayısı aynı şey değildir. SCD Type 2 boyutunda her segment değişikliği yeni bir satır açar; müşteri sayısını görmek için tekrarları kaldırman gerekir.",
+    prerequisites: [],
+    concepts: ["SELECT", "DISTINCT", "ORDER_BY"],
+    setupSql: customerHistorySetupSql,
+    schema: customerHistorySchema,
+    sampleRows: customerHistorySamples,
+    expectedColumns: ["customer_id", "customer_name"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      [101, "Atlas Market"],
+      [102, "Boreal Studio"],
+      [103, "Ceres Labs"],
+      [104, "Delta Works"],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["DISTINCT", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "Tabloda altı satır var ama altı müşteri yok. Atlas Market ve Ceres Labs ikişer sürümle duruyor.",
+      "customer_key her sürüme özel olduğu için onu seçersen tekrar kalkmaz. İş anahtarı ile adı seç ve DISTINCT uygula.",
+      "İskelet: SELECT DISTINCT [iş anahtarı], [ad] FROM dim_customer ORDER BY [iş anahtarı];",
+    ],
+    explanation:
+      "Altı satır dört müşteriye iniyor. Sıradaki vaka aynı farkı başka bir yoldan çözecek: tekrarı kaldırmak yerine her müşterinin yalnız açık sürümünü seçecek.",
+    completionMessage:
+      "Tane farkını gördün. DISTINCT'i rotanın ilk günlerinden sonra ilk kez yeniden kullandın.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m9-d3",
+    slug: "latest-version-start-per-customer",
+    moduleId: "module-9",
+    title: "En son sürüm ne zaman başladı",
+    subtitle: "Grup başına en büyük tarihi çıkar.",
+    scenario:
+      "Veri kalitesi ekibi her müşterinin en son segment değişikliğinin tarihini raporluyor.",
+    objective:
+      "dim_customer tablosunda her müşteri için en büyük valid_from değerini latest_version_start adıyla getir; customer_id ve bu kolonu customer_id artan sırada listele.",
+    difficulty: "advanced",
+    estimatedMinutes: 3,
+    type: "drill_practice",
+    scored: false,
+    routeOrder: 33.2,
+    conceptsReinforced: ["K01", "K02", "K03", "K15", "K16"],
+    curriculumConcepts: ["K01", "K02", "K03", "K15", "K16"],
+    drillConcept:
+      "MAX bir tarih kolonunda da çalışır ve grup başına en geç değeri verir. Bu, güncel sürümü bulmanın akla ilk gelen yoludur — ama tek yolu değildir.",
+    prerequisites: [],
+    concepts: ["SELECT", "MAX", "GROUP_BY", "ALIAS", "ORDER_BY"],
+    setupSql: customerHistorySetupSql,
+    schema: customerHistorySchema,
+    sampleRows: customerHistorySamples,
+    expectedColumns: ["customer_id", "latest_version_start"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      [101, "2026-04-01"],
+      [102, "2026-02-15"],
+      [103, "2026-05-01"],
+      [104, "2025-11-01"],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["MAX", "GROUP_BY", "ALIAS", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "Her müşteri için tek satır dönmeli. Delta Works'ün tek sürümü var, yine de listede yer alacak.",
+      "customer_id ile grupla ve valid_from üzerinde MAX kullan; sonuca AS ile ad ver.",
+      "İskelet: SELECT [iş anahtarı], MAX([başlangıç tarihi]) AS latest_version_start FROM dim_customer GROUP BY [iş anahtarı] ORDER BY [iş anahtarı];",
+    ],
+    explanation:
+      "Delta Works burada 2025-11-01 ile listede — oysa o müşterinin kaydı 2026-02-28'de kapanmış, yani artık güncel değil. En büyük tarih ile açık sürüm aynı şey değildir; sıradaki vaka bu yüzden MAX'ı değil, valid_to boşluğunu kullanacak.",
+    completionMessage:
+      "MAX ile grup başına en geç tarihi çıkardın ve bunun neden yeterli olmadığını gördün.",
+    nextTaskId: null,
+  }),
+];
 
 const orphanSalesAuditTask = createTask({
   id: "m9-t3",

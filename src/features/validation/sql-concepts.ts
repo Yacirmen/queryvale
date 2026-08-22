@@ -20,6 +20,7 @@ export type SqlConcept =
   | "DATE_FUNCTION"
   | "CASE"
   | "CAST"
+  | "COALESCE"
   | "COUNT"
   | "SUM"
   | "AVG"
@@ -79,6 +80,7 @@ const CONCEPT_ALIASES: Record<string, SqlConcept> = {
   CASE: "CASE",
   CASE_WHEN: "CASE",
   CAST: "CAST",
+  COALESCE: "COALESCE",
   COUNT: "COUNT",
   SUM: "SUM",
   AVG: "AVG",
@@ -167,6 +169,7 @@ export function detectSqlConcepts(sql: string): ReadonlySet<SqlConcept> {
   );
   add("CASE", /\bcase\b[\s\S]*\bwhen\b/i);
   add("CAST", /\bcast\s*\(|::\s*[a-z_]/i);
+  add("COALESCE", /\bcoalesce\s*\(/i);
   add("COUNT", /\bcount\s*\(/i);
   add("SUM", /\bsum\s*\(/i);
   add("AVG", /\bavg\s*\(/i);
