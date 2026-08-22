@@ -252,6 +252,11 @@ export interface LessonTask extends LessonLearningContent {
   hints: readonly string[];
   /** A learner-visible, executable example revealed only on explicit request. */
   solutionSql: string;
+  /**
+   * Editörün açılış içeriği. Yalnız alıştırmalarda bulunur ve asla çalışan
+   * bir çözüm değildir; boş sayfayı kaldırır, kararı öğrenene bırakır.
+   */
+  starterSql?: string;
   explanation: string;
   completionMessage: string;
   nextTaskId: string | null;

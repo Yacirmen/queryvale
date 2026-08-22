@@ -413,6 +413,40 @@ describe("PGlite task database integration", () => {
     }
   }, 240_000);
 
+  it("never ships a drill starter that already solves the task", async () => {
+    const starters = tasks.filter(
+      (task): task is LessonTask & { starterSql: string } =>
+        Boolean(task.starterSql),
+    );
+
+    // İskeletin tek işi boş sayfayı kaldırmak. Çalışır bir çözüm hâline
+    // gelirse alıştırma "çalıştır"a basmakla tamamlanır ve öğretmeyi bırakır.
+    expect(starters.length).toBeGreaterThanOrEqual(30);
+
+    for (const task of starters) {
+      expect(isDrillTask(task), `${task.id} bir alıştırma olmalı`).toBe(true);
+
+      database = createTaskDatabaseForLesson(task);
+      await database.initialize();
+      // Eksik bırakılmış bir iskelet motorda hata fırlatır; uygulama bunu
+      // execution-error değerlendirmesine çevirir. İkisi de "doğru değil"
+      // demektir, testin ilgilendiği tek şey de bu.
+      let status: string;
+      try {
+        status = (await runAndEvaluateLesson(database, task, task.starterSql))
+          .status;
+      } catch {
+        status = "execution-error";
+      }
+      expect(
+        status,
+        `${task.id} iskeleti doğrudan doğru sonucu üretiyor`,
+      ).not.toBe("correct");
+      await database.dispose();
+      database = undefined;
+    }
+  }, 240_000);
+
   it("accepts structurally different correct solutions for every new module 4–7 task", async () => {
     const alternatives: Record<string, string> = {
       "m4-t2": `

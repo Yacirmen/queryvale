@@ -9,6 +9,7 @@ import {
 import { createDefaultLearningContent } from "./createDefaultLearningContent";
 import { AUTHORED_TASK_LEARNING_CONTENT } from "./learningContentCatalog";
 import { getTaskSolution } from "./taskSolutions";
+import { getTaskStarter } from "./taskStarters";
 
 export const READ_ONLY_FORBIDDEN: ForbiddenOperation[] = [
   "DROP_DATABASE",
@@ -26,6 +27,7 @@ export const READ_ONLY_FORBIDDEN: ForbiddenOperation[] = [
 export type AuthoredTask = Omit<
   LessonTask,
   | "solutionSql"
+  | "starterSql"
   | "validationOptions"
   | keyof LessonLearningContent
   | "routeOrder"
@@ -55,6 +57,7 @@ export const createTask = (task: AuthoredTask): LessonTask => {
     type,
     scored: task.scored ?? type === "case",
     solutionSql: getTaskSolution(task.id),
+    starterSql: getTaskStarter(task.id),
     validationOptions: {
       ...DEFAULT_VALIDATION_OPTIONS,
       ...validationOptions,

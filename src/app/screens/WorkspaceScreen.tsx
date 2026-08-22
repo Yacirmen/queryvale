@@ -116,9 +116,12 @@ function createLegacyStarterQuery(task: LessonTask): string {
 
 function getInitialQuery(task: LessonTask, progress: ProgressState): string {
   const savedQuery = progress.tasks[task.id]?.lastQuery ?? "";
-  return savedQuery.trim() === createLegacyStarterQuery(task).trim()
-    ? ""
-    : savedQuery;
+  // Eski sürümün her göreve verdiği tek tip "SELECT * ... LIMIT 10" taslağı
+  // kaydedilmiş olabilir; onu iskelet saymayıp temizliyoruz.
+  if (savedQuery.trim() === createLegacyStarterQuery(task).trim()) {
+    return task.starterSql ?? "";
+  }
+  return savedQuery.trim() ? savedQuery : (task.starterSql ?? "");
 }
 
 function formatCell(value: unknown): string {
@@ -695,7 +698,8 @@ export function WorkspaceScreen({
     try {
       await database.reset();
       if (!isCurrentReset()) return;
-      updateQuery("");
+      const startingQuery = task.starterSql ?? "";
+      updateQuery(startingQuery);
       onProgressChange((current) => {
         const previous =
           current.tasks[task.id] ?? createDraftProgress(task.id, "");
@@ -705,11 +709,11 @@ export function WorkspaceScreen({
           lastOpenedTaskIdTrusted: true,
           tasks: {
             ...current.tasks,
-            [task.id]: { ...previous, lastQuery: "" },
+            [task.id]: { ...previous, lastQuery: startingQuery },
           },
         };
       });
-      lastPersistedQueryRef.current = "";
+      lastPersistedQueryRef.current = startingQuery;
       draftDirtyRef.current = false;
       setEngineSetupError(undefined);
       setEngineState("ready");

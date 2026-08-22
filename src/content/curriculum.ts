@@ -6,7 +6,10 @@ import {
   type TaskSchema,
 } from "../types/lesson";
 import { assertValidTaskCollection } from "../features/validation/task-content";
-import { normalizeConceptName } from "../features/validation/sql-concepts";
+import {
+  detectSqlConcepts,
+  normalizeConceptName,
+} from "../features/validation/sql-concepts";
 import { createTask, READ_ONLY_FORBIDDEN } from "./curriculumTaskFactory";
 import {
   module8BridgeDrills,
@@ -5729,6 +5732,45 @@ export const assertCurriculumIsValid = (
             "bu vaka doğru çözülse bile tamamlanamaz.",
         );
       }
+    }
+  }
+
+  /*
+   * İskelet sözleşmesi. Editörün açılış içeriği yalnız alıştırmalarda bulunur
+   * ve öğrenene cevabı vermemelidir. İki koşul bunu makine tarafından tutar:
+   *
+   *  - İskeletin taşıdığı kavramlar çözümün kavramlarının alt kümesi olmalı;
+   *    yani iskelet çözümde bulunmayan hiçbir yapıyı öne sürmez.
+   *  - Zorunlu kavramlardan en az biri iskelette bulunmamalı; yani her zaman
+   *    öğrenenin vereceği bir karar kalır.
+   */
+  for (const task of authoredTasks) {
+    if (!task.starterSql) continue;
+    if (task.type === "case") {
+      throw new Error(
+        `${task.id} bir vaka; iskelet yalnız alıştırmalara tanımlanabilir.`,
+      );
+    }
+    const starterConcepts = detectSqlConcepts(task.starterSql);
+    const solutionConcepts = detectSqlConcepts(task.solutionSql);
+    for (const concept of starterConcepts) {
+      if (!solutionConcepts.has(concept)) {
+        throw new Error(
+          `${task.id} iskeleti çözümde bulunmayan "${concept}" yapısını öneriyor.`,
+        );
+      }
+    }
+    // requiredConcepts, dedektörün tanıdığından daha geniş bir birlik
+    // kullanır; karşılaştırmayı normalize edilmiş adlar üzerinden yaparız.
+    const stillOpen = task.requiredConcepts.filter((concept) => {
+      const detectable = normalizeConceptName(concept);
+      return !detectable || !starterConcepts.has(detectable);
+    });
+    if (stillOpen.length === 0) {
+      throw new Error(
+        `${task.id} iskeleti zorunlu kavramların tamamını içeriyor; ` +
+          "öğrenene verilecek bir karar kalmıyor.",
+      );
     }
   }
 
