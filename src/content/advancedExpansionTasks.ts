@@ -9,21 +9,12 @@ const mutationForbidden = (
       !allowed.includes(operation as "INSERT" | "UPDATE" | "DELETE"),
   );
 
-const insertMovementTask = createTask({
-  id: "m8-t2",
-  slug: "record-stock-movement",
-  moduleId: "module-8",
-  title: "Stok giriş hareketini kaydet",
-  subtitle: "Yeni kaydı constraint sınırları içinde ekle ve kanıtla.",
-  scenario:
-    "Depo ekibi, Packing Tape ürünü için gelen 4 adetlik teslimatı hareket günlüğüne eklemek ve oluşan kaydı aynı işlemde denetlemek istiyor.",
-  objective:
-    "inventory_movements tablosuna movement_id 3004, product_id 803, quantity_delta 4 ve movement_type 'IN' değerleriyle tek kayıt ekle. RETURNING ile movement_id, product_id, quantity_delta ve movement_type kolonlarını bu sırada döndür.",
-  difficulty: "intermediate",
-  estimatedMinutes: 12,
-  prerequisites: ["m8-t1"],
-  concepts: ["INSERT", "CONSTRAINT"],
-  setupSql: `
+/**
+ * Modül 8 fixture'ları hem vakalar hem köprü alıştırmaları tarafından
+ * kullanılır. Entegrasyon testi, alıştırmanın kendinden sonraki vakayla
+ * aynı fixture ve aynı yasak-işlem setini taşımasını şart koşar.
+ */
+const movementLedgerSetupSql = `
     CREATE TABLE inventory (
       product_id INTEGER PRIMARY KEY,
       product_name TEXT NOT NULL UNIQUE,
@@ -44,8 +35,9 @@ const insertMovementTask = createTask({
       (3001, 801, 12, 'IN'),
       (3002, 802, 6, 'IN'),
       (3003, 801, -3, 'OUT');
-  `,
-  schema: {
+  `;
+
+const movementLedgerSchema = {
     tables: [
       {
         name: "inventory",
@@ -91,8 +83,9 @@ const insertMovementTask = createTask({
         toColumn: "product_id",
       },
     ],
-  },
-  sampleRows: [
+  };
+
+const movementLedgerSamples = [
     {
       tableName: "inventory",
       rows: [
@@ -121,7 +114,149 @@ const insertMovementTask = createTask({
         },
       ],
     },
-  ],
+  ];
+
+const movementLedgerForbidden = mutationForbidden(["INSERT"]);
+
+const importBatchSetupSql = `
+    CREATE TABLE import_rows (
+      import_row_id INTEGER PRIMARY KEY,
+      batch_id TEXT NOT NULL,
+      row_no INTEGER NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('draft', 'approved', 'rejected')),
+      payload TEXT NOT NULL,
+      UNIQUE (batch_id, row_no)
+    );
+    INSERT INTO import_rows VALUES
+      (4101, 'B-77', 1, 'approved', 'customer=Atlas'),
+      (4102, 'B-77', 2, 'draft', 'customer=Boreal'),
+      (4103, 'B-77', 3, 'approved', 'customer=Ceres'),
+      (4104, 'B-78', 2, 'draft', 'customer=Delta'),
+      (4105, 'B-79', 4, 'rejected', 'customer=Ekin');
+  `;
+
+const importBatchSchema = {
+    tables: [
+      {
+        name: "import_rows",
+        description:
+          "Dosya aktarımındaki her satırın paket, sıra ve onay durumunu tutar.",
+        columns: [
+          {
+            name: "import_row_id",
+            dataType: "INTEGER",
+            nullable: false,
+            primaryKey: true,
+          },
+          { name: "batch_id", dataType: "TEXT", nullable: false },
+          { name: "row_no", dataType: "INTEGER", nullable: false },
+          { name: "status", dataType: "TEXT", nullable: false },
+          { name: "payload", dataType: "TEXT", nullable: false },
+        ],
+      },
+    ],
+  };
+
+const importBatchSamples = [
+    {
+      tableName: "import_rows",
+      rows: [
+        {
+          import_row_id: 4101,
+          batch_id: "B-77",
+          row_no: 1,
+          status: "approved",
+          payload: "customer=Atlas",
+        },
+        {
+          import_row_id: 4102,
+          batch_id: "B-77",
+          row_no: 2,
+          status: "draft",
+          payload: "customer=Boreal",
+        },
+        {
+          import_row_id: 4104,
+          batch_id: "B-78",
+          row_no: 2,
+          status: "draft",
+          payload: "customer=Delta",
+        },
+      ],
+    },
+  ];
+
+const importBatchForbidden = mutationForbidden(["DELETE"]);
+
+const dailyMetricSetupSql = `
+    CREATE TABLE branch_daily_metrics (
+      branch_id INTEGER NOT NULL,
+      metric_date DATE NOT NULL,
+      order_count INTEGER NOT NULL CHECK (order_count >= 0),
+      revenue NUMERIC(12, 2) NOT NULL CHECK (revenue >= 0),
+      PRIMARY KEY (branch_id, metric_date)
+    );
+    INSERT INTO branch_daily_metrics VALUES
+      (1, DATE '2026-05-19', 9, 980.00),
+      (1, DATE '2026-05-20', 11, 1250.00),
+      (2, DATE '2026-05-20', 8, 910.00);
+  `;
+
+const dailyMetricSchema = {
+    tables: [
+      {
+        name: "branch_daily_metrics",
+        description:
+          "Her şube ve gün için tek, yeniden yüklenebilir operasyon özeti.",
+        columns: [
+          { name: "branch_id", dataType: "INTEGER", nullable: false },
+          { name: "metric_date", dataType: "DATE", nullable: false },
+          { name: "order_count", dataType: "INTEGER", nullable: false },
+          { name: "revenue", dataType: "NUMERIC(12,2)", nullable: false },
+        ],
+      },
+    ],
+  };
+
+const dailyMetricSamples = [
+    {
+      tableName: "branch_daily_metrics",
+      rows: [
+        {
+          branch_id: 1,
+          metric_date: "2026-05-20",
+          order_count: 11,
+          revenue: 1250,
+        },
+        {
+          branch_id: 2,
+          metric_date: "2026-05-20",
+          order_count: 8,
+          revenue: 910,
+        },
+      ],
+    },
+  ];
+
+const dailyMetricForbidden = mutationForbidden(["INSERT", "UPDATE"]);
+
+const insertMovementTask = createTask({
+  id: "m8-t2",
+  slug: "record-stock-movement",
+  moduleId: "module-8",
+  title: "Stok giriş hareketini kaydet",
+  subtitle: "Yeni kaydı constraint sınırları içinde ekle ve kanıtla.",
+  scenario:
+    "Depo ekibi, Packing Tape ürünü için gelen 4 adetlik teslimatı hareket günlüğüne eklemek ve oluşan kaydı aynı işlemde denetlemek istiyor.",
+  objective:
+    "inventory_movements tablosuna movement_id 3004, product_id 803, quantity_delta 4 ve movement_type 'IN' değerleriyle tek kayıt ekle. RETURNING ile movement_id, product_id, quantity_delta ve movement_type kolonlarını bu sırada döndür.",
+  difficulty: "intermediate",
+  estimatedMinutes: 12,
+  prerequisites: ["m8-t1"],
+  concepts: ["INSERT", "CONSTRAINT"],
+  setupSql: movementLedgerSetupSql,
+  schema: movementLedgerSchema,
+  sampleRows: movementLedgerSamples,
   expectedColumns: [
     "movement_id",
     "product_id",
@@ -132,7 +267,7 @@ const insertMovementTask = createTask({
   expectedResult: [[3004, 803, 4, "IN"]],
   orderSensitive: false,
   requiredConcepts: ["INSERT"],
-  forbiddenOperations: mutationForbidden(["INSERT"]),
+  forbiddenOperations: movementLedgerForbidden,
   mutationVerification: {
     sql: `
       SELECT movement_id, product_id, quantity_delta, movement_type
@@ -179,77 +314,15 @@ const deleteImportDraftTask = createTask({
   estimatedMinutes: 12,
   prerequisites: ["m8-t2"],
   concepts: ["DELETE", "WHERE", "AND"],
-  setupSql: `
-    CREATE TABLE import_rows (
-      import_row_id INTEGER PRIMARY KEY,
-      batch_id TEXT NOT NULL,
-      row_no INTEGER NOT NULL,
-      status TEXT NOT NULL CHECK (status IN ('draft', 'approved', 'rejected')),
-      payload TEXT NOT NULL,
-      UNIQUE (batch_id, row_no)
-    );
-    INSERT INTO import_rows VALUES
-      (4101, 'B-77', 1, 'approved', 'customer=Atlas'),
-      (4102, 'B-77', 2, 'draft', 'customer=Boreal'),
-      (4103, 'B-77', 3, 'approved', 'customer=Ceres'),
-      (4104, 'B-78', 2, 'draft', 'customer=Delta'),
-      (4105, 'B-79', 4, 'rejected', 'customer=Ekin');
-  `,
-  schema: {
-    tables: [
-      {
-        name: "import_rows",
-        description:
-          "Dosya aktarımındaki her satırın paket, sıra ve onay durumunu tutar.",
-        columns: [
-          {
-            name: "import_row_id",
-            dataType: "INTEGER",
-            nullable: false,
-            primaryKey: true,
-          },
-          { name: "batch_id", dataType: "TEXT", nullable: false },
-          { name: "row_no", dataType: "INTEGER", nullable: false },
-          { name: "status", dataType: "TEXT", nullable: false },
-          { name: "payload", dataType: "TEXT", nullable: false },
-        ],
-      },
-    ],
-  },
-  sampleRows: [
-    {
-      tableName: "import_rows",
-      rows: [
-        {
-          import_row_id: 4101,
-          batch_id: "B-77",
-          row_no: 1,
-          status: "approved",
-          payload: "customer=Atlas",
-        },
-        {
-          import_row_id: 4102,
-          batch_id: "B-77",
-          row_no: 2,
-          status: "draft",
-          payload: "customer=Boreal",
-        },
-        {
-          import_row_id: 4104,
-          batch_id: "B-78",
-          row_no: 2,
-          status: "draft",
-          payload: "customer=Delta",
-        },
-      ],
-    },
-  ],
+  setupSql: importBatchSetupSql,
+  schema: importBatchSchema,
+  sampleRows: importBatchSamples,
   expectedColumns: ["import_row_id", "batch_id", "status"],
   validationMode: "mutation",
   expectedResult: [[4102, "B-77", "draft"]],
   orderSensitive: false,
   requiredConcepts: ["DELETE", "WHERE", "AND"],
-  forbiddenOperations: mutationForbidden(["DELETE"]),
+  forbiddenOperations: importBatchForbidden,
   mutationVerification: {
     sql: `
       SELECT import_row_id, batch_id, row_no, status
@@ -291,59 +364,15 @@ const upsertDailyMetricTask = createTask({
   estimatedMinutes: 18,
   prerequisites: ["m8-t3"],
   concepts: ["INSERT", "UPDATE", "UPSERT", "CONSTRAINT"],
-  setupSql: `
-    CREATE TABLE branch_daily_metrics (
-      branch_id INTEGER NOT NULL,
-      metric_date DATE NOT NULL,
-      order_count INTEGER NOT NULL CHECK (order_count >= 0),
-      revenue NUMERIC(12, 2) NOT NULL CHECK (revenue >= 0),
-      PRIMARY KEY (branch_id, metric_date)
-    );
-    INSERT INTO branch_daily_metrics VALUES
-      (1, DATE '2026-05-19', 9, 980.00),
-      (1, DATE '2026-05-20', 11, 1250.00),
-      (2, DATE '2026-05-20', 8, 910.00);
-  `,
-  schema: {
-    tables: [
-      {
-        name: "branch_daily_metrics",
-        description:
-          "Her şube ve gün için tek, yeniden yüklenebilir operasyon özeti.",
-        columns: [
-          { name: "branch_id", dataType: "INTEGER", nullable: false },
-          { name: "metric_date", dataType: "DATE", nullable: false },
-          { name: "order_count", dataType: "INTEGER", nullable: false },
-          { name: "revenue", dataType: "NUMERIC(12,2)", nullable: false },
-        ],
-      },
-    ],
-  },
-  sampleRows: [
-    {
-      tableName: "branch_daily_metrics",
-      rows: [
-        {
-          branch_id: 1,
-          metric_date: "2026-05-20",
-          order_count: 11,
-          revenue: 1250,
-        },
-        {
-          branch_id: 2,
-          metric_date: "2026-05-20",
-          order_count: 8,
-          revenue: 910,
-        },
-      ],
-    },
-  ],
+  setupSql: dailyMetricSetupSql,
+  schema: dailyMetricSchema,
+  sampleRows: dailyMetricSamples,
   expectedColumns: ["branch_id", "metric_date", "order_count", "revenue"],
   validationMode: "mutation",
   expectedResult: [[1, "2026-05-20", 14, 1620]],
   orderSensitive: false,
   requiredConcepts: ["INSERT", "UPDATE", "UPSERT"],
-  forbiddenOperations: mutationForbidden(["INSERT", "UPDATE"]),
+  forbiddenOperations: dailyMetricForbidden,
   mutationVerification: {
     sql: `
       SELECT branch_id, metric_date, order_count, revenue
@@ -370,6 +399,174 @@ const upsertDailyMetricTask = createTask({
     "Günlük snapshot duplicate üretmeden yenilendi; ETL yükü yeniden çalıştırılabilir hâle geldi.",
   nextTaskId: "m9-t1",
 });
+
+/**
+ * Modül 8 köprü alıştırmaları. Veri değiştirme, rotanın en riskli bölgesi ama
+ * en az pratiği olanıydı: INSERT, DELETE ve UPSERT birer vakada görülüp bir
+ * daha görünmüyordu.
+ *
+ * İki farklı öğretme hamlesi kullanılır. Silme ve güncellemede tehlikeli olan
+ * SET değil WHERE'dir; bu yüzden o iki alıştırma önce "hangi satırlar
+ * etkilenecek" sorusunu okunur bir SELECT ile çözdürür. Ekleme ve upsert ise
+ * gerçekten uygulanır ve tablo durumu ayrıca doğrulanır.
+ */
+export const module8BridgeDrills: LessonTask[] = [
+  createTask({
+    id: "m8-d1",
+    slug: "inventory-movement-insert-practice",
+    moduleId: "module-8",
+    title: "Yeni hareketi kaydet",
+    subtitle: "Ekleme yaptığını RETURNING ile kendine kanıtlat.",
+    scenario:
+      "Depo sorumlusu el terminali için gelen beş adetlik girişi kayda geçiriyor.",
+    objective:
+      "inventory_movements tablosuna 3005 numaralı, 804 numaralı ürüne ait, 5 adetlik bir IN hareketi ekle ve eklenen satırın movement_id, product_id ve quantity_delta kolonlarını geri döndür.",
+    difficulty: "intermediate",
+    estimatedMinutes: 3,
+    type: "drill_practice",
+    scored: false,
+    routeOrder: 29.1,
+    conceptsReinforced: ["K99-INSERT", "K99-RETURNING"],
+    curriculumConcepts: ["K99-INSERT", "K99-RETURNING"],
+    drillConcept:
+      "INSERT satır ekler; RETURNING ise eklenen satırı sana geri gösterir. Değişiklik yaptığını varsaymak yerine görmek, veri değiştiren her işte alışkanlık olmalıdır.",
+    prerequisites: [],
+    concepts: ["INSERT"],
+    setupSql: movementLedgerSetupSql,
+    schema: movementLedgerSchema,
+    sampleRows: movementLedgerSamples,
+    expectedColumns: ["movement_id", "product_id", "quantity_delta"],
+    validationMode: "mutation",
+    mutationVerification: {
+      sql: "SELECT movement_id, product_id, quantity_delta, movement_type FROM inventory_movements ORDER BY movement_id;",
+      expectedColumns: [
+        "movement_id",
+        "product_id",
+        "quantity_delta",
+        "movement_type",
+      ],
+      expectedResult: [
+        [3001, 801, 12, "IN"],
+        [3002, 802, 6, "IN"],
+        [3003, 801, -3, "OUT"],
+        [3005, 804, 5, "IN"],
+      ],
+      orderSensitive: true,
+    },
+    expectedResult: [[3005, 804, 5]],
+    orderSensitive: false,
+    requiredConcepts: ["INSERT"],
+    forbiddenOperations: movementLedgerForbidden,
+    hints: [
+      "Mevcut satırlara dokunma; tabloya yalnız bir satır eklenecek. Hareket tipi kolonu yalnız IN veya OUT kabul eder.",
+      "INSERT INTO [tablo] (kolonlar) VALUES (...) yapısına RETURNING ekleyerek eklenen satırı görebilirsin.",
+      "İskelet: INSERT INTO inventory_movements (movement_id, product_id, quantity_delta, movement_type) VALUES ([kimlik], [ürün], [adet], '[tip]') RETURNING movement_id, product_id, quantity_delta;",
+    ],
+    explanation:
+      "RETURNING, eklenen satırı işlemin kendisinden okur. Ayrı bir SELECT çekmeye gerek kalmaz ve gerçekten ne yazıldığını görürsün.",
+    completionMessage:
+      "Hareketi kaydettin ve kanıtını gördün. Sıradaki alıştırma silmeden önce kapsamı ölçmeyi çalıştıracak.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m8-d2",
+    slug: "import-draft-delete-scope",
+    moduleId: "module-8",
+    title: "Silmeden önce kapsamı ölç",
+    subtitle: "Hangi satırların gideceğini silmeden önce gör.",
+    scenario:
+      "Veri ekibi B-77 partisindeki taslak satırları temizleyecek; önce hangi satırların etkileneceğini teyit ediyor.",
+    objective:
+      "import_rows tablosundan yalnız B-77 partisine ait ve durumu draft olan satırların import_row_id, batch_id ve status kolonlarını kimliğe göre artan sırada getir.",
+    difficulty: "intermediate",
+    estimatedMinutes: 3,
+    type: "drill_practice",
+    scored: false,
+    routeOrder: 30.1,
+    conceptsReinforced: ["K01", "K05", "K07"],
+    curriculumConcepts: ["K01", "K05", "K07"],
+    drillConcept:
+      "Silmede tehlikeli olan DELETE kelimesi değil, WHERE koşuludur. Aynı koşulu önce SELECT ile çalıştırmak, geri alınamaz bir işlemi çalıştırmadan önceki tek ucuz kontroldür.",
+    prerequisites: [],
+    concepts: ["SELECT", "WHERE", "AND", "COMPARISON", "ORDER_BY"],
+    setupSql: importBatchSetupSql,
+    schema: importBatchSchema,
+    sampleRows: importBatchSamples,
+    expectedColumns: ["import_row_id", "batch_id", "status"],
+    validationMode: "result-and-concepts",
+    expectedResult: [[4102, "B-77", "draft"]],
+    orderSensitive: true,
+    requiredConcepts: ["WHERE", "AND", "COMPARISON", "ORDER_BY"],
+    forbiddenOperations: importBatchForbidden,
+    hints: [
+      "İki koşul birlikte sağlanmalı: parti B-77 olacak ve durum draft olacak. Tek koşulla çalışırsan başka partinin taslağı da listeye girer.",
+      "WHERE içinde iki eşitliği AND ile bağla. B-78 partisinde de bir draft satır var; koşulun onu dışarıda bırakmalı.",
+      "İskelet: SELECT [kimlik], [parti], [durum] FROM import_rows WHERE [parti] = '[değer]' AND [durum] = '[değer]' ORDER BY [kimlik];",
+    ],
+    explanation:
+      "Tek satır döner. Aynı WHERE ile DELETE çalıştırsaydın yalnız o satır silinecekti; koşulu eksik yazsaydın B-78 partisinin taslağı da gidecekti.",
+    completionMessage:
+      "Kapsamı ölçtün. Sıradaki vaka aynı koşulu gerçek bir silmeye taşıyacak.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m8-d3",
+    slug: "daily-metric-upsert-insert-path",
+    moduleId: "module-8",
+    title: "Çakışma yoksa ne olur",
+    subtitle: "UPSERT'ün ekleme tarafını çakışmadan önce tanı.",
+    scenario:
+      "ETL yükü yeni bir güne ait şube metriğini yazıyor; o gün için kayıt henüz yok.",
+    objective:
+      "branch_daily_metrics tablosuna 2 numaralı şubenin 2026-05-21 günü için 6 sipariş ve 720.00 ciro değerini yaz; aynı anahtar zaten varsa değerleri güncelleyecek biçimde kur ve yazılan satırın dört kolonunu geri döndür.",
+    difficulty: "intermediate",
+    estimatedMinutes: 3,
+    type: "drill_practice",
+    scored: false,
+    routeOrder: 31.1,
+    conceptsReinforced: ["K99-INSERT", "K99-UPSERT", "K99-RETURNING"],
+    curriculumConcepts: ["K99-INSERT", "K99-UPSERT", "K99-RETURNING"],
+    drillConcept:
+      "ON CONFLICT DO UPDATE iki yolu tek ifadede taşır: anahtar yoksa ekler, varsa günceller. Burada anahtar yok, yani ekleme yolu çalışır — aynı ifade sıradaki vakada güncelleme yolunu çalıştıracak.",
+    prerequisites: [],
+    concepts: ["INSERT", "UPSERT"],
+    setupSql: dailyMetricSetupSql,
+    schema: dailyMetricSchema,
+    sampleRows: dailyMetricSamples,
+    expectedColumns: ["branch_id", "metric_date", "order_count", "revenue"],
+    validationMode: "mutation",
+    mutationVerification: {
+      sql: "SELECT branch_id, metric_date, order_count, revenue FROM branch_daily_metrics ORDER BY branch_id, metric_date;",
+      expectedColumns: [
+        "branch_id",
+        "metric_date",
+        "order_count",
+        "revenue",
+      ],
+      expectedResult: [
+        [1, "2026-05-19", 9, "980.00"],
+        [1, "2026-05-20", 11, "1250.00"],
+        [2, "2026-05-20", 8, "910.00"],
+        [2, "2026-05-21", 6, "720.00"],
+      ],
+      orderSensitive: true,
+    },
+    expectedResult: [[2, "2026-05-21", 6, "720.00"]],
+    orderSensitive: false,
+    requiredConcepts: ["INSERT", "UPSERT"],
+    forbiddenOperations: dailyMetricForbidden,
+    hints: [
+      "Bu gün için kayıt yok, yani ifade ekleme yapacak. Yine de çakışma davranışını şimdiden yazmalısın; sıradaki vakada aynı ifade güncelleme yapacak.",
+      "ON CONFLICT (anahtar kolonları) DO UPDATE SET ... yazdığında çakışma hâlinde güncelleme yolu çalışır. Yeni değerlere EXCLUDED üzerinden erişirsin.",
+      "İskelet: INSERT INTO branch_daily_metrics (...) VALUES (...) ON CONFLICT ([şube], [tarih]) DO UPDATE SET [sayı] = EXCLUDED.[sayı], [ciro] = EXCLUDED.[ciro] RETURNING [dört kolon];",
+    ],
+    explanation:
+      "Anahtar bulunmadığı için ekleme yolu çalıştı ve tabloya dördüncü satır eklendi. Aynı ifadeyi var olan bir anahtarla çalıştırsaydın mevcut satır güncellenirdi.",
+    completionMessage:
+      "UPSERT'ün ekleme yolunu gördün. Sıradaki vaka aynı ifadeyi çakışan bir anahtarla çalıştıracak.",
+    nextTaskId: null,
+  }),
+];
 
 export const module8ExpansionTasks: LessonTask[] = [
   insertMovementTask,

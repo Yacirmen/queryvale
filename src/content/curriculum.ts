@@ -9,6 +9,7 @@ import { assertValidTaskCollection } from "../features/validation/task-content";
 import { normalizeConceptName } from "../features/validation/sql-concepts";
 import { createTask, READ_ONLY_FORBIDDEN } from "./curriculumTaskFactory";
 import {
+  module8BridgeDrills,
   module8ExpansionTasks,
   module9ExpansionTasks,
   module10ExpansionTasks,
@@ -5057,7 +5058,11 @@ const authoredCurriculum: CurriculumModule[] = [
     description:
       "UPDATE, INSERT, DELETE ve UPSERT işlemlerini dar hedef, constraint, RETURNING ve gizli post-state kontrolleriyle güvenle uygula.",
     difficulty: "intermediate",
-    estimatedMinutes: 54,
+    estimatedMinutes: [
+      mutationTask,
+      ...module8ExpansionTasks,
+      ...module8BridgeDrills,
+    ].reduce((total, task) => total + task.estimatedMinutes, 0),
     topics: [
       "UPDATE",
       "WHERE ile güvenli hedefleme",
@@ -5068,7 +5073,7 @@ const authoredCurriculum: CurriculumModule[] = [
       "Idempotent UPSERT",
     ],
     prerequisites: ["module-7"],
-    tasks: [mutationTask, ...module8ExpansionTasks],
+    tasks: [mutationTask, ...module8ExpansionTasks, ...module8BridgeDrills],
   }),
   defineModule({
     id: "module-9",

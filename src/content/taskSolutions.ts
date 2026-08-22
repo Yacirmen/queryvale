@@ -393,6 +393,36 @@ export const TASK_SOLUTIONS: Readonly<Record<string, string>> = {
     FROM branch_totals
     WHERE branch_total > (SELECT AVG(branch_total) FROM branch_totals);
   `),
+  "m8-d1": sql(`
+    INSERT INTO inventory_movements (
+      movement_id,
+      product_id,
+      quantity_delta,
+      movement_type
+    )
+    VALUES (3005, 804, 5, 'IN')
+    RETURNING movement_id, product_id, quantity_delta;
+  `),
+  "m8-d2": sql(`
+    SELECT import_row_id, batch_id, status
+    FROM import_rows
+    WHERE batch_id = 'B-77' AND status = 'draft'
+    ORDER BY import_row_id;
+  `),
+  "m8-d3": sql(`
+    INSERT INTO branch_daily_metrics (
+      branch_id,
+      metric_date,
+      order_count,
+      revenue
+    )
+    VALUES (2, DATE '2026-05-21', 6, 720.00)
+    ON CONFLICT (branch_id, metric_date)
+    DO UPDATE SET
+      order_count = EXCLUDED.order_count,
+      revenue = EXCLUDED.revenue
+    RETURNING branch_id, metric_date, order_count, revenue;
+  `),
   "m7-d1": sql(`
     SELECT rep_name, revenue,
            ROW_NUMBER() OVER (ORDER BY revenue DESC, rep_name) AS row_no

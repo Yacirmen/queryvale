@@ -1983,7 +1983,12 @@ describe("PGlite task database integration", () => {
     const remainingTasks = tasks.filter((task) =>
       ["module-8", "module-9", "module-10"].includes(task.moduleId),
     );
-    expect(remainingTasks).toHaveLength(12);
+    // Vaka sayısı sözleşmedir; alıştırma sayısı kapsama boşluğuna göre büyür.
+    // Döngü ikisini de gerçek motorda çalıştırır.
+    expect(remainingTasks.filter((task) => task.type === "case")).toHaveLength(
+      12,
+    );
+    expect(remainingTasks.length).toBeGreaterThanOrEqual(12);
 
     for (const task of remainingTasks) {
       const fixtureSql = solutions[task.id];
