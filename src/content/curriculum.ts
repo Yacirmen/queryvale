@@ -3295,87 +3295,87 @@ const campaignCatalogSetupSql = `
     `;
 
 const campaignCatalogSchema = {
-      tables: [
+  tables: [
+    {
+      name: "categories",
+      description: "Kampanya kapsamı işaretlenmiş ürün kategorileri.",
+      columns: [
         {
-          name: "categories",
-          description: "Kampanya kapsamı işaretlenmiş ürün kategorileri.",
-          columns: [
-            {
-              name: "category_id",
-              dataType: "INTEGER",
-              nullable: false,
-              primaryKey: true,
-            },
-            { name: "category_name", dataType: "TEXT", nullable: false },
-            { name: "campaign_active", dataType: "BOOLEAN", nullable: false },
-          ],
+          name: "category_id",
+          dataType: "INTEGER",
+          nullable: false,
+          primaryKey: true,
         },
-        {
-          name: "products",
-          description: "Kategoriye bağlı ürün ve fiyat listesi.",
-          columns: [
-            {
-              name: "product_id",
-              dataType: "INTEGER",
-              nullable: false,
-              primaryKey: true,
-            },
-            { name: "product_name", dataType: "TEXT", nullable: false },
-            {
-              name: "category_id",
-              dataType: "INTEGER",
-              nullable: false,
-              references: { table: "categories", column: "category_id" },
-            },
-            { name: "unit_price", dataType: "NUMERIC(10,2)", nullable: false },
-          ],
-        },
+        { name: "category_name", dataType: "TEXT", nullable: false },
+        { name: "campaign_active", dataType: "BOOLEAN", nullable: false },
       ],
-      relationships: [
+    },
+    {
+      name: "products",
+      description: "Kategoriye bağlı ürün ve fiyat listesi.",
+      columns: [
         {
-          fromTable: "products",
-          fromColumn: "category_id",
-          toTable: "categories",
-          toColumn: "category_id",
-          label: "Ürün bir kategoriye aittir",
+          name: "product_id",
+          dataType: "INTEGER",
+          nullable: false,
+          primaryKey: true,
         },
+        { name: "product_name", dataType: "TEXT", nullable: false },
+        {
+          name: "category_id",
+          dataType: "INTEGER",
+          nullable: false,
+          references: { table: "categories", column: "category_id" },
+        },
+        { name: "unit_price", dataType: "NUMERIC(10,2)", nullable: false },
       ],
-    };
+    },
+  ],
+  relationships: [
+    {
+      fromTable: "products",
+      fromColumn: "category_id",
+      toTable: "categories",
+      toColumn: "category_id",
+      label: "Ürün bir kategoriye aittir",
+    },
+  ],
+};
 
 const campaignCatalogSamples = [
+  {
+    tableName: "categories",
+    rows: [
       {
-        tableName: "categories",
-        rows: [
-          {
-            category_id: 1,
-            category_name: "Electronics",
-            campaign_active: true,
-          },
-          {
-            category_id: 2,
-            category_name: "Furniture",
-            campaign_active: false,
-          },
-        ],
+        category_id: 1,
+        category_name: "Electronics",
+        campaign_active: true,
       },
       {
-        tableName: "products",
-        rows: [
-          {
-            product_id: 2,
-            product_name: "Monitör",
-            category_id: 1,
-            unit_price: 300,
-          },
-          {
-            product_id: 3,
-            product_name: "Ofis Koltuğu",
-            category_id: 2,
-            unit_price: 500,
-          },
-        ],
+        category_id: 2,
+        category_name: "Furniture",
+        campaign_active: false,
       },
-    ];
+    ],
+  },
+  {
+    tableName: "products",
+    rows: [
+      {
+        product_id: 2,
+        product_name: "Monitör",
+        category_id: 1,
+        unit_price: 300,
+      },
+      {
+        product_id: 3,
+        product_name: "Ofis Koltuğu",
+        category_id: 2,
+        unit_price: 500,
+      },
+    ],
+  },
+];
 
 const categoryTreeSetupSql = `
       CREATE TABLE categories (
@@ -3393,49 +3393,48 @@ const categoryTreeSetupSql = `
     `;
 
 const categoryTreeSchema = {
-      tables: [
+  tables: [
+    {
+      name: "categories",
+      description: "parent_id ile kendi üzerine bağlanan katalog kategorileri.",
+      columns: [
         {
-          name: "categories",
-          description:
-            "parent_id ile kendi üzerine bağlanan katalog kategorileri.",
-          columns: [
-            {
-              name: "category_id",
-              dataType: "INTEGER",
-              nullable: false,
-              primaryKey: true,
-            },
-            { name: "category_name", dataType: "TEXT", nullable: false },
-            {
-              name: "parent_id",
-              dataType: "INTEGER",
-              nullable: true,
-              references: { table: "categories", column: "category_id" },
-            },
-          ],
+          name: "category_id",
+          dataType: "INTEGER",
+          nullable: false,
+          primaryKey: true,
+        },
+        { name: "category_name", dataType: "TEXT", nullable: false },
+        {
+          name: "parent_id",
+          dataType: "INTEGER",
+          nullable: true,
+          references: { table: "categories", column: "category_id" },
         },
       ],
-      relationships: [
-        {
-          fromTable: "categories",
-          fromColumn: "parent_id",
-          toTable: "categories",
-          toColumn: "category_id",
-          label: "Alt kategori üst kategoriye bağlanır",
-        },
-      ],
-    };
+    },
+  ],
+  relationships: [
+    {
+      fromTable: "categories",
+      fromColumn: "parent_id",
+      toTable: "categories",
+      toColumn: "category_id",
+      label: "Alt kategori üst kategoriye bağlanır",
+    },
+  ],
+};
 
 const categoryTreeSamples = [
-      {
-        tableName: "categories",
-        rows: [
-          { category_id: 1, category_name: "Ürünler", parent_id: null },
-          { category_id: 2, category_name: "Elektronik", parent_id: 1 },
-          { category_id: 4, category_name: "Bilgisayar", parent_id: 2 },
-        ],
-      },
-    ];
+  {
+    tableName: "categories",
+    rows: [
+      { category_id: 1, category_name: "Ürünler", parent_id: null },
+      { category_id: 2, category_name: "Elektronik", parent_id: 1 },
+      { category_id: 4, category_name: "Bilgisayar", parent_id: 2 },
+    ],
+  },
+];
 
 const subqueryFoundationTasks: LessonTask[] = [
   createTask({
@@ -3683,7 +3682,7 @@ const subqueryBridgeDrills: LessonTask[] = [
     conceptsReinforced: ["K01", "K03", "K31"],
     curriculumConcepts: ["K01", "K03", "K31"],
     drillConcept:
-      "EXISTS satır saymaz, yalnız \"böyle bir satır var mı\" sorusuna evet ya da hayır der. İlk eşleşmeyi bulunca durur; bu yüzden varlık kontrolünde saymaktan daha doğru bir araçtır.",
+      'EXISTS satır saymaz, yalnız "böyle bir satır var mı" sorusuna evet ya da hayır der. İlk eşleşmeyi bulunca durur; bu yüzden varlık kontrolünde saymaktan daha doğru bir araçtır.',
     prerequisites: [],
     concepts: ["SELECT", "EXISTS", "SUBQUERY", "COMPARISON", "ORDER_BY"],
     setupSql: categoryTreeSetupSql,
@@ -3946,45 +3945,45 @@ const representativeSalesSetupSql = `
     `;
 
 const representativeSalesSchema = {
-      tables: [
+  tables: [
+    {
+      name: "representative_sales",
+      description: "Kategori bazında temsilci gelir sonuçları.",
+      columns: [
         {
-          name: "representative_sales",
-          description: "Kategori bazında temsilci gelir sonuçları.",
-          columns: [
-            {
-              name: "rep_id",
-              dataType: "INTEGER",
-              nullable: false,
-              primaryKey: true,
-            },
-            { name: "category", dataType: "TEXT", nullable: false },
-            { name: "rep_name", dataType: "TEXT", nullable: false },
-            { name: "revenue", dataType: "NUMERIC(10,2)", nullable: false },
-          ],
+          name: "rep_id",
+          dataType: "INTEGER",
+          nullable: false,
+          primaryKey: true,
         },
+        { name: "category", dataType: "TEXT", nullable: false },
+        { name: "rep_name", dataType: "TEXT", nullable: false },
+        { name: "revenue", dataType: "NUMERIC(10,2)", nullable: false },
       ],
-    };
+    },
+  ],
+};
 
 const representativeSalesSamples = [
+  {
+    tableName: "representative_sales",
+    rows: [
       {
-        tableName: "representative_sales",
-        rows: [
-          {
-            rep_id: 1,
-            category: "Enterprise",
-            rep_name: "Ayla",
-            revenue: 1200,
-          },
-          {
-            rep_id: 2,
-            category: "Enterprise",
-            rep_name: "Bora",
-            revenue: 1200,
-          },
-          { rep_id: 5, category: "SMB", rep_name: "Eren", revenue: 600 },
-        ],
+        rep_id: 1,
+        category: "Enterprise",
+        rep_name: "Ayla",
+        revenue: 1200,
       },
-    ];
+      {
+        rep_id: 2,
+        category: "Enterprise",
+        rep_name: "Bora",
+        revenue: 1200,
+      },
+      { rep_id: 5, category: "SMB", rep_name: "Eren", revenue: 600 },
+    ],
+  },
+];
 
 const dailyDemandSetupSql = `
       CREATE TABLE daily_demand (
@@ -4003,33 +4002,33 @@ const dailyDemandSetupSql = `
     `;
 
 const dailyDemandSchema = {
-      tables: [
+  tables: [
+    {
+      name: "daily_demand",
+      description: "Günlük sevkiyat talep adetleri.",
+      columns: [
         {
-          name: "daily_demand",
-          description: "Günlük sevkiyat talep adetleri.",
-          columns: [
-            {
-              name: "demand_date",
-              dataType: "DATE",
-              nullable: false,
-              primaryKey: true,
-            },
-            { name: "units", dataType: "INTEGER", nullable: false },
-          ],
+          name: "demand_date",
+          dataType: "DATE",
+          nullable: false,
+          primaryKey: true,
         },
+        { name: "units", dataType: "INTEGER", nullable: false },
       ],
-    };
+    },
+  ],
+};
 
 const dailyDemandSamples = [
-      {
-        tableName: "daily_demand",
-        rows: [
-          { demand_date: "2026-05-01", units: 10 },
-          { demand_date: "2026-05-02", units: 14 },
-          { demand_date: "2026-05-03", units: 12 },
-        ],
-      },
-    ];
+  {
+    tableName: "daily_demand",
+    rows: [
+      { demand_date: "2026-05-01", units: 10 },
+      { demand_date: "2026-05-02", units: 14 },
+      { demand_date: "2026-05-03", units: 12 },
+    ],
+  },
+];
 
 /**
  * Köprü alıştırmaları — denetimin 24↔25 ve 26↔27 müdahale noktaları.
@@ -4053,49 +4052,49 @@ const accountLedgerSetupSql = `
       (705, 'B-200', DATE '2026-04-03', -80.00);
   `;
 const accountLedgerSchema = {
-    tables: [
-      {
-        name: "account_transactions",
-        description: "Hesap bazlı finansal giriş ve çıkış hareketleri.",
-        columns: [
-          {
-            name: "transaction_id",
-            dataType: "INTEGER",
-            nullable: false,
-            primaryKey: true,
-          },
-          { name: "account_no", dataType: "TEXT", nullable: false },
-          { name: "transaction_date", dataType: "DATE", nullable: false },
-          { name: "amount", dataType: "NUMERIC(10,2)", nullable: false },
-        ],
-      },
-    ],
-  };
-const accountLedgerSamples = [
+  tables: [
     {
-      tableName: "account_transactions",
-      rows: [
+      name: "account_transactions",
+      description: "Hesap bazlı finansal giriş ve çıkış hareketleri.",
+      columns: [
         {
-          transaction_id: 701,
-          account_no: "A-100",
-          transaction_date: "2026-04-01",
-          amount: 100,
+          name: "transaction_id",
+          dataType: "INTEGER",
+          nullable: false,
+          primaryKey: true,
         },
-        {
-          transaction_id: 702,
-          account_no: "A-100",
-          transaction_date: "2026-04-02",
-          amount: -30,
-        },
-        {
-          transaction_id: 704,
-          account_no: "B-200",
-          transaction_date: "2026-04-01",
-          amount: 200,
-        },
+        { name: "account_no", dataType: "TEXT", nullable: false },
+        { name: "transaction_date", dataType: "DATE", nullable: false },
+        { name: "amount", dataType: "NUMERIC(10,2)", nullable: false },
       ],
     },
-  ];
+  ],
+};
+const accountLedgerSamples = [
+  {
+    tableName: "account_transactions",
+    rows: [
+      {
+        transaction_id: 701,
+        account_no: "A-100",
+        transaction_date: "2026-04-01",
+        amount: 100,
+      },
+      {
+        transaction_id: 702,
+        account_no: "A-100",
+        transaction_date: "2026-04-02",
+        amount: -30,
+      },
+      {
+        transaction_id: 704,
+        account_no: "B-200",
+        transaction_date: "2026-04-01",
+        amount: 200,
+      },
+    ],
+  },
+];
 
 const analyticsBridgeDrills: LessonTask[] = [
   createTask({
@@ -4113,16 +4112,42 @@ const analyticsBridgeDrills: LessonTask[] = [
     type: "drill_mix",
     scored: false,
     routeOrder: 27.1,
-    conceptsReinforced: ["K01", "K02", "K03", "K30", "K99-PARTITION_BY", "K99-PENCERE_CERCEVESI"],
-    curriculumConcepts: ["K01", "K02", "K03", "K30", "K99-PARTITION_BY", "K99-PENCERE_CERCEVESI"],
+    conceptsReinforced: [
+      "K01",
+      "K02",
+      "K03",
+      "K30",
+      "K99-PARTITION_BY",
+      "K99-PENCERE_CERCEVESI",
+    ],
+    curriculumConcepts: [
+      "K01",
+      "K02",
+      "K03",
+      "K30",
+      "K99-PARTITION_BY",
+      "K99-PENCERE_CERCEVESI",
+    ],
     drillConcept:
       "Hareketli ortalama, kayan toplamla aynı çerçeveyi kullanır; değişen tek şey SUM yerine AVG olmasıdır. Bölümlendirme eklendiğinde pencere her hesabın başında sıfırlanır ve hesaplar birbirine karışmaz.",
     prerequisites: [],
-    concepts: ["SELECT", "AVG", "MOVING_AVERAGE", "PARTITION_BY", "ALIAS", "ORDER_BY"],
+    concepts: [
+      "SELECT",
+      "AVG",
+      "MOVING_AVERAGE",
+      "PARTITION_BY",
+      "ALIAS",
+      "ORDER_BY",
+    ],
     setupSql: accountLedgerSetupSql,
     schema: accountLedgerSchema,
     sampleRows: accountLedgerSamples,
-    expectedColumns: ["account_no", "transaction_date", "amount", "moving_avg_2"],
+    expectedColumns: [
+      "account_no",
+      "transaction_date",
+      "amount",
+      "moving_avg_2",
+    ],
     validationMode: "result-and-concepts",
     expectedResult: [
       ["A-100", "2026-04-01", "100.00", "100.00"],
@@ -4132,7 +4157,13 @@ const analyticsBridgeDrills: LessonTask[] = [
       ["B-200", "2026-04-03", "-80.00", "60.00"],
     ],
     orderSensitive: true,
-    requiredConcepts: ["AVG", "MOVING_AVERAGE", "PARTITION_BY", "ALIAS", "ORDER_BY"],
+    requiredConcepts: [
+      "AVG",
+      "MOVING_AVERAGE",
+      "PARTITION_BY",
+      "ALIAS",
+      "ORDER_BY",
+    ],
     forbiddenOperations: [...READ_ONLY_FORBIDDEN],
     hints: [
       "Her hesabın ilk hareketinde geriye bakacak satır yok; o satırın ortalaması kendi tutarına eşit çıkar. B-200'ün ortalaması A-100'ün hareketlerinden etkilenmemeli.",
@@ -4308,7 +4339,14 @@ const analyticsBridgeDrills: LessonTask[] = [
     routeOrder: 26.1,
     conceptNew: "K99-PENCERE_CERCEVESI",
     conceptsReinforced: ["K01", "K02", "K03", "K15", "K36"],
-    curriculumConcepts: ["K01", "K02", "K03", "K15", "K36", "K99-PENCERE_CERCEVESI"],
+    curriculumConcepts: [
+      "K01",
+      "K02",
+      "K03",
+      "K15",
+      "K36",
+      "K99-PENCERE_CERCEVESI",
+    ],
     drillConcept:
       "Pencere fonksiyonu varsayılan olarak baştan o ana kadar bakar. ROWS BETWEEN ile bu görüş alanını sen daraltırsın: kaç satır geriye bakılacağını söylersin ve toplam kayan bir pencereye dönüşür.",
     prerequisites: [],
@@ -5191,7 +5229,11 @@ const authoredCurriculum: CurriculumModule[] = [
       "Eşitlik ve deterministik sıra",
     ],
     prerequisites: ["module-6"],
-    tasks: [...analyticsFoundationTasks, analyticsTask, ...analyticsBridgeDrills],
+    tasks: [
+      ...analyticsFoundationTasks,
+      analyticsTask,
+      ...analyticsBridgeDrills,
+    ],
   }),
   defineModule({
     id: "module-8",

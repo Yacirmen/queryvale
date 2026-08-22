@@ -38,83 +38,83 @@ const movementLedgerSetupSql = `
   `;
 
 const movementLedgerSchema = {
-    tables: [
-      {
-        name: "inventory",
-        description: "Depodaki ürün kartları ve güncel stok bakiyeleri.",
-        columns: [
-          {
-            name: "product_id",
-            dataType: "INTEGER",
-            nullable: false,
-            primaryKey: true,
-          },
-          { name: "product_name", dataType: "TEXT", nullable: false },
-          { name: "stock_quantity", dataType: "INTEGER", nullable: false },
-        ],
-      },
-      {
-        name: "inventory_movements",
-        description:
-          "Her stok giriş ve çıkışını değişmez bir denetim kaydı olarak tutar.",
-        columns: [
-          {
-            name: "movement_id",
-            dataType: "INTEGER",
-            nullable: false,
-            primaryKey: true,
-          },
-          {
-            name: "product_id",
-            dataType: "INTEGER",
-            nullable: false,
-            references: { table: "inventory", column: "product_id" },
-          },
-          { name: "quantity_delta", dataType: "INTEGER", nullable: false },
-          { name: "movement_type", dataType: "TEXT", nullable: false },
-        ],
-      },
-    ],
-    relationships: [
-      {
-        fromTable: "inventory_movements",
-        fromColumn: "product_id",
-        toTable: "inventory",
-        toColumn: "product_id",
-      },
-    ],
-  };
+  tables: [
+    {
+      name: "inventory",
+      description: "Depodaki ürün kartları ve güncel stok bakiyeleri.",
+      columns: [
+        {
+          name: "product_id",
+          dataType: "INTEGER",
+          nullable: false,
+          primaryKey: true,
+        },
+        { name: "product_name", dataType: "TEXT", nullable: false },
+        { name: "stock_quantity", dataType: "INTEGER", nullable: false },
+      ],
+    },
+    {
+      name: "inventory_movements",
+      description:
+        "Her stok giriş ve çıkışını değişmez bir denetim kaydı olarak tutar.",
+      columns: [
+        {
+          name: "movement_id",
+          dataType: "INTEGER",
+          nullable: false,
+          primaryKey: true,
+        },
+        {
+          name: "product_id",
+          dataType: "INTEGER",
+          nullable: false,
+          references: { table: "inventory", column: "product_id" },
+        },
+        { name: "quantity_delta", dataType: "INTEGER", nullable: false },
+        { name: "movement_type", dataType: "TEXT", nullable: false },
+      ],
+    },
+  ],
+  relationships: [
+    {
+      fromTable: "inventory_movements",
+      fromColumn: "product_id",
+      toTable: "inventory",
+      toColumn: "product_id",
+    },
+  ],
+};
 
 const movementLedgerSamples = [
-    {
-      tableName: "inventory",
-      rows: [
-        {
-          product_id: 801,
-          product_name: "Wireless Scanner",
-          stock_quantity: 12,
-        },
-        { product_id: 803, product_name: "Packing Tape", stock_quantity: 20 },
-      ],
-    },
-    {
-      tableName: "inventory_movements",
-      rows: [
-        {
-          movement_id: 3001,
-          product_id: 801,
-          quantity_delta: 12,
-          movement_type: "IN",
-        },
-        {
-          movement_id: 3003,
-          product_id: 801,
-          quantity_delta: -3,
-          movement_type: "OUT",
-        },
-      ],
-    },
-  ];
+  {
+    tableName: "inventory",
+    rows: [
+      {
+        product_id: 801,
+        product_name: "Wireless Scanner",
+        stock_quantity: 12,
+      },
+      { product_id: 803, product_name: "Packing Tape", stock_quantity: 20 },
+    ],
+  },
+  {
+    tableName: "inventory_movements",
+    rows: [
+      {
+        movement_id: 3001,
+        product_id: 801,
+        quantity_delta: 12,
+        movement_type: "IN",
+      },
+      {
+        movement_id: 3003,
+        product_id: 801,
+        quantity_delta: -3,
+        movement_type: "OUT",
+      },
+    ],
+  },
+];
 
 const movementLedgerForbidden = mutationForbidden(["INSERT"]);
 
@@ -136,55 +136,55 @@ const importBatchSetupSql = `
   `;
 
 const importBatchSchema = {
-    tables: [
-      {
-        name: "import_rows",
-        description:
-          "Dosya aktarımındaki her satırın paket, sıra ve onay durumunu tutar.",
-        columns: [
-          {
-            name: "import_row_id",
-            dataType: "INTEGER",
-            nullable: false,
-            primaryKey: true,
-          },
-          { name: "batch_id", dataType: "TEXT", nullable: false },
-          { name: "row_no", dataType: "INTEGER", nullable: false },
-          { name: "status", dataType: "TEXT", nullable: false },
-          { name: "payload", dataType: "TEXT", nullable: false },
-        ],
-      },
-    ],
-  };
-
-const importBatchSamples = [
+  tables: [
     {
-      tableName: "import_rows",
-      rows: [
+      name: "import_rows",
+      description:
+        "Dosya aktarımındaki her satırın paket, sıra ve onay durumunu tutar.",
+      columns: [
         {
-          import_row_id: 4101,
-          batch_id: "B-77",
-          row_no: 1,
-          status: "approved",
-          payload: "customer=Atlas",
+          name: "import_row_id",
+          dataType: "INTEGER",
+          nullable: false,
+          primaryKey: true,
         },
-        {
-          import_row_id: 4102,
-          batch_id: "B-77",
-          row_no: 2,
-          status: "draft",
-          payload: "customer=Boreal",
-        },
-        {
-          import_row_id: 4104,
-          batch_id: "B-78",
-          row_no: 2,
-          status: "draft",
-          payload: "customer=Delta",
-        },
+        { name: "batch_id", dataType: "TEXT", nullable: false },
+        { name: "row_no", dataType: "INTEGER", nullable: false },
+        { name: "status", dataType: "TEXT", nullable: false },
+        { name: "payload", dataType: "TEXT", nullable: false },
       ],
     },
-  ];
+  ],
+};
+
+const importBatchSamples = [
+  {
+    tableName: "import_rows",
+    rows: [
+      {
+        import_row_id: 4101,
+        batch_id: "B-77",
+        row_no: 1,
+        status: "approved",
+        payload: "customer=Atlas",
+      },
+      {
+        import_row_id: 4102,
+        batch_id: "B-77",
+        row_no: 2,
+        status: "draft",
+        payload: "customer=Boreal",
+      },
+      {
+        import_row_id: 4104,
+        batch_id: "B-78",
+        row_no: 2,
+        status: "draft",
+        payload: "customer=Delta",
+      },
+    ],
+  },
+];
 
 const importBatchForbidden = mutationForbidden(["DELETE"]);
 
@@ -203,40 +203,40 @@ const dailyMetricSetupSql = `
   `;
 
 const dailyMetricSchema = {
-    tables: [
-      {
-        name: "branch_daily_metrics",
-        description:
-          "Her şube ve gün için tek, yeniden yüklenebilir operasyon özeti.",
-        columns: [
-          { name: "branch_id", dataType: "INTEGER", nullable: false },
-          { name: "metric_date", dataType: "DATE", nullable: false },
-          { name: "order_count", dataType: "INTEGER", nullable: false },
-          { name: "revenue", dataType: "NUMERIC(12,2)", nullable: false },
-        ],
-      },
-    ],
-  };
-
-const dailyMetricSamples = [
+  tables: [
     {
-      tableName: "branch_daily_metrics",
-      rows: [
-        {
-          branch_id: 1,
-          metric_date: "2026-05-20",
-          order_count: 11,
-          revenue: 1250,
-        },
-        {
-          branch_id: 2,
-          metric_date: "2026-05-20",
-          order_count: 8,
-          revenue: 910,
-        },
+      name: "branch_daily_metrics",
+      description:
+        "Her şube ve gün için tek, yeniden yüklenebilir operasyon özeti.",
+      columns: [
+        { name: "branch_id", dataType: "INTEGER", nullable: false },
+        { name: "metric_date", dataType: "DATE", nullable: false },
+        { name: "order_count", dataType: "INTEGER", nullable: false },
+        { name: "revenue", dataType: "NUMERIC(12,2)", nullable: false },
       ],
     },
-  ];
+  ],
+};
+
+const dailyMetricSamples = [
+  {
+    tableName: "branch_daily_metrics",
+    rows: [
+      {
+        branch_id: 1,
+        metric_date: "2026-05-20",
+        order_count: 11,
+        revenue: 1250,
+      },
+      {
+        branch_id: 2,
+        metric_date: "2026-05-20",
+        order_count: 8,
+        revenue: 910,
+      },
+    ],
+  },
+];
 
 const dailyMetricForbidden = mutationForbidden(["INSERT", "UPDATE"]);
 
@@ -589,12 +589,7 @@ export const module8BridgeDrills: LessonTask[] = [
     validationMode: "mutation",
     mutationVerification: {
       sql: "SELECT branch_id, metric_date, order_count, revenue FROM branch_daily_metrics ORDER BY branch_id, metric_date;",
-      expectedColumns: [
-        "branch_id",
-        "metric_date",
-        "order_count",
-        "revenue",
-      ],
+      expectedColumns: ["branch_id", "metric_date", "order_count", "revenue"],
       expectedResult: [
         [1, "2026-05-19", 9, "980.00"],
         [1, "2026-05-20", 11, "1250.00"],
