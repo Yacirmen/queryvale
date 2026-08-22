@@ -510,6 +510,58 @@ export const module8BridgeDrills: LessonTask[] = [
     nextTaskId: null,
   }),
   createTask({
+    id: "m8-d4",
+    slug: "import-rejected-delete-execute",
+    moduleId: "module-8",
+    title: "Ölçtüğün kapsamı sil",
+    subtitle: "Aynı WHERE'i bu kez gerçekten çalıştır.",
+    scenario:
+      "B-79 partisi reddedildi; veri ekibi bu partinin reddedilen satırlarını kalıcı olarak temizliyor.",
+    objective:
+      "import_rows tablosundan yalnız B-79 partisine ait ve durumu rejected olan satırları sil; silinen satırın import_row_id, batch_id ve status kolonlarını geri döndür.",
+    difficulty: "intermediate",
+    estimatedMinutes: 3,
+    type: "drill_practice",
+    scored: false,
+    routeOrder: 30.2,
+    conceptsReinforced: ["K01", "K05", "K07", "K99-DELETE", "K99-RETURNING"],
+    curriculumConcepts: ["K01", "K05", "K07", "K99-DELETE", "K99-RETURNING"],
+    drillConcept:
+      "Bir önceki alıştırmada kapsamı SELECT ile ölçtün; burada aynı WHERE bir DELETE'e taşınıyor. Silme geri alınamaz, bu yüzden kural şudur: koşulu önce oku, sonra çalıştır, sonra RETURNING ile ne gittiğini gör.",
+    prerequisites: [],
+    concepts: ["DELETE"],
+    setupSql: importBatchSetupSql,
+    schema: importBatchSchema,
+    sampleRows: importBatchSamples,
+    expectedColumns: ["import_row_id", "batch_id", "status"],
+    validationMode: "mutation",
+    mutationVerification: {
+      sql: "SELECT import_row_id, batch_id, status FROM import_rows ORDER BY import_row_id;",
+      expectedColumns: ["import_row_id", "batch_id", "status"],
+      expectedResult: [
+        [4101, "B-77", "approved"],
+        [4102, "B-77", "draft"],
+        [4103, "B-77", "approved"],
+        [4104, "B-78", "draft"],
+      ],
+      orderSensitive: true,
+    },
+    expectedResult: [[4105, "B-79", "rejected"]],
+    orderSensitive: false,
+    requiredConcepts: ["DELETE"],
+    forbiddenOperations: importBatchForbidden,
+    hints: [
+      "Dört satır tabloda kalmalı. WHERE'i eksik yazarsan başka partilerin satırları da gider ve geri getiremezsin.",
+      "İki koşulu AND ile bağla, sonra ifadenin sonuna RETURNING ekleyerek gerçekten hangi satırın silindiğini gör.",
+      "İskelet: DELETE FROM import_rows WHERE [parti] = '[değer]' AND [durum] = '[değer]' RETURNING [kimlik], [parti], [durum];",
+    ],
+    explanation:
+      "Tek satır silindi ve RETURNING onu sana gösterdi. Aynı koşulu bir önceki alıştırmada SELECT ile denemiştin; bu sıralama gerçek işlerde de doğru sıradır çünkü DELETE'in geri dönüşü yoktur.",
+    completionMessage:
+      "Silmeyi ölçüp uyguladın. INSERT, DELETE ve UPSERT artık birer vakadan fazlasında geçti.",
+    nextTaskId: null,
+  }),
+  createTask({
     id: "m8-d3",
     slug: "daily-metric-upsert-insert-path",
     moduleId: "module-8",

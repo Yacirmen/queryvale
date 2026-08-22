@@ -409,6 +409,11 @@ export const TASK_SOLUTIONS: Readonly<Record<string, string>> = {
     WHERE batch_id = 'B-77' AND status = 'draft'
     ORDER BY import_row_id;
   `),
+  "m8-d4": sql(`
+    DELETE FROM import_rows
+    WHERE batch_id = 'B-79' AND status = 'rejected'
+    RETURNING import_row_id, batch_id, status;
+  `),
   "m8-d3": sql(`
     INSERT INTO branch_daily_metrics (
       branch_id,
@@ -422,6 +427,22 @@ export const TASK_SOLUTIONS: Readonly<Record<string, string>> = {
       order_count = EXCLUDED.order_count,
       revenue = EXCLUDED.revenue
     RETURNING branch_id, metric_date, order_count, revenue;
+  `),
+  "m7-d4": sql(`
+    SELECT category, rep_name, revenue,
+           RANK() OVER (PARTITION BY category ORDER BY revenue DESC) AS revenue_rank
+    FROM representative_sales
+    ORDER BY category, revenue_rank, rep_name;
+  `),
+  "m7-d5": sql(`
+    SELECT account_no, transaction_date, amount,
+           ROUND(AVG(amount) OVER (
+             PARTITION BY account_no
+             ORDER BY transaction_date
+             ROWS BETWEEN 1 PRECEDING AND CURRENT ROW
+           ), 2) AS moving_avg_2
+    FROM account_transactions
+    ORDER BY account_no, transaction_date;
   `),
   "m7-d1": sql(`
     SELECT rep_name, revenue,
@@ -443,6 +464,16 @@ export const TASK_SOLUTIONS: Readonly<Record<string, string>> = {
            ) AS rolling_3d_units
     FROM daily_demand
     ORDER BY demand_date;
+  `),
+  "m6-d4": sql(`
+    SELECT c.category_id, c.category_name
+    FROM categories c
+    WHERE EXISTS (
+      SELECT 1
+      FROM categories child
+      WHERE child.parent_id = c.category_id
+    )
+    ORDER BY c.category_id;
   `),
   "m6-d1": sql(`
     SELECT product_name, unit_price

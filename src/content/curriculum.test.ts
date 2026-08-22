@@ -198,7 +198,7 @@ describe("curriculum", () => {
     // Müfredat denetimi 14 müdahale noktasına toplam 21 köprü öngörüyor;
     // 30'u erken noktalarda yayında, kalanı ileri modüllere ekleniyor.
     expect(drills.length).toBeGreaterThanOrEqual(30);
-    expect(drills.length).toBeLessThanOrEqual(41);
+    expect(drills.length).toBeLessThanOrEqual(48);
     expect(new Set(drills.map((task) => task.type))).toEqual(DRILL_TYPES);
     expect(cases.every((task) => task.scored)).toBe(true);
     expect(modules.at(-1)).toMatchObject({

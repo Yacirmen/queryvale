@@ -3666,6 +3666,51 @@ const subqueryFoundationTasks: LessonTask[] = [
  */
 const subqueryBridgeDrills: LessonTask[] = [
   createTask({
+    id: "m6-d4",
+    slug: "categories-with-children-exists",
+    moduleId: "module-6",
+    title: "Altında bir şey var mı",
+    subtitle: "EXISTS'i yeni bir tabloda tekrar kullan.",
+    scenario:
+      "Katalog ekibi hangi kategorilerin altında en az bir alt kategori olduğunu işaretliyor.",
+    objective:
+      "categories tablosundan, altında en az bir alt kategori bulunan kategorilerin category_id ve category_name kolonlarını kimliğe göre artan sırada getir.",
+    difficulty: "intermediate",
+    estimatedMinutes: 3,
+    type: "drill_practice",
+    scored: false,
+    routeOrder: 22.3,
+    conceptsReinforced: ["K01", "K03", "K31"],
+    curriculumConcepts: ["K01", "K03", "K31"],
+    drillConcept:
+      "EXISTS satır saymaz, yalnız \"böyle bir satır var mı\" sorusuna evet ya da hayır der. İlk eşleşmeyi bulunca durur; bu yüzden varlık kontrolünde saymaktan daha doğru bir araçtır.",
+    prerequisites: [],
+    concepts: ["SELECT", "EXISTS", "SUBQUERY", "COMPARISON", "ORDER_BY"],
+    setupSql: categoryTreeSetupSql,
+    schema: categoryTreeSchema,
+    sampleRows: categoryTreeSamples,
+    expectedColumns: ["category_id", "category_name"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      [1, "Ürünler"],
+      [2, "Elektronik"],
+      [3, "Ev"],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["EXISTS", "SUBQUERY", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "Her kategori için ayrı bir soru sor: bu kategoriyi üst kabul eden başka bir satır var mı? Yaprak kategoriler listeye girmemeli.",
+      "EXISTS (SELECT 1 FROM ... WHERE ...) dış satıra bağlı bir varlık kontrolü kurar. İç sorguda aynı tabloya ikinci bir ad vermen gerekir.",
+      "İskelet: SELECT c.[kimlik], c.[ad] FROM categories c WHERE EXISTS (SELECT 1 FROM categories [ikinci ad] WHERE [ikinci ad].[üst kimlik] = c.[kimlik]) ORDER BY c.[kimlik];",
+    ],
+    explanation:
+      "Üç üst kategori döner; Bilgisayar, Ses ve Mutfak yaprak oldukları için listeye girmez. EXISTS ilk eşleşmede durur, alt kategori sayısını hesaplamaz.",
+    completionMessage:
+      "EXISTS'i ikinci kez, farklı bir tabloda kullandın. Aynı yapıyı ilk kez sipariş verilmemiş müşterileri bulurken görmüştün.",
+    nextTaskId: null,
+  }),
+  createTask({
     id: "m6-d1",
     slug: "products-above-average-price",
     moduleId: "module-6",
@@ -3993,7 +4038,161 @@ const dailyDemandSamples = [
  * getiriyor. Bu alıştırmalar her yapıyı ihtiyaç duyulan vakadan önce
  * tek başına çalıştırır.
  */
+const accountLedgerSetupSql = `
+    CREATE TABLE account_transactions (
+      transaction_id INTEGER PRIMARY KEY,
+      account_no TEXT NOT NULL,
+      transaction_date DATE NOT NULL,
+      amount NUMERIC(10, 2) NOT NULL
+    );
+    INSERT INTO account_transactions VALUES
+      (701, 'A-100', DATE '2026-04-01', 100.00),
+      (702, 'A-100', DATE '2026-04-02', -30.00),
+      (703, 'A-100', DATE '2026-04-04', 50.00),
+      (704, 'B-200', DATE '2026-04-01', 200.00),
+      (705, 'B-200', DATE '2026-04-03', -80.00);
+  `;
+const accountLedgerSchema = {
+    tables: [
+      {
+        name: "account_transactions",
+        description: "Hesap bazlı finansal giriş ve çıkış hareketleri.",
+        columns: [
+          {
+            name: "transaction_id",
+            dataType: "INTEGER",
+            nullable: false,
+            primaryKey: true,
+          },
+          { name: "account_no", dataType: "TEXT", nullable: false },
+          { name: "transaction_date", dataType: "DATE", nullable: false },
+          { name: "amount", dataType: "NUMERIC(10,2)", nullable: false },
+        ],
+      },
+    ],
+  };
+const accountLedgerSamples = [
+    {
+      tableName: "account_transactions",
+      rows: [
+        {
+          transaction_id: 701,
+          account_no: "A-100",
+          transaction_date: "2026-04-01",
+          amount: 100,
+        },
+        {
+          transaction_id: 702,
+          account_no: "A-100",
+          transaction_date: "2026-04-02",
+          amount: -30,
+        },
+        {
+          transaction_id: 704,
+          account_no: "B-200",
+          transaction_date: "2026-04-01",
+          amount: 200,
+        },
+      ],
+    },
+  ];
+
 const analyticsBridgeDrills: LessonTask[] = [
+  createTask({
+    id: "m7-d5",
+    slug: "account-moving-average-two-day",
+    moduleId: "module-7",
+    title: "Ortalamayı da kaydır",
+    subtitle: "Bilinen pencere çerçevesini toplamdan ortalamaya taşı.",
+    scenario:
+      "Hazine ekibi her hesabın son iki hareketinin ortalamasını izleyerek ani sapmaları arıyor.",
+    objective:
+      "account_transactions tablosundan account_no, transaction_date ve amount kolonlarını getir; her hesabın kendi içinde, o hareket ve bir öncekini kapsayan iki basamaklı yuvarlanmış hareketli ortalamasını moving_avg_2 adıyla ekle. Sonucu hesaba, sonra tarihe göre sırala.",
+    difficulty: "intermediate",
+    estimatedMinutes: 5,
+    type: "drill_mix",
+    scored: false,
+    routeOrder: 27.1,
+    conceptsReinforced: ["K01", "K02", "K03", "K30", "K99-PARTITION_BY", "K99-PENCERE_CERCEVESI"],
+    curriculumConcepts: ["K01", "K02", "K03", "K30", "K99-PARTITION_BY", "K99-PENCERE_CERCEVESI"],
+    drillConcept:
+      "Hareketli ortalama, kayan toplamla aynı çerçeveyi kullanır; değişen tek şey SUM yerine AVG olmasıdır. Bölümlendirme eklendiğinde pencere her hesabın başında sıfırlanır ve hesaplar birbirine karışmaz.",
+    prerequisites: [],
+    concepts: ["SELECT", "AVG", "MOVING_AVERAGE", "PARTITION_BY", "ALIAS", "ORDER_BY"],
+    setupSql: accountLedgerSetupSql,
+    schema: accountLedgerSchema,
+    sampleRows: accountLedgerSamples,
+    expectedColumns: ["account_no", "transaction_date", "amount", "moving_avg_2"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["A-100", "2026-04-01", "100.00", "100.00"],
+      ["A-100", "2026-04-02", "-30.00", "35.00"],
+      ["A-100", "2026-04-04", "50.00", "10.00"],
+      ["B-200", "2026-04-01", "200.00", "200.00"],
+      ["B-200", "2026-04-03", "-80.00", "60.00"],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["AVG", "MOVING_AVERAGE", "PARTITION_BY", "ALIAS", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "Her hesabın ilk hareketinde geriye bakacak satır yok; o satırın ortalaması kendi tutarına eşit çıkar. B-200'ün ortalaması A-100'ün hareketlerinden etkilenmemeli.",
+      "AVG(...) OVER (PARTITION BY [hesap] ORDER BY [tarih] ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) yaz. Sonucu ROUND ile iki basamağa indir.",
+      "İskelet: SELECT [hesap], [tarih], [tutar], ROUND(AVG([tutar]) OVER (PARTITION BY [hesap] ORDER BY [tarih] ROWS BETWEEN 1 PRECEDING AND CURRENT ROW), 2) AS moving_avg_2 FROM account_transactions ORDER BY [hesap], [tarih];",
+    ],
+    explanation:
+      "PARTITION BY olmasaydı B-200'ün ilk ortalaması A-100'ün son hareketini de içerirdi. Çerçeve ile bölümlendirme birlikte çalışır: biri kaç satır, diğeri hangi satırlar sorusunu yanıtlar.",
+    completionMessage:
+      "Hareketli ortalamayı ikinci kez, bölümlendirmeyle birlikte kurdun.",
+    nextTaskId: null,
+  }),
+  createTask({
+    id: "m7-d4",
+    slug: "representative-rank-with-gaps",
+    moduleId: "module-7",
+    title: "Beraberlikten sonra ne olur",
+    subtitle: "Aynı veride RANK ile DENSE_RANK farkını gör.",
+    scenario:
+      "Satış müdürü sıralamayı yarış mantığıyla istiyor: iki kişi birinciyse, sonraki kişi üçüncüdür.",
+    objective:
+      "representative_sales tablosundan category, rep_name ve revenue kolonlarını getir; her kategori kendi içinde sıralansın, eşit cirolar aynı sırayı paylaşsın ve eşitlikten sonra sıra atlansın. Kolon adı revenue_rank olsun; sonucu kategoriye, sıraya ve isme göre sırala.",
+    difficulty: "intermediate",
+    estimatedMinutes: 3,
+    type: "drill_practice",
+    scored: false,
+    routeOrder: 24.3,
+    conceptsReinforced: ["K01", "K02", "K03", "K34", "K35"],
+    curriculumConcepts: ["K01", "K02", "K03", "K34", "K35"],
+    drillConcept:
+      "RANK ile DENSE_RANK eşitlikte aynı sırayı verir ama sonrasında ayrışır: RANK atlanan sıraları boş bırakır, DENSE_RANK bırakmaz. Hangisini seçeceğin iş sorusuna bağlıdır — madalya sıralaması RANK, kademe sıralaması DENSE_RANK ister.",
+    prerequisites: [],
+    concepts: ["SELECT", "RANK", "PARTITION_BY", "ALIAS", "ORDER_BY"],
+    setupSql: representativeSalesSetupSql,
+    schema: representativeSalesSchema,
+    sampleRows: representativeSalesSamples,
+    expectedColumns: ["category", "rep_name", "revenue", "revenue_rank"],
+    validationMode: "result-and-concepts",
+    expectedResult: [
+      ["Enterprise", "Ayla", "1200.00", 1],
+      ["Enterprise", "Bora", "1200.00", 1],
+      ["Enterprise", "Cem", "900.00", 3],
+      ["SMB", "Derya", "800.00", 1],
+      ["SMB", "Eren", "600.00", 2],
+      ["SMB", "Figen", "600.00", 2],
+    ],
+    orderSensitive: true,
+    requiredConcepts: ["RANK", "PARTITION_BY", "ALIAS", "ORDER_BY"],
+    forbiddenOperations: [...READ_ONLY_FORBIDDEN],
+    hints: [
+      "Bir önceki alıştırmada Cem 2. sıradaydı. Burada 3. olmalı; çünkü önünde iki kişi var ve ikisi de birinci.",
+      "DENSE_RANK yerine RANK kullan. İkisi de eşitlere aynı sırayı verir, farkları eşitlikten sonra ortaya çıkar.",
+      "İskelet: SELECT [kategori], [temsilci], [ciro], RANK() OVER (PARTITION BY [kategori] ORDER BY [ciro] DESC) AS revenue_rank FROM [temsilci tablosu] ORDER BY [kategori], revenue_rank, [temsilci];",
+    ],
+    explanation:
+      "Ayla ve Bora 1. sırayı paylaşınca 2. sıra boş kalır ve Cem 3 olur. SMB'de eşitlik ikinci sırada olduğu için atlanacak bir sıra kalmaz. Üç sıralama fonksiyonunu artık aynı veride görmüş oldun.",
+    completionMessage:
+      "ROW_NUMBER, DENSE_RANK ve RANK'ı aynı veride karşılaştırdın. Sıradaki vaka üçünü tek sorguda yan yana isteyecek.",
+    nextTaskId: null,
+  }),
   createTask({
     id: "m7-d1",
     slug: "representative-revenue-row-number",
@@ -4349,64 +4548,9 @@ const analyticsTask = createTask({
   estimatedMinutes: 20,
   prerequisites: ["m7-t4"],
   concepts: ["SUM", "PARTITION_BY", "RUNNING_TOTAL", "ORDER_BY"],
-  setupSql: `
-    CREATE TABLE account_transactions (
-      transaction_id INTEGER PRIMARY KEY,
-      account_no TEXT NOT NULL,
-      transaction_date DATE NOT NULL,
-      amount NUMERIC(10, 2) NOT NULL
-    );
-    INSERT INTO account_transactions VALUES
-      (701, 'A-100', DATE '2026-04-01', 100.00),
-      (702, 'A-100', DATE '2026-04-02', -30.00),
-      (703, 'A-100', DATE '2026-04-04', 50.00),
-      (704, 'B-200', DATE '2026-04-01', 200.00),
-      (705, 'B-200', DATE '2026-04-03', -80.00);
-  `,
-  schema: {
-    tables: [
-      {
-        name: "account_transactions",
-        description: "Hesap bazlı finansal giriş ve çıkış hareketleri.",
-        columns: [
-          {
-            name: "transaction_id",
-            dataType: "INTEGER",
-            nullable: false,
-            primaryKey: true,
-          },
-          { name: "account_no", dataType: "TEXT", nullable: false },
-          { name: "transaction_date", dataType: "DATE", nullable: false },
-          { name: "amount", dataType: "NUMERIC(10,2)", nullable: false },
-        ],
-      },
-    ],
-  },
-  sampleRows: [
-    {
-      tableName: "account_transactions",
-      rows: [
-        {
-          transaction_id: 701,
-          account_no: "A-100",
-          transaction_date: "2026-04-01",
-          amount: 100,
-        },
-        {
-          transaction_id: 702,
-          account_no: "A-100",
-          transaction_date: "2026-04-02",
-          amount: -30,
-        },
-        {
-          transaction_id: 704,
-          account_no: "B-200",
-          transaction_date: "2026-04-01",
-          amount: 200,
-        },
-      ],
-    },
-  ],
+  setupSql: accountLedgerSetupSql,
+  schema: accountLedgerSchema,
+  sampleRows: accountLedgerSamples,
   expectedColumns: [
     "transaction_id",
     "account_no",
