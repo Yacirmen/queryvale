@@ -1002,6 +1002,22 @@ export function WorkspaceScreen({
       ? task.coaching[evaluation.status]
       : undefined;
 
+  /**
+   * Şema rayındaki bir kolona basmak adı imlecin olduğu yere yazar. Amaç
+   * kısayol değil, doğruluk: kolon adları elle yazıldığında en sık yapılan
+   * hata yazım hatasıdır ve bu hata sorguyu çalıştırana kadar görünmez.
+   */
+  const insertColumnAtCursor = (columnName: string) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const selection = editor.getSelection();
+    if (!selection) return;
+    editor.executeEdits("queryvale-schema-rail", [
+      { range: selection, text: columnName, forceMoveMarkers: true },
+    ]);
+    editor.focus();
+  };
+
   const editorOptions = useMemo(
     () => ({
       fontSize: settings.fontSize,
@@ -1747,6 +1763,34 @@ export function WorkspaceScreen({
                 <span className="keycap">⌘/Ctrl ↵</span>
               </button>
             </div>
+            <div className="editor-schema-rail">
+              <span className="editor-schema-rail-label">
+                <Table2 size={11} aria-hidden="true" /> Kullanabileceğin
+                kolonlar
+              </span>
+              <div className="editor-schema-rail-tables">
+                {task.schema.tables.map((table) => (
+                  <span className="editor-schema-table" key={table.name}>
+                    <span className="editor-schema-table-name">
+                      {table.name}
+                    </span>
+                    {table.columns.map((column) => (
+                      <button
+                        className="editor-schema-column"
+                        type="button"
+                        key={column.name}
+                        onClick={() => insertColumnAtCursor(column.name)}
+                        title={`${column.dataType}${
+                          column.primaryKey ? " · birincil anahtar" : ""
+                        } — editöre yazmak için tıkla`}
+                      >
+                        {column.name}
+                      </button>
+                    ))}
+                  </span>
+                ))}
+              </div>
+            </div>
             <div className="editor-frame">
               <Suspense
                 fallback={
@@ -1938,13 +1982,58 @@ export function WorkspaceScreen({
                       ? `${result?.rowCount ?? evaluation.actualRowCount ?? 0} satır · beklenen çıktıyla eşleşti · ${activeDrillPresentation?.completionLabel.toLocaleLowerCase("tr-TR")}`
                       : `${result?.rowCount ?? evaluation.actualRowCount ?? 0} satır · beklenen çıktıyla eşleşti · ${awardedCaseScore}/10 puan`
                     : evaluation.actualRowCount !== undefined &&
-                        evaluation.expectedRowCount !== undefined
-                      ? `${evaluation.actualRowCount} satır döndü, ${evaluation.expectedRowCount} bekleniyordu`
+                        evaluation.expectedRowCount !== undefined &&
+                        evaluation.actualRowCount !==
+                          evaluation.expectedRowCount
+                      ? `${evaluation.title} · ${evaluation.actualRowCount} satır döndü, ${evaluation.expectedRowCount} bekleniyordu`
                       : evaluation.title
                 }
-                detail={evaluation.correct ? undefined : evaluation.message}
               />
             ) : null}
+            {activeCoaching && (
+              <aside
+                className={`coaching-card ${tone}`}
+                aria-labelledby={`${task.id}-coaching-title`}
+              >
+                <div className="coaching-card-copy">
+                  <strong id={`${task.id}-coaching-title`}>
+                    {activeCoaching.title}
+                  </strong>
+                  <ul>
+                    {activeCoaching.checks.map((check) => (
+                      <li key={check}>{check}</li>
+                    ))}
+                  </ul>
+                </div>
+                {nextHintIndex >= 0 ? (
+                  <button
+                    className="coaching-hint-action"
+                    type="button"
+                    onClick={() => {
+                      revealHint(nextHintIndex);
+                      activatePanelTab("brief", true);
+                    }}
+                  >
+                    <Lightbulb size={12} />{" "}
+                    {isDrill
+                      ? `${nextHintIndex + 1}. ücretsiz ipucunu aç`
+                      : `${nextHintIndex + 1}. ipucunu aç`}
+                  </button>
+                ) : !solutionVisible ? (
+                  <button
+                    className="coaching-hint-action"
+                    type="button"
+                    onClick={() => {
+                      toggleSolution(true);
+                      activatePanelTab("brief", true);
+                    }}
+                    aria-controls={`${task.id}-solution`}
+                  >
+                    <TerminalSquare size={12} /> Bir doğru sorguyu göster
+                  </button>
+                ) : null}
+              </aside>
+            )}
             <div
               className="results-content"
               ref={resultsContentRef}
@@ -1990,50 +2079,6 @@ export function WorkspaceScreen({
                     </p>
                   </div>
                 </div>
-              )}
-              {activeCoaching && (
-                <aside
-                  className={`coaching-card ${tone}`}
-                  aria-labelledby={`${task.id}-coaching-title`}
-                >
-                  <div className="coaching-card-copy">
-                    <strong id={`${task.id}-coaching-title`}>
-                      {activeCoaching.title}
-                    </strong>
-                    <ul>
-                      {activeCoaching.checks.map((check) => (
-                        <li key={check}>{check}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  {nextHintIndex >= 0 ? (
-                    <button
-                      className="coaching-hint-action"
-                      type="button"
-                      onClick={() => {
-                        revealHint(nextHintIndex);
-                        activatePanelTab("brief", true);
-                      }}
-                    >
-                      <Lightbulb size={12} />{" "}
-                      {isDrill
-                        ? `${nextHintIndex + 1}. ücretsiz ipucunu aç`
-                        : `${nextHintIndex + 1}. ipucunu aç`}
-                    </button>
-                  ) : !solutionVisible ? (
-                    <button
-                      className="coaching-hint-action"
-                      type="button"
-                      onClick={() => {
-                        toggleSolution(true);
-                        activatePanelTab("brief", true);
-                      }}
-                      aria-controls={`${task.id}-solution`}
-                    >
-                      <TerminalSquare size={12} /> Bir doğru sorguyu göster
-                    </button>
-                  ) : null}
-                </aside>
               )}
               {evaluation?.correct &&
                 result &&

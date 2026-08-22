@@ -87,7 +87,7 @@
   --surface-muted: #f1f0eb;
   --text: #14161f;
   --text-soft: #575a66;
-  --text-faint: #8a8c96;
+  --text-faint: #6b6d78;
   --line: #e4e2da;
   --line-strong: #cbc8bc;
   --accent: #1c2e63;
@@ -105,7 +105,7 @@
    * ayrımını renk tonundan değil, değer kontrastı ve etiketten alır.
    * Gerçek hata için --danger korunur.
    */
-  --amber: #9a7b3f;
+  --amber: #7c6333;
   --danger: #a8321f;
   --success: #16643f;
   --code-bg: #fbfaf7;
@@ -126,7 +126,7 @@
   --workbench-text: #575a66;
   --workbench-text-strong: #14161f;
   --workbench-text-muted: #575a66;
-  --workbench-text-faint: #8a8c96;
+  --workbench-text-faint: #6b6d78;
   --workbench-rail-handle: #cbc8bc;
   --shadow: 0 1px 3px rgb(0 0 0 / 8%), 0 0 0 1px rgb(0 0 0 / 6%);
   --shadow-soft: 0 1px 2px rgb(0 0 0 / 5%);
@@ -178,7 +178,7 @@
   --surface-muted: #1a1f2e;
   --text: #f0f1f5;
   --text-soft: #9ba0ae;
-  --text-faint: #6b7080;
+  --text-faint: #818696;
   --line: #232734;
   --line-strong: #343a4a;
   --accent: #8ca6e8;
@@ -207,7 +207,7 @@
   --workbench-text: #9ba0ae;
   --workbench-text-strong: #f0f1f5;
   --workbench-text-muted: #9ba0ae;
-  --workbench-text-faint: #6b7080;
+  --workbench-text-faint: #818696;
   --workbench-rail-handle: #343a4a;
   --shadow: 0 1px 3px rgb(0 0 0 / 60%), 0 0 0 1px rgb(255 255 255 / 8%);
   --shadow-soft: 0 1px 2px rgb(0 0 0 / 40%);
@@ -3967,10 +3967,14 @@ body:has(.app-shell[data-screen="workspace"]) {
   background: var(--workbench-hover);
 }
 
+/* Çalıştır bu ekranın birincil eylemi; 31 piksellik "Sıfırla" ile aynı
+   boyda durduğunda görsel hiyerarşi kullanıcıya yanlış şeyi söylüyordu. */
 .editor-toolbar .primary-button {
-  min-height: 32px;
-  padding: 0 12px;
+  min-height: 40px;
+  padding: 0 18px;
   font-size: var(--font-size-caption);
+  font-weight: 700;
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--accent) 26%, transparent);
 }
 
 .editor-frame {
@@ -4057,6 +4061,84 @@ body:has(.app-shell[data-screen="workspace"]) {
   border-color: color-mix(in srgb, var(--danger) 38%, var(--workbench-line));
   color: var(--danger);
   background: color-mix(in srgb, var(--danger) 9%, var(--workbench-surface));
+}
+
+/* Şema rayı — kolon adları sorgu yazılırken görünür kalır.
+   Bunlar daha önce yalnız sol paneldeki ikinci sekmede duruyordu; oraya
+   geçmek görevin ne olduğunu ekrandan siliyordu. Ray o takası kaldırır. */
+.editor-schema-rail {
+  min-height: 32px;
+  flex: 0 0 auto;
+  padding: 5px 15px;
+  border-bottom: 1px solid var(--workbench-line);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--workbench-surface);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.editor-schema-rail-label {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--workbench-text-faint);
+  font-family: var(--font-label);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.editor-schema-rail-tables {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.editor-schema-table {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.editor-schema-table-name {
+  color: var(--workbench-text-muted);
+  font-family: var(--font-label);
+  font-size: var(--font-size-caption);
+}
+
+.editor-schema-table-name::after {
+  content: ".";
+  color: var(--workbench-text-faint);
+}
+
+.editor-schema-column {
+  min-height: 22px;
+  padding: 2px 7px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--workbench-text);
+  background: var(--workbench-toolbar);
+  font-family: var(--font-label);
+  font-size: var(--font-size-caption);
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
+}
+
+.editor-schema-column:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--workbench-line));
+  background: color-mix(in srgb, var(--accent) 10%, var(--workbench-toolbar));
+}
+
+.editor-schema-column:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .results-content {
@@ -4654,6 +4736,7 @@ body:has(.app-shell[data-screen="workspace"]) {
 }
 
 .coaching-card {
+  flex: 0 0 auto;
   padding: 11px 15px;
   border-bottom: 1px solid var(--workbench-line);
   display: flex;
@@ -6189,6 +6272,35 @@ body:has(.app-shell[data-screen="workspace"]) {
 
   .header-utility-copy {
     display: none;
+  }
+}
+
+/* Dar ekranda etiket rayın genişliğini yiyor; kolon adları asıl işi
+   gören kısım olduğu için etiket ikonuna iniyor. */
+@media (max-width: 820px) {
+  .editor-schema-rail {
+    gap: 8px;
+    padding: 5px 12px;
+  }
+
+  /* Dokunmatik hedefler: telefonda kolon adını elle yazmak en çok yazım
+     hatası üreten adım, o yüzden çipler asıl giriş yolu haline geliyor. */
+  .editor-schema-column {
+    min-height: 40px;
+    padding: 0 12px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .editor-schema-rail-label span,
+  .editor-schema-rail-label {
+    font-size: 0;
+    gap: 0;
+  }
+
+  .editor-schema-rail-label svg {
+    width: 13px;
+    height: 13px;
   }
 }
 
@@ -16083,8 +16195,12 @@ body:has(.app-shell[data-screen="python"]) {
   outline-offset: 2px;
 }
 
+/* Önceki/sonraki düğmeleri her biri 527 piksele kadar uzuyordu: ekrandaki
+   en büyük iki hedef "ilerle" diyordu, oysa asıl eylem sorguyu çalıştırmak.
+   Üçü ortada tek bir gezinme kümesi olarak duruyor. */
 .studio-action-previous {
-  justify-self: stretch;
+  justify-self: end;
+  max-width: 260px;
 }
 
 .studio-action-previous[aria-disabled="true"] {
@@ -16106,7 +16222,8 @@ body:has(.app-shell[data-screen="python"]) {
 }
 
 .studio-action-next {
-  justify-self: stretch;
+  justify-self: start;
+  max-width: 260px;
   border-color: color-mix(
     in srgb,
     var(--studio-action-accent) 40%,
@@ -16382,11 +16499,11 @@ body:has(.app-shell[data-screen="python"]) {
   border-bottom: 1px solid var(--workbench-line);
   display: flex;
   align-items: center;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 2px 6px;
   color: var(--workbench-text-muted);
   background: var(--workbench-toolbar);
   font-size: var(--font-size-caption);
-  white-space: nowrap;
 }
 
 .studio-result-strip > span:first-child,
@@ -16408,8 +16525,7 @@ body:has(.app-shell[data-screen="python"]) {
 }
 
 .studio-result-strip-summary {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .studio-result-strip small {
